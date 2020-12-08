@@ -7,20 +7,45 @@
 	<meta property="og:type" content="website" />
 	<meta property="og:title" content="Perfect Tower Script Compiler" />
 
+	<link rel="stylesheet" href="lib/codemirror.css">
+	<script src="lib/codemirror.js"></script>
+
 	<script src="fengari-web.js" type="text/javascript"></script>
+	<script src="base64.lua" type="application/lua" async></script>
 	<script src="compiler.lua" type="application/lua" async></script>
 </head>
 <body>
-	<div style="position: absolute; top:10vh; left:10vw; width: 30vw; height: 50vh">
-		<textarea id="luacode" style="width: 100%; height: 100%"></textarea>
-		<button onclick="run_onclick()">Run</button>
+	<header style="position:absolute; left:2vw; top:6vh; height:4vh; font-size:24px">Undergoing a rewrite, please do not report bugs at this time.</header>
+	<div style="position:absolute; left:2vw; top:12vh; width:96vw; height:80vh">
+		<div style="position:absolute; left:0%; top:0%; width:49%; height:100%">
+			<textarea id="scripts" placeholder="Scripts go here"></textarea>
+			<button onclick="run_lua('template')" style="margin-top:6px">Insert Template</button>
+		</div>
+		<div style="position:absolute; left:51%; top:0%; width:49%; height:95%">
+			<textarea id="import" placeholder="Import scripts here" style="width:100%; height:45%"></textarea>
+			<button onclick="run_lua('import')" style="margin-top:2px; margin-bottom:16px">Import</button>
+			<textarea id="output" placeholder="Output appears here" readonly style="width:100%; height:45%;"></textarea>
+		</div>
 	</div>
 
 	<script>
-		function run_onclick() {
-			console.log("debug");
-			console.log(document.getElementById("luacode").value);
+		function run_lua(arg) {
+			fengari.load("lua_main'" + arg + "';")();
 		}
+
+		var editor = CodeMirror.fromTextArea(document.getElementById("scripts"), {
+			autocapitalize: false,
+			autocorrect: false,
+			dragDrop: false,
+			indentWithTabs: true,
+    		lineNumbers: true,
+			lineSeparator: "\n",
+			spellcheck: false,
+  		});
+
+		editor.on("change", function() {
+			fengari.load("lua_main'compile'")();
+		});
 	</script>
 </body>
 </html>

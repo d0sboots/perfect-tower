@@ -1,5 +1,62 @@
-require"base64";
+local UNIT_TEST;
+local print_old = print;
+local function print(...)
+	if not UNIT_TEST then
+		print_old(...);
+	end
+end
 
+do
+	local js = require"js";
+	local window = js.global;
+	local document = window.document;
+	local template = [[
+
+script Template
+	option
+		strict
+	variable
+		local int i
+	impulse
+		wakeup
+	condition
+		(true == false)
+		isfill()
+	action
+		i = 0
+	1:	dig((i % 4), (i / 4))
+		i += 1
+		goto(1)
+		i = (i - 1)
+]]
+
+	function lua_main(func)
+		window.console.clear();
+
+		local output = document:getElementById("output");
+		local arg;
+
+		if func == "compile" then
+			func = encode;
+			arg = window.editor:getValue();
+		elseif func == "import" then
+			func = decode;
+			arg = document:getElementById("import").value;
+		elseif func == "template" then
+			window.editor:setValue(window.editor:getValue() .. template);
+			return;
+		end
+
+		local status, ret = pcall(func, arg);
+
+		if status then
+			output.value = ret;
+		else
+			output.value = ret:gsub(".*GSUB_HERE", "");
+		end
+	end
+end
+--[[
 local function assert(test, message)
 	if not test then
 		error(message, 0);
@@ -7,7 +64,7 @@ local function assert(test, message)
 	
 	return test;
 end
-
+--]]
 function reload()
 	os.execute"cls";
 	dofile"perfect-tower.lua";
@@ -190,257 +247,89 @@ for line in functions_def:gsub("\r", ""):gmatch"[^\n]+" do
 end
 
 function encode(input)
-	input = input or [[
-script MINETABBER
-	variable
-		local double tab
-		local int _mine
-	impulse
-		key.1
-	condition
-	action
-		1: executesync("START_AUTO_TILERS")
-		2: click(fromCoords(((59.0 * tab) + 358.0), 290.0))
-		3: _mine = (_mine + 1)
-		4: gotoif(12, (_mine >= 15))
-		5: tab = (tab + 1.0)
-		6: gotoif(10, (tab == 6.0))
-		7: executesync("SIMPLE_MINER")
-		8: click(606.0, 32.0)
-		9: goto(2)
-		10: tab = 0.0
-		11: goto(2)
-		12: click(28.0, 223.0)
-		13: stop("AUTO_TILER")
-		
-script mine-main
-	variable
-		global int miner-a
-	impulse
-		key.1
-	action
-		miner-a = 0
-foo:	execute("mine-sub") 
-		miner-a = (miner-a + 1)
-		miner-a += 1
-		gotoif(foo (miner-a < 16))
-test:	newlayer()
-		goto(test)
- 
-script mine-sub
-	variable
-		global int miner-a
-		local int a
-	action
-		a = miner-a
-	1:	dig((a / 4), (a % 4))
-		goto(1)
+	input = input:gsub("\r", "");
+	local ret = {};
 
-script mine main
-	variable
-		global int mine-sub
-	impulse
-		key.2
-	condition
-	action
-		1: mine-sub = 0
-		2: execute("mine sub")
-		3: mine-sub = (mine-sub + 1)
-		4: gotoif(2, (mine-sub < 16))
-		5: newlayer()
-		6: wait(0.5)
-		7: goto(5)
+	local current_line = {num = 0, str = ""};
+	local script;
 
-script dig!
-	variable
-		local int a
-	impulse
-		key.1
-	condition
-	action
-		a = a + 1 + 2 * 3 ^ 4 + 3 * 2 % 5 - 9
-		
-]];
-
-	input = input:gsub("\n[ \t]+\n", "\n\n");
-	local scripts = {};
-	local write = {};
-	
-	for script in input:gmatch"(.-)\n\n+" do
-		table.insert(scripts, script);
+	local print_tbl = {};
+	local function print_real()
+		-- print (table.concat(print_tbl, "\n"));
 	end
 
-	for script_num, script_txt in ipairs (scripts) do
-		local output = {};
-		
-		local script = {
-			name = nil,
-			option = {},
-			variable = {},
-			strings = {},
-			label = {},
-			impulse = {},
-			condition = {},
-			action = {},
-		};
-		local section;
-		
-		local function parse(raw)
-			local ret = {raw = raw};
-	
-			if raw == "expr" then
-				ret.type = "expr";
-				ret.raw = "";
-			elseif raw == "true" or raw == "false" then
-				ret.type = "bool";
-			elseif operators[raw] then
-				ret.type = operators[raw];
-			elseif tonumber(raw) then
-				ret.type = math.type(tonumber(raw));
-				ret.type = ret.type == "integer" and "int" or "double";
-				ret.super = "number";
-			elseif select(2, raw:gsub("string_(%d+)", function(a) a = tonumber(a); ret.raw = script.strings[a]; end)) ~= 0 then
-				ret.type = "string";
-			elseif script.variable[raw] then
-				ret = script.variable[raw];
-				ret.raw = raw;
-			elseif functions[raw] then
-				ret.type = "function";
-				ret.func = functions[raw];
-			elseif not script.label[raw] then
-				assert(false, "failed to parse: " .. raw);
-			end
-			
-			return ret;
-		end
-		
-		script_txt = script_txt
-			:gsub("\r", "")
-			:gsub("##[^\n]*", "")
-		;
-		
-		for line_raw in script_txt:gmatch"[^\n]+" do
-			line_raw = line_raw:gsub("^%s+", ""):gsub("%s+$", "");
-			local line = line_raw;
-			
-			if #line > 0 then
-				if not script.name then
-					script.name = assert(line:match"script (.+)", "first line must define script name");
-				elseif functions[line] and functions[line].options.section then
-					section = script[line];
-					assert(not section.defined, "already defined section: " .. line);
-					
-					section.defined = true;
-					section.line = 0;
-					section.output = {};
-				elseif section == script.option then
-					line = line:lower();
-					
-					if not script_options[line] then
-						print"Script Options";
-						
-						for opt, desc in pairs (script_options) do
-							print(string.format("  %s: %s", opt, desc));
-						end
-						
-						assert(false, "\ninvalid script option: " .. line);
-					end
-					
-					section[line] = true;
-				elseif section == script.variable then
-					local scope, type, name = line:match"(%a+) (%a+) ([^%s()]+)";
-					assert(not functions[name], "variable using reserved name: " .. name);
-					
-					section[name:lower()] = {name = name:lower(), scope = scope, type = "variable", subtype = type};
-				elseif not section then
-					print"Script sections";
-					local sorted = {};
-					
-					for _, func in pairs (functions) do
-						if func.options.section then
-							table.insert(sorted, func.name);
-						end
-					end
-					
-					table.sort(sorted);
-					
-					for _, v in ipairs (sorted) do
-						print ("  " .. v);
-					end
-					
-					assert(false, "\ndefine a section first");
-				else
-					section.line = section.line + 1;
-					
-					line = line
-						:gsub("^(%w+):%s*", function(a)
-							assert(section == script.action, "labels can only be defined in the 'actions' section");
-							assert(not (script.variable[a] or functions[a]), "label using reserved name: " .. a);
-							assert(not script.label[a], "label already exists: " .. a);
-							
-							script.label[a] = section.line;
-							return "";
-						end)
-						:gsub('%b""', function(a) table.insert(script.strings, a:sub(2,-2)); return "string_" .. #script.strings; end)
-						:gsub("([%w_-]+) (..?) (.+)", function(a,b,c)
-							-- ^ % += -= *= /= ^= %=
-							if operators[b] == "op_special" and #b == 2 then
-								return string.format("%s = (%s %s %s)", a, a, b:sub(1,1), c);
-							end
-						end)
-						:gsub("[%^%%]", function(a) return a == "^" and "pow" or "mod"; end)
-						:gsub("^%(", "expr(")
-					;
-					
-					local count = 0;
-					line:gsub("[()]", function(a)
-						if a == "(" then
-							count = count + 1;
-						else
-							count = count - 1;
-						end
-					end);
-					assert(count == 0, string.format("\n%s\nmissing %s %s parenthes%ss\n", line, math.abs(count), count < 0 and "opening" or "closing", math.abs(count) > 1 and "e" or "i"));
-					
-					local repl;
-					
-					repeat
-						line, repl = line:gsub("([^%a])%(", "%1expr(");
-					until repl == 0;
+	local function print(...)
+		local out = {...};
 
-					local stack = {line = line_raw, debug = line};
-					
-					line:gsub("([^%s(),]+)", function(raw)
-						table.insert(stack, parse(raw));
-					end);
-					
-					if #stack > 0 then
-						table.insert(section, stack);
-					end
-				end
-			end
+		for k, v in ipairs (out) do
+			out[k] = tostring(v);
+		end
+
+		table.insert(print_tbl, table.concat(out, "\t"));
+	end
+	
+	local function debug(...)
+		print (...);
+	end
+
+	local assert_old = assert;
+	local function assert(test, msg)
+		print_real();
+		return assert_old(test, string.format("GSUB_HERE%s: %s\n\n%s", current_line.num, current_line.str, msg));
+	end
+
+	local function parse(raw)
+		local ret = {raw = raw};
+	
+		if raw == "expr" then
+			ret.type = "expr";
+			ret.raw = "";
+		elseif raw == "true" or raw == "false" then
+			ret.type = "bool";
+		elseif operators[raw] then
+			ret.type = operators[raw];
+		elseif tonumber(raw) then
+			ret.type = math.type(tonumber(raw));
+			ret.type = ret.type == "integer" and "int" or "double";
+			ret.super = "number";
+		elseif select(2, raw:gsub("string_(%d+)", function(a) a = tonumber(a); ret.raw = script.strings[a]; end)) ~= 0 then
+			ret.type = "string";
+		elseif script.variable[raw] then
+			ret = script.variable[raw];
+			ret.raw = raw;
+		elseif functions[raw] then
+			ret.type = "function";
+			ret.func = functions[raw];
+		elseif not script.label[raw] then
+			assert(false, "failed to parse: " .. raw);
 		end
 		
+		return ret;
+	end
+
+	local function compile_script()
+		if not script then
+			return;
+		end
+
 		for _, stage in ipairs {"preprocess", "process", "compile"} do
-			-- print ("STAGE " .. stage);
+			debug("STAGE " .. stage);
 			
 			for section_n, section in ipairs {script.impulse, script.condition, script.action} do
 				if #section == 0 then
 					goto next_section;
 				end
 				
-				-- print (section.name);
+				debug(section.name);
 				
 				for line_n, line in ipairs (section) do
+					current_line = line.line;
+					
 					if #line == 0 then
 						goto next_line;
 					end
 					
-					-- print (line_n, line.line);
-					
-					local function err(text)
-						return string.format("\n%s\n%s\n", line.line, text);
-					end
+					debug(line_n, line.line.num, line.line.str);
 						
 					if stage == "preprocess" then
 						for k, item in ipairs (line) do
@@ -480,12 +369,15 @@ script dig!
 										parent = tree,
 										item = item,
 										key = k,
+										arg = 0,
 										nodes = {},
 										expected = tree and tree.expects[#tree.nodes + 1],
 									};
+									print (string.format("%s %s", string.rep("  ", node.depth), node.item.raw));
 									
 									if tree then
 										table.insert(tree.nodes, node);
+										node.arg = #tree.nodes;
 									end
 									
 									if item.type == "function" then
@@ -509,7 +401,7 @@ script dig!
 									end
 								end
 								
-								assert(nodes == expected, err(string.format("expected %s tokens, got %s", expected, nodes)));
+								assert(nodes == expected, string.format("wrong number of return values (%s expected, got %s)", expected, nodes));
 								
 								node = tree;
 							end
@@ -528,7 +420,7 @@ script dig!
 						iter(function(node)
 							if node.expected == "label" then
 								local label = tostring(node.item.raw);
-								line[node.key] = parse(assert(script.label[label], err("unknown label: " .. label)));
+								line[node.key] = parse(assert(script.label[label], "unknown label: " .. label));
 								-- returning from here would cause an infinite loop
 							end
 						end);
@@ -583,7 +475,7 @@ script dig!
 							assert(node.depth == 0
 								or node.expected == "label"
 								or node.expected == node.returns,
-								err(string.format("%s expected, got %s", node.expected, node.returns))
+								string.format("wrong argument #%s to %s (%s expected, got %s)", node.arg, (node.parent or node).item.raw, node.expected, node.returns)
 							);
 						end);
 					elseif stage == "compile" then
@@ -593,11 +485,11 @@ script dig!
 						
 						for k, item in ipairs (line) do
 							if item.func then
-								assert((item.func.options.impulse == true) == (section == script.impulse), err(string.format("function %s used in wrong section", item.func.name)));
+								assert((item.func.options.impulse == true) == (section == script.impulse), string.format("%s used in wrong section", item.func.name));
 								
 								if k == 1 then
-									assert((item.func.ret == "bool") == (section == script.condition), err"conditions must return a boolean");
-									assert((item.func.ret == "void") ~= (section == script.condition), err"actions cannot have a return value");
+									assert((item.func.ret == "bool") == (section == script.condition), "conditions must return a boolean");
+									assert((item.func.ret == "void") ~= (section == script.condition), "actions cannot have a return value");
 								end
 							end
 						
@@ -623,7 +515,7 @@ script dig!
 									ins("f", item.x);
 									ins("f", item.y);
 								else
-									assert(false, err("unknown compile type: " .. item.type));
+									assert(false, "unknown compile type: " .. item.type);
 								end
 							end
 						end
@@ -634,39 +526,157 @@ script dig!
 				
 				::next_section::
 			end
-			
-			-- print();
 		end
 		
-		section = output;
-		
-		table.insert(output, string.pack("s1", script.name));
+		local output = {string.pack("s1", script.name)};
 		
 		for _, tbl in ipairs {script.impulse, script.condition, script.action} do
-			table.insert(output, string.pack("i4", tbl.line or 0));
+			table.insert(output, string.pack("i4", tbl.lines or 0));
 			
 			for _, data in ipairs (tbl.output or {}) do
 				table.insert(output, data);
 			end
 		end
 
-		table.insert(write, script.name);
-		table.insert(write, string.format("%s %s %s", #script.impulse, #script.condition, #script.action));
-		table.insert(write, base64.encode(table.concat(output)));
-		table.insert(write, "");
+		table.insert(ret, string.format("%s\n%s\n%s",
+			script.name,
+			string.format("%s %s %s", #script.impulse, #script.condition, #script.action),
+			base64.encode(table.concat(output))
+		));
+	end
+	
+	for line in input:gmatch"[^\n]*" do
+		line = line:gsub("^%s+", ""):gsub("%s+$", ""):gsub("##.*", "");
+		current_line = {num = current_line.num + 1, str = line};
+
+		local name = line:match"^script (.+)";
+
+		if #line == 0 then
+			-- next line
+		elseif name then
+			compile_script();
+			
+			script = {
+				name = name,
+				option = {},
+				variable = {},
+				strings = {},
+				label = {},
+				impulse = {},
+				condition = {},
+				action = {},
+			};
+		elseif assert(script, "first line must be 'script name'") then
+			local output = {};
+			
+			if functions[line] and functions[line].options.section then
+				script.section = script[line];
+				assert(not script.section.defined, "already defined section: " .. line);
+				
+				script.section.defined = true;
+				script.section.name = line;
+				script.section.lines = 0;
+				script.section.output = {};
+			elseif script.section == script.option then
+				line = line:lower();
+				
+				if not script_options[line] then
+					local msg = {"invalid script option: " .. line, ""};
+					
+					for opt, desc in pairs (script_options) do
+						table.insert(msg, string.format("%s: %s", opt, desc));
+					end
+					
+					assert(false, table.concat(msg, "\n"));
+				end
+				
+				script.section[line] = true;
+			elseif script.section == script.variable then
+				local scope, type, name = line:match"(%a+) (%a+) ([^%s()]+)";
+				assert(scope, "variable definition expects: scope type name");
+
+				name = name:lower();
+				assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
+				assert(type == "int" or type == "double", "variable types are 'int' and 'double'");
+				assert(not functions[name], "variable using reserved name: " .. name);
+				
+				script.section[name] = {name = name, scope = scope, type = "variable", subtype = type};
+			elseif not script.section then
+				local msg = {"define a section first", ""};
+				local sorted = {};
+				
+				for _, func in pairs (functions) do
+					if func.options.section then
+						table.insert(sorted, func.name);
+					end
+				end
+				
+				table.sort(sorted);
+				
+				for _, v in ipairs (sorted) do
+					table.insert(msg, v);
+				end
+				
+				assert(false, table.concat(msg, "\n"));
+			else
+				script.section.lines = script.section.lines + 1;
+				
+				line = line
+					:gsub("^(%w+):%s*", function(a)
+						assert(script.section == script.action, "labels can only be defined in the 'actions' section");
+						assert(not (script.variable[a] or functions[a]), "label using reserved name: " .. a);
+						assert(not script.label[a], "label already exists: " .. a);
+						
+						script.label[a] = script.section.lines;
+						return "";
+					end)
+					:gsub('%b""', function(a) table.insert(script.strings, a:sub(2,-2)); return "string_" .. #script.strings; end)
+					:gsub("([%w_-]+) (..?) (.+)", function(a,b,c)
+						-- ^ % += -= *= /= ^= %=
+						if operators[b] == "op_special" and #b == 2 then
+							return string.format("%s = (%s %s %s)", a, a, b:sub(1,1), c);
+						end
+					end)
+					:gsub("[%^%%]", function(a) return a == "^" and "pow" or "mod"; end)
+					:gsub("^%(", "expr(")
+				;
+				
+				local count = 0;
+				line:gsub("[()]", function(a)
+					if a == "(" then
+						count = count + 1;
+					else
+						count = count - 1;
+					end
+				end);
+				assert(count == 0, string.format("missing %s %s parenthes%ss", math.abs(count), count < 0 and "opening" or "closing", math.abs(count) > 1 and "e" or "i"));
+				
+				local repl;
+				
+				repeat
+					line, repl = line:gsub("([^%a])%(", "%1expr(");
+				until repl == 0;
+
+				local stack = {line = current_line, debug = line};
+				
+				line:gsub("([^%s(),]+)", function(raw)
+					table.insert(stack, parse(raw));
+				end);
+				
+				if #stack > 0 then
+					table.insert(script.section, stack);
+				end
+			end
+		end
 	end
 
-	-- local f = assert(io.open("perfect-tower.txt", "w+b"));
-	-- f:setvbuf"no";
-	-- f:write(table.concat(write, "\n"));
-	-- f:close();
+	compile_script();
+	print_real();
+	return table.concat(ret, "\n\n");
 end
 
-function decode()
-	local write = {};
-	-- local scripts = [[
--- BHRlc3QCAAAACW9wZW4ubWluZQxvcGVuLmZhY3RvcnkAAAAAAAAAAA==
--- ]];
+function decode(scripts)
+	local ret = {};
 	
 	for code in scripts:gsub("\r", ""):gmatch"[^\n]+" do
 		local txt = base64.decode(code);
@@ -674,7 +684,7 @@ function decode()
 		local variables = {};
 		
 		local function ins(frmt, ...)
-			table.insert(write, select("#", ...) == 0 and tostring(frmt) or frmt:format(...));
+			table.insert(ret, select("#", ...) == 0 and tostring(frmt) or frmt:format(...));
 		end
 		
 		local function read(frmt, text)
@@ -731,7 +741,7 @@ function decode()
 		ins(txt);
 		read("s1", "script %s");
 		
-		local write_vars = #write + 1;
+		local ret_vars = #ret + 1;
 
 		for i = 1, read("i4", "\timpulse") do
 			ins("\t\t%s", parse());
@@ -746,15 +756,74 @@ function decode()
 		end
 		
 		for name, var in pairs (variables) do
-			table.insert(write, write_vars, string.format("\t\t%s %s %s", var.scope, var.type, name));
+			table.insert(ret, ret_vars, string.format("\t\t%s %s %s", var.scope, var.type, name));
 		end
-		table.insert(write, write_vars, "\tvariable");
+		table.insert(ret, ret_vars, "\tvariable");
 		
 		ins"";
 	end
 	
-	f = assert(io.open("perfect-tower.txt", "w+b"));
-	f:setvbuf"no";
-	f:write(table.concat(write, "\n"));
-	f:close();
+	return table.concat(ret, "\n");
 end
+
+UNIT_TEST = true;
+decode'BHRlc3QAAAAAAQAAAA5jb21wYXJpc29uLmludBBtdXNldW0uZnJlZVNsb3RzCGNvbnN0YW50BAlpbnZlbnRvcnkIY29uc3RhbnQEAj09EW11c2V1bS5zdG9uZS50aWVyCGNvbnN0YW50BAlpbnZlbnRvcnkIY29uc3RhbnQCAAAAAAAAAAA=';
+encode[[
+script MINETABBER
+	variable
+		local double tab
+		local int _mine
+	impulse
+		key.1
+	condition
+	action
+		1: executesync("START_AUTO_TILERS")
+		2: click(fromCoords(((59.0 * tab) + 358.0), 290.0))
+		3: _mine = (_mine + 1)
+		4: gotoif(12, (_mine >= 15))
+		5: tab = (tab + 1.0)
+		6: gotoif(10, (tab == 6.0))
+		7: executesync("SIMPLE_MINER")
+		8: click(606.0, 32.0)
+		9: goto(2)
+		10: tab = 0.0
+		11: goto(2)
+		12: click(28.0, 223.0)
+		13: stop("AUTO_TILER")	
+script mine-main
+	variable
+		global int miner-a
+	impulse
+		key.1
+	action
+		miner-a = 0
+foo:	execute("mine-sub") 
+		miner-a = (miner-a + 1)
+		miner-a += 1
+		gotoif(foo (miner-a < 16))
+test:	newlayer()
+		goto(test)
+script mine-sub
+	variable
+		global int miner-a
+		local int a
+	action
+		a = miner-a
+	1:	dig((a / 4), (a % 4))
+		goto(1)
+script mine main
+	variable
+		global int mine-sub
+	impulse
+		key.2
+	condition
+	action
+		1: mine-sub = 0
+		2: execute("mine sub")
+		3: mine-sub = (mine-sub + 1)
+		4: gotoif(2, (mine-sub < 16))
+		5: newlayer()
+		6: wait(0.5)
+		7: goto(5)
+]];
+UNIT_TEST = false;
