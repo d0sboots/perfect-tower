@@ -1,0 +1,102 @@
+.infotext{
+	position: absolute;
+	font-size: large;
+	font-weight: bolder;
+	top: 6px;
+	margin-left: 8px;
+	white-space: pre-line;
+}
+
+.warning{
+	color: red;
+	top: 24px;
+}
+
+.basicBtn{
+	background-color: royalblue;
+	color: white;
+	width: 90px;
+	margin: 10px 4px 0px;
+	padding: 6px 12px;
+
+	border-width: 1px;
+	border-radius: 4px;
+	border-style: solid;
+	border-color: royalblue;
+}
+
+.basicBtnRed{
+	background-color: red;
+	border-color: red;
+}
+
+.functionList{
+	display: inline;
+}
+
+.nowrap{
+	white-space: nowrap;
+}
+
+.div-container{
+	width: 98vw;
+	height: 80vh;
+}
+
+.div-container-item{
+	border: 1px solid black;
+	width: 48%;
+	height: 100%;
+	margin: 10px 4px 0px;
+	float: left;
+}
+
+.textarea{
+	font-family: monospace;
+	padding-left: 4px;
+	resize: none;
+	outline: none;
+}
+
+.functions{
+	width: 200px;
+	height: 48%;
+	padding-left: 4px;
+	border: 1px solid black;
+	resize: none;
+	outline: none;
+	overflow: auto;
+}
+
+.CodeMirror{
+	height: 100%;
+	border: none;
+}
+
+.nav-tabs{
+	display: block;
+	float: left;
+	border-right: 1px solid black;
+	width: 200px;
+	height: 100%;
+	overflow-y: scroll;
+}
+
+.nav-item{
+	background-color: inherit;
+	color: black;
+	text-align: left;
+	cursor: pointer;
+	transition: 0.3s;
+	border-bottom: 1px solid grey;
+}
+
+.nav-tabs .nav-link{
+	border: none;
+	margin: none;
+}
+
+.nav-tabs .nav-link.active{
+	background-color:royalblue;
+	color: white;
+}
