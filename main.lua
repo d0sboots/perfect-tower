@@ -82,6 +82,7 @@ function compile(name, input)
 	local labels, variables, impulses, conditions, actions = {}, {}, {}, {}, {};
 	local ret = {};
 	line_number = 0;
+	labels["99"] = 99;
 
 	for line in input:gmatch"[^\n]*" do
 		line_number = line_number + 1;
