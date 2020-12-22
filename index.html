@@ -142,7 +142,7 @@
 
 		function scriptImport() {
 			var input = prompt("Input");
-			if (input && input.length == 0) return;
+			if (!input || input.length == 0) return;
 
 			var output = runLua("import", input);
 			if (typeof(output) == "undefined") return;
