@@ -232,7 +232,7 @@ function import(input)
 						:gsub("&+", "&")
 						:gsub("|+", "|")
 						:gsub("=+", "==")
-						:gsub("mod", "%")
+						:gsub("mod", "%%")
 						:gsub("pow", "^")
 						:gsub("log", "//")
 					;
