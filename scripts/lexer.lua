@@ -35,15 +35,15 @@ local function nextToken(str, pos, prev)
 	pos = pos or 1;
 	local ret = {};
 	
-	for type, token in pairs (TOKEN) do
+	for _, token in ipairs (TOKEN) do
 		if token.pattern then
 			local match = str:sub(pos):match(token.pattern);
 
 			if match then
 				ret.pos = pos;
 				ret.len = #match;
-				ret.type = type;
-				ret.value = type ~= "number" and match or assert(tonumber(match), tokenError(pos, "invalid number: " .. match));
+				ret.type = token.name;
+				ret.value = ret.type ~= "number" and match or assert(tonumber(match), tokenError(pos, "invalid number: " .. match));
 				ret.op = OPERATOR[match];
 
 				if ret.type == "identifier" and (ret.value == "true" or ret.value == "false") then
@@ -53,8 +53,8 @@ local function nextToken(str, pos, prev)
 					ret.value = ret.value:sub(2,-2);
 				end
 
-				assert(type ~= "operator" or ret.op, tokenError(pos, "invalid operator: " .. match));
-				assert(#token == 0 or prev and token[prev.type], tokenError(pos, "unexpected symbol: " .. (type == "eof" and "<eof>" or match)));
+				assert(ret.type ~= "operator" or ret.op, tokenError(pos, "invalid operator: " .. match));
+				assert(#token == 0 or prev and token[prev.type], tokenError(pos, "unexpected symbol: " .. (ret.type == "eof" and "<eof>" or match)));
 
 				return ret;
 			end
@@ -148,7 +148,7 @@ local function consumeTokensWorker(node)
 							or string.format("return %s %s %s", left.value, op.value, right.value)
 						));
 						
-						if status and ret >= 0 then
+						if status then
 							const = true;
 							left.type = "number";
 							left.value = ret;

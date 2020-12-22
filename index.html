@@ -240,6 +240,8 @@
 			loadingText.style.visibility = "hidden";
 			loadingDiv.style.visibility = "visible";
 
+			runLua("unittest");
+
 			setInterval(function() {
 				if (--saveCooldown == 0) scriptSave();
 			}, 100);
@@ -276,6 +278,7 @@ local.int.set("i", (i - 1) * 2)`;
 ; A line starting with a combination of letters, digits and dots, followed
 ;   by a colon, is declaring a label. Labels are used as the first argument
 ;   to 'goto' and 'gotoif', to make those functions easier to use
+;   Label 99 is a special case, it'll always go to line 99 which ends the script
 ; Operators, and their precedence:
 ;   =               assign. Can be prefixed with other operators.
 ;                      Must be the second thing on a line, after a variable!
