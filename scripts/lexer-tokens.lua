@@ -5,7 +5,7 @@ TOKEN = {
 	{name = "sof", pattern = "\1"},
 	{name = "eof", pattern = "\2", "sof", "close", "identifier", "number", "string", "bool"},
 	{name = "open", pattern = "%(", "sof", "open", "next", "identifier", "operator"},
-	{name = "close", pattern = "%)", "open", "close", "identifier", "number", "string", "bool"},
+	{name = "close", pattern = "%)", "open", "close", "identifier", "number", "string", "bool", "label"},
 	{name = "next", pattern = ",", "close", "identifier", "number", "string", "bool", "label"},
 	
 	{name = "identifier", pattern = "[%a_][%w%._]*", "sof", "open", "next", "operator"},
