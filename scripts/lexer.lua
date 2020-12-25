@@ -176,15 +176,21 @@ end
 
 local function consumeTokens(node)
 	consumeTokensWorker(node);
-	local last = node.args[#node.args];
+	local arg = #node.args;
+	local last = node.args[arg];
 
 	if last and node.func then
 		local type = resolveType(last);
-		local arg = node.func.args[#node.args];
-		assert(arg, tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, #node.args)));
+		local expected = node.func.args[arg];
+		assert(expected, tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, arg)));
 
 		if not dynamicFunc[node.func.name] then
-			assert(type == arg, tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", #node.args, node.func.short, arg, type)));
+			assert(type == expected.type, tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
+
+			if expected.valid and (last.type == "number" or last.type == "string") then
+				local status, err = expected.valid(last.value);
+				assert(status, tokenError(node, last, string.format("bad argument #%s to %s\n\n%s", arg, node.func.short, err)));
+			end
 		end
 	end
 end
@@ -219,7 +225,7 @@ function lexer(line, vars)
 				end
 				
 				if node.func then
-					assert(#node.args == #node.func.args, tokenError(node, node.args[#node.func.args + 1], string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, #node.args)));
+					assert(#node.args == #node.func.args, tokenError(node, token, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, #node.args)));
 
 					if dynamicFunc[node.func.name] then
 						local arg = resolveType(node.args[1]);
@@ -252,8 +258,9 @@ function lexer(line, vars)
 				consumeTokens(node);
 			elseif not token.type:match"^.of$" then
 				table.insert(node.tokens, token);
-				
-				if node.func and node.func.args[#node.args + 1] == "label" then
+				local arg = node.func and node.func.args[#node.args + 1];
+
+				if arg and arg.type == "label" then
 					if token.type == "identifier" or token.type == "number" then
 						token.type = "label";
 						token.value = tostring(token.value);
