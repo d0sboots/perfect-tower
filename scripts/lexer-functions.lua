@@ -115,6 +115,9 @@ void generic.goto(label) Generic
 void generic.gotoif(label, bool) Generic
 void generic.click(vector) Generic
 
+int screen.width() Generic
+int screen.height() Generic
+
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
 
