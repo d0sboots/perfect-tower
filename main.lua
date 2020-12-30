@@ -113,15 +113,17 @@ function compile(name, input, testing)
 			if #line > 0 then
 				local node = cache(line, variables);
 
-				if node.func.ret == "impulse" then
-					table.insert(impulses, node);
-				elseif node.func.ret == "bool" then
-					table.insert(conditions, node);
-				elseif node.func.ret == "void" then
-					table.insert(actions, node);
+				if node and node.func then
+					if node.func.ret == "impulse" then
+						table.insert(impulses, node);
+					elseif node.func.ret == "bool" then
+						table.insert(conditions, node);
+					elseif node.func.ret == "void" then
+						table.insert(actions, node);
 
-					if label then
-						labels[label] = #actions;
+						if label then
+							labels[label] = #actions;
+						end
 					end
 				end
 			end

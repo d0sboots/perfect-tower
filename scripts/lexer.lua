@@ -277,10 +277,13 @@ function lexer(line, vars)
 	assert(not node.parent, "unmatched parenthesis");
 
 	node = node.args[1];
-	local ret = node.func and node.func.ret;
-	assert(ret == "impulse" or ret == "bool" or ret == "void", "lines must return impulse, bool or nothing");
 
-	return node, debug;
+	if node then
+		local ret = node.func and node.func.ret;
+		assert(ret == "impulse" or ret == "bool" or ret == "void", "lines must return impulse, bool or nothing");
+
+		return node, debug;
+	end
 end
 
 if DEBUG then

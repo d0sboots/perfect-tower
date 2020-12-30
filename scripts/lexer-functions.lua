@@ -91,9 +91,9 @@ double const.pi() Misc
 void rnd(void, void) {Misc number rnd (min, max)}
 void min(void, void) {Misc number min (a, b)}
 void max(void, void) {Misc number max (a, b)}
-void floor(void, void) {Misc number floor (a)}
-void ceil(void, void) {Misc number ceil (a)}
-void round(void, void) {Misc number round (a)}
+void floor(void) {Misc number floor (a)}
+void ceil(void) {Misc number ceil (a)}
+void round(void) {Misc number round (a)}
 
 int d2i(double) Conversion
 double i2d(int) Conversion
