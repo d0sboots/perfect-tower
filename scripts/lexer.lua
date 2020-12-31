@@ -1,6 +1,6 @@
 local current_line, variables;
 
-local dynamicFunc = {min = true, max = true, rnd =  true, floor = true, ceil = true, round = true};
+local dynamicFunc = {min = true, max = true, rnd =  true};
 
 local function tokenError(...)
 	local str, repl = current_line:gsub("^\1(.+)\2$", "%1");

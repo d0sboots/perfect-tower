@@ -84,16 +84,13 @@ double const.pi() Misc
 <type> <type>.min(<type>, <type>)
 <type> <type>.max(<type>, <type>)
 <type> <type>.rnd(<type>, <type>)
-<type> <type>.floor(<type>)
-<type> <type>.ceil(<type>)
-<type> <type>.round(<type>)
 
-void rnd(void, void) {Misc number rnd (min, max)}
 void min(void, void) {Misc number min (a, b)}
 void max(void, void) {Misc number max (a, b)}
-void floor(void) {Misc number floor (a)}
-void ceil(void) {Misc number ceil (a)}
-void round(void) {Misc number round (a)}
+void rnd(void, void) {Misc number rnd (min, max)}
+double double.floor(double) Misc
+double double.ceil(double) Misc
+double double.round(double) Misc
 
 int d2i(double) Conversion
 double i2d(int) Conversion
