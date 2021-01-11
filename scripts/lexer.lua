@@ -141,26 +141,49 @@ local function consumeTokensWorker(node)
 				else
 					local const = false;
 					
-					if type == "op_mod" and left.type == "number" and right.type == "number" then
+					if type == "op_mod" and (left.type == "number" or left.type == "string") and (right.type == "number" or right.type == "string") then
 						local status, ret = pcall(load(
-							op.value == "//"
+							op.value == "."
+							and string.format('return "%s" .. "%s"', left.value, right.value)
+							or op.value == "//"
 							and string.format("return math.log(%s, %s)", left.value, right.value)
 							or string.format("return %s %s %s", left.value, op.value, right.value)
 						));
 						
 						if status then
 							const = true;
-							left.type = "number";
-							left.value = ret;
+							left.value = resolveType(left) == "int" and math.floor(ret) or ret;
+							left.type = op.value == "." and "string" or "number";
 							table.insert(node.tokens, j, left);
 						end
 					end
 					
 					if not const then
-						typecheck(left, op, right);
-						local new = newNode(left.pos, node, (type == "op_mod" and "arithmetic." or "comparison.") .. resolveType(left));
-						new.args = {left, op, right};
-						table.insert(node.tokens, j, new);
+						if op.value == "." then
+							local typeLeft, typeRight = resolveType(left), resolveType(right);
+
+							if typeLeft == "int" or typeLeft == "double" then
+								local new = newNode(left.pos, node, typeLeft == "int" and "i2s" or "d2s");
+								new.args = {left};
+								left = new;
+							end
+
+							if typeRight == "int" or typeRight == "double" then
+								local new = newNode(right.pos, node, typeRight == "int" and "i2s" or "d2s");
+								new.args = {right};
+								right = new;
+							end
+
+							typecheck(left, op, right);
+							local new = newNode(left.pos, node, "concat");
+							new.args = {left, right};
+							table.insert(node.tokens, j, new);
+						else
+							typecheck(left, op, right);
+							local new = newNode(left.pos, node, (type == "op_mod" and "arithmetic." or "comparison.") .. resolveType(left));
+							new.args = {left, op, right};
+							table.insert(node.tokens, j, new);
+						end
 					end
 				end
 			else

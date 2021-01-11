@@ -267,6 +267,8 @@ function import(input)
 				end
 			elseif func.name:match"^arithmetic" or func.name:match"^comparison" then
 				return string.format("(%s)", table.concat(args, " "));
+			elseif func.name == "concat" then
+				return string.format("(%s . %s)", table.unpack(args));
 			end
 
 			for k, v in ipairs (args) do

@@ -13,7 +13,7 @@ TOKEN = {
 	{name = "string", pattern = '%b""', "sof", "open", "next", "operator"},
 	{name = "bool", "sof", "open", "next", "operator"},
 	{name = "label", "open"},
-	{name = "operator", pattern = "[%+%-%*%%/^!=<>&|]+", "close", "identifier", "number", "string", "bool"},
+	{name = "operator", pattern = "[%.%+%-%*%%/^!=<>&|]+", "close", "identifier", "number", "string", "bool"},
 };
 
 for _, v in ipairs (TOKEN) do

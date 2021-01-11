@@ -14,6 +14,8 @@ local operators = [[
 + add
 - subtract
 
+. concatenate
+
 == compare
 != compare
 < compare

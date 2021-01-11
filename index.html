@@ -30,7 +30,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.4 ─ Game: v0.6.4 B1</span>
+			<span class="infotext">Editor: 1.5 ─ Game: v0.6.6 B2</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -285,6 +285,7 @@ local.int.set("i", (i - 1) * 2)`;
 ;   ^ //            exponent, logarithm
 ;   * / %           multiply, divide, modulo
 ;   + -             add, subtract
+;   .               string concatenation. Automatically converts int/double to string
 ;   == != < <= > >= comparators
 ;   &               and
 ;   |               or
