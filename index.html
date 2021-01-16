@@ -127,15 +127,96 @@
 			noSave = false;
 		}
 
+		var lastDraggedOver;
+
+		function startDragScript(event)
+		{
+			event.dataTransfer.setData("id", event.target.id);
+		}
+
+		function dragScriptLeave(event)
+		{
+			if (event.target.id == "scripts-tab" && lastDraggedOver)
+			{
+				lastDraggedOver.style.paddingTop = null;
+				lastDraggedOver = null;
+			}
+		}
+
+		function dragScriptOver(event)
+		{
+			event.preventDefault();
+			if (event.target.classList.contains("nav-link"))
+			{
+				if (lastDraggedOver != event.target)
+				{
+					if (lastDraggedOver)
+						lastDraggedOver.style.paddingTop = null;
+					const element = document.getElementById(event.dataTransfer.getData("id")).firstChild;
+					if (element != event.target)
+					{
+						lastDraggedOver = event.target;
+						event.target.style.paddingTop = element.clientHeight + "px";
+					}
+					else
+						lastDraggedElement = null;
+				}
+			}
+		}
+
+		const tabs = document.getElementById("scripts-tab");
+		tabs.addEventListener("dragleave", dragScriptLeave);
+
+		function dropScript(event)
+		{
+			event.preventDefault();
+			if (lastDraggedOver)
+				lastDraggedOver.style.paddingTop = null;
+			lastDraggedOver = null;
+
+			let data = event.dataTransfer.getData("id");
+			let element = document.getElementById(data);
+
+			id1 = data;
+			id2 = event.target.parentNode.id;
+
+			let scriptSwap = scripts[id1];
+			scripts.splice(id1, 1);
+			scripts.splice(id2 - (id1 < id2 ? 1 : 0), 0, scriptSwap);
+
+			let sibling = event.target.parentNode;
+			if (id1 < id2)
+				sibling = sibling.previousElementSibling;
+			while (sibling && sibling != element)
+			{
+				if (id1 > id2)
+					sibling.id++;
+				else
+					sibling.id--;
+				sibling = id1 > id2 ? sibling.nextElementSibling : sibling.previousElementSibling;
+			}
+
+			element.id = id2 - (id1 < id2 ? 1 : 0);
+
+			tabs.removeChild(element);
+			tabs.insertBefore(element, event.target.parentNode);
+			scriptSave();
+		}
+
 		function scriptNew(name) {
 			if (typeof(name) !== "string") name = "New " + ++scriptCounter;
 
-			const tabs = document.getElementById("scripts-tab");
 			const temp = document.getElementById("template-nav-item");
 			var clon = temp.content.cloneNode(true);
 
 			clon.children[0].id = scripts.length;
 			clon.children[0].children[0].textContent = name;
+			clon.children[0].draggable = true;
+
+			clon.children[0].addEventListener("dragstart", startDragScript);
+			clon.children[0].addEventListener("dragover", dragScriptOver);
+			clon.children[0].addEventListener("drop", dropScript);
+
 			scripts.push([name, scriptTemplate, emptyHistory]);
 			tabs.appendChild(clon);
 		}

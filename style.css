@@ -91,6 +91,10 @@
 	border-bottom: 1px solid grey;
 }
 
+.nav-link{
+	transition: padding 0.1s;
+}
+
 .nav-tabs .nav-link{
 	border: none;
 	margin: none;
