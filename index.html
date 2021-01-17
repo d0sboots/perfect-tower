@@ -127,66 +127,74 @@
 			noSave = false;
 		}
 
-		var lastDraggedOver;
+		var draggedOver = [];
+		var elementHeight;
+		var id;
 
 		function startDragScript(event)
 		{
+			elementHeight = event.target.clientHeight;
+			id = event.target.id; // Using this id only for UI animations, because it's probably not as safe as using dataTransfer for dropping
+			event.target.firstChild.classList.add("dragged");
 			event.dataTransfer.setData("id", event.target.id);
+		}
+
+		function endDragScript(event)
+		{
+			event.target.firstChild.classList.remove("dragged");
+			draggedOver.forEach((element) => {element.style.paddingTop = null; element.style.paddingBottom = null});
+			draggedOver = [];
 		}
 
 		function dragScriptLeave(event)
 		{
-			if (event.target.id == "scripts-tab" && lastDraggedOver)
+			if (event.target.nodeType == 1
+				&& event.target.classList.contains("nav-link")
+				&& draggedOver.includes(event.target))
 			{
-				lastDraggedOver.style.paddingTop = null;
-				lastDraggedOver = null;
+				event.target.style.paddingBottom = null;
+				event.target.style.paddingTop = null;
+				draggedOver.splice(draggedOver.indexOf(event.target), 1);
 			}
 		}
 
 		function dragScriptOver(event)
 		{
-			event.preventDefault();
-			if (event.target.classList.contains("nav-link"))
+			if (event.target.nodeType == 1
+				&& event.target.classList.contains("nav-link")
+				&& !event.target.classList.contains("dragged"))
 			{
-				if (lastDraggedOver != event.target)
+				if (!draggedOver.includes(event.target))
 				{
-					if (lastDraggedOver)
-						lastDraggedOver.style.paddingTop = null;
-					const element = document.getElementById(event.dataTransfer.getData("id")).firstChild;
-					if (element != event.target)
-					{
-						lastDraggedOver = event.target;
-						event.target.style.paddingTop = element.clientHeight + "px";
-					}
+					let targetId = event.target.parentNode.id;
+					if (id < targetId)
+						event.target.style.paddingBottom = elementHeight + "px";
 					else
-						lastDraggedElement = null;
+						event.target.style.paddingTop = elementHeight + "px";
+					draggedOver.push(event.target);
 				}
+				event.preventDefault();
 			}
 		}
 
-		const tabs = document.getElementById("scripts-tab");
-		tabs.addEventListener("dragleave", dragScriptLeave);
-
 		function dropScript(event)
 		{
+			const tabs = document.getElementById("scripts-tab");
+
+			if (event.target.nodeType != 1 || event.target.classList.contains("dragged") || !tabs.contains(event.target.parentNode)) // Shouldn't happen
+			{
+				console.error("A bug happend in the drag-and-drop script");
+				return ;
+			}
 			event.preventDefault();
-			if (lastDraggedOver)
-				lastDraggedOver.style.paddingTop = null;
-			lastDraggedOver = null;
 
 			let data = event.dataTransfer.getData("id");
 			let element = document.getElementById(data);
 
-			id1 = data;
-			id2 = event.target.parentNode.id;
-
-			let scriptSwap = scripts[id1];
-			scripts.splice(id1, 1);
-			scripts.splice(id2 - (id1 < id2 ? 1 : 0), 0, scriptSwap);
+			let id1 = parseInt(data);
+			let id2 = parseInt(event.target.parentNode.id);
 
 			let sibling = event.target.parentNode;
-			if (id1 < id2)
-				sibling = sibling.previousElementSibling;
 			while (sibling && sibling != element)
 			{
 				if (id1 > id2)
@@ -196,16 +204,24 @@
 				sibling = id1 > id2 ? sibling.nextElementSibling : sibling.previousElementSibling;
 			}
 
-			element.id = id2 - (id1 < id2 ? 1 : 0);
+			element.id = id2;
 
 			tabs.removeChild(element);
-			tabs.insertBefore(element, event.target.parentNode);
+			if (id2 < id1)
+				tabs.insertBefore(element, event.target.parentNode);
+			else
+				tabs.insertBefore(element, event.target.parentNode.nextElementSibling);
+
+			let swap = scripts[id1];
+			scripts.splice(id1, 1);
+			scripts.splice(id2, 0, swap);
 			scriptSave();
 		}
 
 		function scriptNew(name) {
 			if (typeof(name) !== "string") name = "New " + ++scriptCounter;
 
+			const tabs = document.getElementById("scripts-tab");
 			const temp = document.getElementById("template-nav-item");
 			var clon = temp.content.cloneNode(true);
 
@@ -214,7 +230,9 @@
 			clon.children[0].draggable = true;
 
 			clon.children[0].addEventListener("dragstart", startDragScript);
+			clon.children[0].addEventListener("dragend", endDragScript);
 			clon.children[0].addEventListener("dragover", dragScriptOver);
+			clon.children[0].addEventListener("dragleave", dragScriptLeave);
 			clon.children[0].addEventListener("drop", dropScript);
 
 			scripts.push([name, scriptTemplate, emptyHistory]);

@@ -92,7 +92,17 @@
 }
 
 .nav-link{
-	transition: padding 0.1s;
+	transition: padding 0.1s, color 0.1s;
+	overflow: hidden;
+}
+
+.nav-link.dragged {
+	padding: 0px;
+	color: white;
+}
+
+.nav-link.dragged.active {
+	color: royalblue;
 }
 
 .nav-tabs .nav-link{
