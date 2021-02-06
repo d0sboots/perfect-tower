@@ -18,8 +18,11 @@ TOKEN = {
 
 for _, v in ipairs (TOKEN) do
 	TOKEN[v.name] = v;
-	v.pattern = v.pattern and string.format("^(%s)", v.pattern) or nil;
-	v.patternAnywhere = v.pattern and v.pattern:sub(2);
+
+	if v.pattern then
+		v.pattern = string.format("^(%s)", v.pattern);
+		v.patternAnywhere = v.pattern:sub(2);
+	end
 end
 
 for _, v in ipairs (TOKEN) do

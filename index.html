@@ -30,7 +30,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.7 ─ Game: v0.6.8 B1</span>
+			<span class="infotext">Editor: 1.8 ─ Game: v0.6.10 B1</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -372,10 +372,10 @@ local.int.set("i", (i - 1) * 2)`;
 ;   New scripts start with this code, so don't worry about copying it by hand!
 ; Everything after a semicolon ';' is a comment. It doesn't get saved with the script
 ; A line starting with a colon ':' is declaring a variable.
-;   Declarations can only contain letters, digits, and dots '.'
-;   Variables containing other characters must use the get/set functions
+;   Declarations can only contain letters, digits, dots '.' and underscores '_'
+;   Variable names containing other characters must use the get/set functions
 ; A line starting with a combination of letters, digits and dots, followed
-;   by a colon, is declaring a label. Labels are used as the first argument
+;   by a colon, is declaring a label. Labels can be used as the first argument
 ;   to 'goto' and 'gotoif', to make those functions easier to use
 ;   Label 99 is a special case, it'll always go to line 99 which ends the script
 ; Operators, and their precedence:

@@ -100,7 +100,17 @@ local function consumeTokensWorker(node)
 	if #node.tokens == 0 then
 		return;
 	elseif #node.tokens == 1 then
-		table.insert(node.args, resolveID(node.tokens[1]));
+		local arg = node.func and node.func.args[#node.args + 1];
+		local token = node.tokens[1];
+
+		if arg and arg.type == "label" then
+			if token.type == "number" or (token.type == "identifier" and not token.func and not variables[token.value]) then
+				token.type = "label";
+				token.value = tostring(token.value);
+			end
+		end
+
+		table.insert(node.args, resolveID(token));
 		node.tokens = {};
 		return;
 	end
@@ -208,7 +218,7 @@ local function consumeTokens(node)
 		assert(expected, tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, arg)));
 
 		if not dynamicFunc[node.func.name] then
-			assert(type == expected.type, tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
+			assert(type == expected.type or type == "int" and expected.type == "label", tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
 
 			if expected.valid and (last.type == "number" or last.type == "string") then
 				local status, err = expected.valid(last.value);
@@ -283,12 +293,7 @@ function lexer(line, vars)
 				table.insert(node.tokens, token);
 				local arg = node.func and node.func.args[#node.args + 1];
 
-				if arg and arg.type == "label" then
-					if token.type == "identifier" or token.type == "number" then
-						token.type = "label";
-						token.value = tostring(token.value);
-					end
-				elseif token.type == "operator" and token.op.type == "op_set" then
+				if token.type == "operator" and token.op.type == "op_set" then
 					assert(not node.parent and #node.tokens == 2 and node.tokens[1].type == "identifier", tokenError(token, "unexpected symbol: " .. token.value));
 				end
 			end
