@@ -177,7 +177,6 @@ local function parseFunction(line)
 
 	local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)";
 	local args, display = {}, {};
-	short = short or name;
 
 	if line:match"%b<>" then
 		local done = {};
@@ -220,6 +219,8 @@ local function parseFunction(line)
 	if not short and category ~= "Impulse" and category ~= "" then
 		short = name:match"%.(%a+)$" or name;
 	end
+	
+	short = short or name;
 
 	FUNCTION[name] = {
 		name = name,
