@@ -115,8 +115,8 @@ void generic.click(vector) Generic
 
 int screen.width() Generic
 int screen.height() Generic
-double screen.width.d() Generic #screen.width.d#
-double screen.height.d() Generic #screen.height.d#
+double screen.width.d() Generic #width.d#
+double screen.height.d() Generic #height.d#
 
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
@@ -173,7 +173,7 @@ local function parseFunction(line)
 		a = a:sub(2, -2);
 		addList(a:match"(%a+) (.+)");
 		return "";
-	end);
+	end):gsub("^%s+", ""):gsub("%s+$", "");
 
 	local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)";
 	local args, display = {}, {};
