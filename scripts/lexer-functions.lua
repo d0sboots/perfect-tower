@@ -72,6 +72,7 @@ impulse open.factory() Impulse
 impulse open.workshop() Impulse
 impulse open.powerplant() Impulse
 impulse open.museum() Impulse
+impulse game.newround() Impulse
 
 void <scope>.<type>.set(string:variable, <type>)
 <type> <scope>.<type>.get(string:variable)
@@ -99,7 +100,7 @@ string d2s(double) Conversion
 
 double vec2.x(vector) Vector
 double vec2.y(vector) Vector
-vector vec.fromCoords(double:x, double:y) Vector
+vector vec.fromCoords(double:x, double:y) Vector #vec#
 vector mouse.position() Vector
 
 void generic.execute(string:script) Generic
@@ -114,11 +115,23 @@ void generic.click(vector) Generic
 
 int screen.width() Generic
 int screen.height() Generic
+double screen.width.d() Generic #screen.width.d#
+double screen.height.d() Generic #screen.height.d#
 
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
 
 void tower.module.useinstant(int:skill) Tower
+bool tower.stunned() Tower
+int tower.buffs.negative() Tower
+double tower.health(bool:percent) Tower
+double tower.health.max() Tower #health.max#
+double tower.health.regeneration() Tower #health.regen#
+double tower.energy(bool:percent) Tower
+double tower.energy.max() Tower #energy.max#
+double tower.energy.regeneration() Tower #energy.regen#
+double tower.shield(bool:percent) Tower
+double tower.shield.max() Tower #shield.max#
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
@@ -136,7 +149,8 @@ int museum.stone.tier(string:inventory[inv], int:slot) Museum
 string museum.stone.element(string:inventory[inv], int:slot) Museum
 void museum.fill(bool:enable) Museum
 void museum.buy(string:element[element]) Museum
-void museum.combine() Museum
+void museum.buyMarket(string:element[element], int:tier) Museum
+void museum.combine(int:tierMax) Museum
 void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
 void museum.delete(string:inventory[inv], int:slot) Museum
@@ -150,14 +164,20 @@ local function addList(category, display)
 end
 
 local function parseFunction(line)
-	line = line:gsub("%b{}", function(a)
+	local short;
+	
+	line = line:gsub("%b##", function(a)
+		short = a:sub(2, -2);
+		return "";
+	end):gsub("%b{}", function(a)
 		a = a:sub(2, -2);
 		addList(a:match"(%a+) (.+)");
 		return "";
 	end);
 
 	local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)";
-	local short, args, display = name, {}, {};
+	local args, display = {}, {};
+	short = short or name;
 
 	if line:match"%b<>" then
 		local done = {};
@@ -197,12 +217,8 @@ local function parseFunction(line)
 		table.insert(display, name == "" and type or string.format("%s: %s", type, name));
 	end
 
-	if category ~= "Impulse" and category ~= "" then
+	if not short and category ~= "Impulse" and category ~= "" then
 		short = name:match"%.(%a+)$" or name;
-	end
-
-	if short == "fromCoords" then
-		short = "vec";
 	end
 
 	FUNCTION[name] = {
