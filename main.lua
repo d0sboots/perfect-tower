@@ -102,12 +102,16 @@ function compile(name, input, testing)
 			name = name:lower();
 			assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
 			assert(type == "int" or type == "double", "variable types are 'int' and 'double'");
-			assert(not variables[name], "variable already exists: " .. name);
+			assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
 			line = line
-				:gsub("^%s*([%w%.]+):", function(a) table.insert(labels, a); return ""; end)
+				:gsub("^%s*([%w%.]+):", function(name)
+					assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
+					table.insert(labels, name);
+					return "";
+				end)
 				:gsub("^%s+", ""):gsub("%s+$", "")
 			;
 
@@ -124,16 +128,16 @@ function compile(name, input, testing)
 					else
 						assert(#labels == 0, "labels cannot be placed before impulses/conditions");
 						
-					if node.func.ret == "impulse" then
-						table.insert(impulses, node);
+						if node.func.ret == "impulse" then
+							table.insert(impulses, node);
 						else
-						table.insert(conditions, node);
-						end
+							table.insert(conditions, node);
 						end
 					end
 				end
 			end
 		end
+	end
 
 	for i = #labels, 1, -1 do
 		labels[table.remove(labels, i)] = 99;
