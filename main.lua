@@ -40,8 +40,10 @@ if not DEBUG then
 
 			if status then
 				output.value = ret;
+				output.copy = ret:match".*\n.*()\n";
 			else
 				output.value = ret:gsub(".*GSUB_HERE", "");
+				output.copy = nil;
 			end
 		elseif func == "import" then
 			local status, ret = pcall(import, lua_arg.value);
@@ -104,9 +106,8 @@ function compile(name, input, testing)
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
-			local label;
 			line = line
-				:gsub("^%s*([%w%.]+):", function(a) label = a; return ""; end)
+				:gsub("^%s*([%w%.]+):", function(a) table.insert(labels, a); return ""; end)
 				:gsub("^%s+", ""):gsub("%s+$", "")
 			;
 
@@ -114,20 +115,28 @@ function compile(name, input, testing)
 				local node = cache(line, variables);
 
 				if node and node.func then
-					if node.func.ret == "impulse" then
-						table.insert(impulses, node);
-					elseif node.func.ret == "bool" then
-						table.insert(conditions, node);
-					elseif node.func.ret == "void" then
+					if node.func.ret == "void" then
 						table.insert(actions, node);
 
-						if label then
-							labels[label] = #actions;
+						for i = #labels, 1, -1 do
+							labels[table.remove(labels, i)] = #actions;
+						end
+					else
+						assert(#labels == 0, "labels cannot be placed before impulses/conditions");
+						
+					if node.func.ret == "impulse" then
+						table.insert(impulses, node);
+						else
+						table.insert(conditions, node);
+						end
 						end
 					end
 				end
 			end
 		end
+
+	for i = #labels, 1, -1 do
+		labels[table.remove(labels, i)] = 99;
 	end
 
 	local function ins(frmt, val)

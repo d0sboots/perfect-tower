@@ -30,7 +30,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.10 ─ Game: v0.7.0 B3</span>
+			<span class="infotext">Editor: 1.11 ─ Game: v0.7.0 B3</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -53,6 +53,7 @@
 	<script>
 		const loadingText = document.getElementById("loadingText");
 		const loadingDiv = document.getElementById("loadingDiv");
+		const output = document.getElementById("output");
 
 		window.onerror = function(msg, url, line) {
 			loadingDiv.style.visibility = "hidden";
@@ -60,7 +61,12 @@
 			loadingText.textContent = "Something went wrong. :( \n\n" + line + ": " + msg;
 		}
 
-		const output = document.getElementById("output");
+		output.onfocus = function(msg) {
+			if (typeof(output.copy) !== "undefined") {
+				console.log(output.copy);
+				output.setSelectionRange(output.copy, this.value.length);
+			}
+		}
 
 		function runLua(func, arg) {
 			if (typeof(arg) == "string") {
@@ -363,9 +369,11 @@ wakeup()
 isfill()
 
 i = 0
-label: dig(i % 4, i / 4)
-i += 1
-gotoif(label, i == 1)
+label:
+	dig(i % 4, i / 4)
+	i += 1
+	gotoif(label, i == 1)
+
 local.int.set("i", (i - 1) * 2)`;
 
 		output.placeholder = `; Here's a tutorial, and a quick script to showcase it
@@ -400,9 +408,10 @@ isfill()
 
 ; Everything else is an action
 i = 0
-label: dig(i % 4, i / 4)
-i += 1
-gotoif(label, i == 1)
+label:
+	dig(i % 4, i / 4)
+	i += 1
+	gotoif(label, i == 1)
 
 ; This is valid, too, if you use non-standard characters for the variable name
 local.int.set("i", (i - 1) * 2)`;
