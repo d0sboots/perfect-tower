@@ -66,7 +66,7 @@ end
 
 local function resolveID(token)
 	if token.type == "identifier" and not token.func then
-		token.var = assert(variables[token.value], tokenError(token, "undefined variable: " .. token.value));
+		token.var = assert(variables[token.value:lower()], tokenError(token, "undefined variable: " .. token.value));
 		token.type = "string";
 		
 		local new = newNode(token.pos, nil, string.format("%s.%s.get", token.var.scope, token.var.type));
@@ -104,7 +104,7 @@ local function consumeTokensWorker(node)
 		local token = node.tokens[1];
 
 		if arg and arg.type == "label" then
-			if token.type == "number" or (token.type == "identifier" and not token.func and not variables[token.value]) then
+			if token.type == "number" or (token.type == "identifier" and not token.func and not variables[token.value:lower()]) then
 				token.type = "label";
 				token.value = tostring(token.value);
 			end
