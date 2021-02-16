@@ -30,7 +30,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.12 ─ Game: v0.7.0 B3</span>
+			<span class="infotext">Editor: 1.13 ─ Game: v0.7.0 B3</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -100,6 +100,7 @@
 		var activeTab = false;
 		var noSave = false;
 		var scripts = [];
+		var histories = [];
 		var scriptCounter = 0;
 
 		function updateWarn(status) {
@@ -128,7 +129,7 @@
 			} else {
 				editor.setOption("readOnly", false);
 				editor.setValue(scripts[node.id][1]);
-				editor.setHistory(scripts[node.id][2]);
+				editor.setHistory(histories[node.id]);
 			}
 			noSave = false;
 		}
@@ -241,7 +242,8 @@
 			clon.children[0].addEventListener("dragleave", dragScriptLeave);
 			clon.children[0].addEventListener("drop", dropScript);
 
-			scripts.push([name, scriptTemplate, emptyHistory]);
+			scripts.push([name, scriptTemplate]);
+			histories.push(emptyHistory);
 			tabs.appendChild(clon);
 		}
 
@@ -291,7 +293,7 @@
 			if (activeTab) {
 				scripts[activeTab.id][0] = activeTab.children[0].textContent;
 				scripts[activeTab.id][1] = editor.getValue();
-				scripts[activeTab.id][2] = editor.getHistory();
+				histories[activeTab.id] = editor.getHistory();
 			}
 
 			saveCooldown = 50;
