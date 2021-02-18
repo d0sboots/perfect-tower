@@ -52,6 +52,7 @@ VALIDATOR = {
 
 	inv = function(value) return stringValid("inventory", value, "Inventories"); end,
 	element = function(value) return stringValid("element", value, "Elements"); end,
+	elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, label=2, op_set=2, op_comp=2, op_mod=2};
