@@ -11,6 +11,7 @@ local strings = {
 
 	inventory = {"inventory", "equipped", "combinator", "cuboscube"},
 	element = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity"},
+	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
 };
 
 for _, tbl in pairs (strings) do
@@ -149,7 +150,7 @@ int museum.stone.tier(string:inventory[inv], int:slot) Museum
 string museum.stone.element(string:inventory[inv], int:slot) Museum
 void museum.fill(bool:enable) Museum
 void museum.buy(string:element[element]) Museum
-void museum.buyMarket(string:element[element], int:tier) Museum
+void museum.buyMarket(string:element[elementMarket], int:tier) Museum
 void museum.combine(int:tierMax) Museum
 void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
