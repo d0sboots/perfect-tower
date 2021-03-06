@@ -33,10 +33,13 @@ local function stringValid(tbl, str, prefix)
 	return strings[tbl][str], string.format("%s: %s", prefix, table.concat(strings[tbl], ", "));
 end
 local function rangeValid(value, min, max)
-	return (value >= min and value <= max), string.format("Range: %s-%s", min, max);
+	return (value >= min and value <= max), string.format("Range: %s - %s", min, max);
 end
 
 VALIDATOR = {
+	["0-1"] = function(value) return rangeValid(value, 0.0, 1.0); end,
+	scroll = function(value) local a, b = rangeValid(value, 0.0, 1.0); return value < 0.0 or a, b .. " (negative to ignore)"; end,
+
 	window = function(value) return stringValid("window", value, "Windows"); end,
 
 	sellx = function(value) return rangeValid(value, 0, 18); end,
@@ -59,16 +62,7 @@ local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector
 
 local functions = [[
 impulse wakeup() Impulse
-impulse key.0() Impulse
-impulse key.1() Impulse
-impulse key.2() Impulse
-impulse key.3() Impulse
-impulse key.4() Impulse
-impulse key.5() Impulse
-impulse key.6() Impulse
-impulse key.7() Impulse
-impulse key.8() Impulse
-impulse key.9() Impulse
+impulse key.<char>() {Impulse impulse key.#() 0-9, a-z}
 impulse open.mine() Impulse
 impulse open.factory() Impulse
 impulse open.workshop() Impulse
@@ -114,6 +108,8 @@ void generic.waituntil(bool) Generic
 void generic.goto(label) Generic
 void generic.gotoif(label, bool) Generic
 void generic.click(vector) Generic
+void generic.slider(vector:where, double:value[0-1]) Generic
+void generic.scrollrect(vector:where, double:horizontal[scroll], double:vertical[scroll]) Generic #scrollbar#
 
 int screen.width() Generic
 int screen.height() Generic
@@ -134,6 +130,7 @@ double tower.energy.max() Tower #energy.max#
 double tower.energy.regeneration() Tower #energy.regen#
 double tower.shield(bool:percent) Tower
 double tower.shield.max() Tower #shield.max#
+double tower.module.cooldown(int:skill) Tower
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
@@ -156,6 +153,8 @@ void museum.combine(int:tierMax) Museum
 void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
 void museum.delete(string:inventory[inv], int:slot) Museum
+
+void clickrel(double:x[0-1], double:y[0-1]) Shortcut
 ]]
 
 local function addList(category, display)
@@ -180,7 +179,14 @@ local function parseFunction(line)
 	local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)";
 	local args, display = {}, {};
 
-	if line:match"%b<>" then
+	if line:match"%b<>" == "<char>" then
+		for char in string.gmatch("0123456789abcdefghijklmnopqrstuvwxyz", ".") do
+			local new = line:gsub("%b<>", char);
+			parseFunction(new);
+		end
+
+		return;
+	elseif line:match"%b<>" then
 		local done = {};
 		
 		for _, scope in ipairs {"global", "local"} do
@@ -245,7 +251,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Misc", "Conversion", "Vector"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Misc", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do

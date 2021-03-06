@@ -54,7 +54,7 @@ local function nextToken(str, pos, prev)
 				end
 
 				assert(ret.type ~= "operator" or ret.op, tokenError(pos, "invalid operator: " .. match));
-				assert(#token == 0 or prev and token[prev.type], tokenError(pos, "unexpected symbol: " .. (ret.type == "eof" and "<eof>" or match)));
+				assert(#token == 0 or not prev or token[prev.type], tokenError(pos, "unexpected symbol: " .. (ret.type == "eof" and "<eof>" or match)));
 
 				return ret;
 			end
@@ -230,7 +230,7 @@ end
 
 function lexer(line, vars)
 	local debug = {};
-	local node;
+	local node, prev;
 	local pos = 1;
 
 	node = newNode();
@@ -260,7 +260,18 @@ function lexer(line, vars)
 				if node.func then
 					assert(#node.args == #node.func.args, tokenError(node, token, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, #node.args)));
 
-					if dynamicFunc[node.func.name] then
+					if node.func.name == "clickrel" then
+						for k, arg in ipairs (node.args) do
+							local new = newNode(arg.pos, node, "arithmetic.double");
+							new.args = {arg, nextToken"*", newNode(arg.pos, node, k == 1 and "screen.width.d" or "screen.height.d")};
+							node.args[k] = new;
+						end
+
+						local new = newNode(node.pos, node, "vec.fromCoords");
+						new.args = node.args;
+						node.args = {new};
+						node.func = FUNCTION.click;
+					elseif dynamicFunc[node.func.name] then
 						local arg = resolveType(node.args[1]);
 						assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, type)));
 
