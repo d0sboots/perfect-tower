@@ -277,7 +277,7 @@
 		function scriptRename() {
 			if (!activeTab) return;
 
-			var input = prompt("Input");
+			var input = prompt("Input", activeTab.children[0].textContent);
 			if (input && input.length > 0) {
 				activeTab.children[0].textContent = input;
 				updateWarn(false);
