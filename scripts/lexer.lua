@@ -151,7 +151,7 @@ local function consumeTokensWorker(node)
 				else
 					local const = false;
 					
-					if type == "op_mod" and (left.type == "number" or left.type == "string") and (right.type == "number" or right.type == "string") then
+					if type == "op_mod" and (left.type == right.type or op.value == ".") and (left.type == "number" or left.type == "string") and (right.type == "number" or right.type == "string") then
 						local status, ret = pcall(load(
 							op.value == "."
 							and string.format('return "%s" .. "%s"', left.value, right.value)
@@ -273,7 +273,7 @@ function lexer(line, vars)
 						node.func = FUNCTION.click;
 					elseif dynamicFunc[node.func.name] then
 						local arg = resolveType(node.args[1]);
-						assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, type)));
+						assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg)));
 
 						for i = 2, #node.args do
 							local type = resolveType(node.args[i]);

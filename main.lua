@@ -101,7 +101,7 @@ function compile(name, input, testing)
 
 			name = name:lower();
 			assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
-			assert(type == "int" or type == "double", "variable types are 'int' and 'double'");
+			assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
 			assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
 			
 			variables[name] = {name = name, scope = scope, type = type};

@@ -72,22 +72,25 @@ impulse game.newround() Impulse
 
 void <scope>.<type>.set(string:variable, <type>)
 <type> <scope>.<type>.get(string:variable)
-<type> arithmetic.<type>(<type>, op_mod, <type>)
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>)
+<type> arithmetic.<type>(<type>, op_mod, <type>)
 
-string concat(string, string) Misc
-double const.pi() Misc
+int string.length(string) String #len#
+string concat(string, string) String
+string substring(string, int:offset, int:length) String #sub#
 
-<type> <type>.min(<type>, <type>)
-<type> <type>.max(<type>, <type>)
-<type> <type>.rnd(<type>, <type>)
+double const.pi() Number
 
-void min(void, void) {Misc number min (a, b)}
-void max(void, void) {Misc number max (a, b)}
-void rnd(void, void) {Misc number rnd (min, max)}
-double double.floor(double) Misc
-double double.ceil(double) Misc
-double double.round(double) Misc
+<num> <num>.min(<num>, <num>)
+<num> <num>.max(<num>, <num>)
+<num> <num>.rnd(<num>, <num>)
+
+void min(void, void) {Number number min (a, b)}
+void max(void, void) {Number number max (a, b)}
+void rnd(void, void) {Number number rnd (min, max)}
+double double.floor(double) Number
+double double.ceil(double) Number
+double double.round(double) Number
 
 int d2i(double) Conversion
 double i2d(int) Conversion
@@ -119,7 +122,6 @@ double screen.height.d() Generic #height.d#
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
 
-void tower.module.useinstant(int:skill) Tower
 bool tower.stunned() Tower
 int tower.buffs.negative() Tower
 double tower.health(bool:percent) Tower
@@ -131,6 +133,7 @@ double tower.energy.regeneration() Tower #energy.regen#
 double tower.shield(bool:percent) Tower
 double tower.shield.max() Tower #shield.max#
 double tower.module.cooldown(int:skill) Tower
+void tower.module.useinstant(int:skill) Tower
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
@@ -153,6 +156,11 @@ void museum.combine(int:tierMax) Museum
 void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
 void museum.delete(string:inventory[inv], int:slot) Museum
+void museum.clear(string:inventory[inv]) Museum
+
+int tradingpost.offerCount() Trading Post
+void tradingpost.refresh() Trading Post
+void tradingpost.trade(int:offer, double:pct[0-1]) Trading Post
 
 void clickrel(double:x[0-1], double:y[0-1]) Shortcut
 ]]
@@ -170,6 +178,10 @@ local function parseFunction(line)
 	line = line:gsub("%b##", function(a)
 		short = a:sub(2, -2);
 		return "";
+	end):gsub("(%a+)%.(%a+)%.(%a+)", function(a,b,c)
+		if a == "global" or a == "local" then
+			short = a:sub(1,1) .. b:sub(1,1) .. c:sub(1,1);
+		end
 	end):gsub("%b{}", function(a)
 		a = a:sub(2, -2);
 		addList(a:match"(%a+) (.+)");
@@ -191,13 +203,15 @@ local function parseFunction(line)
 		
 		for _, scope in ipairs {"global", "local"} do
 			for _, typeext in ipairs {"bool", "int", "double", "string"} do
-				for _, type in ipairs {"int", "double"} do
-					local tbl = {scope=scope, typeext=typeext, type=type};
-					local new = line:gsub("%b<>", function(a) return tbl[a:sub(2,-2)]; end);
-					
-					if not done[new] then
-						done[new] = true;
-						parseFunction(new);
+				for _, type in ipairs {"int", "double", "string"} do
+					for _, num in ipairs {"int", "double"} do
+						local tbl = {scope=scope, typeext=typeext, type=type, num=num};
+						local new = line:gsub("%b<>", function(a) return tbl[a:sub(2,-2)]; end);
+						
+						if not done[new] then
+							done[new] = true;
+							parseFunction(new);
+						end
 					end
 				end
 			end
@@ -251,7 +265,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Misc", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Trading Post", "Number", "String", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
