@@ -169,9 +169,9 @@ local function consumeTokensWorker(node)
 					end
 					
 					if not const then
-						if op.value == "." then
-							local typeLeft, typeRight = resolveType(left), resolveType(right);
+						local typeLeft, typeRight = resolveType(left), resolveType(right);
 
+						if op.value == "." then
 							if typeLeft == "int" or typeLeft == "double" then
 								local new = newNode(left.pos, node, typeLeft == "int" and "i2s" or "d2s");
 								new.args = {left};
@@ -189,6 +189,11 @@ local function consumeTokensWorker(node)
 							new.args = {left, right};
 							table.insert(node.tokens, j, new);
 						else
+							if type == "op_mod" then
+								assert(typeLeft == "int" or typeLeft == "double", "cannot perform arithmetic on a " .. typeLeft);
+								assert(typeRight == "int" or typeRight == "double", "cannot perform arithmetic on a " .. typeRight);
+							end
+							
 							typecheck(left, op, right);
 							local new = newNode(left.pos, node, (type == "op_mod" and "arithmetic." or "comparison.") .. resolveType(left));
 							new.args = {left, op, right};
