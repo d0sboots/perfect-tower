@@ -190,8 +190,8 @@ local function consumeTokensWorker(node)
 							table.insert(node.tokens, j, new);
 						else
 							if type == "op_mod" then
-								assert(typeLeft == "int" or typeLeft == "double", "cannot perform arithmetic on a " .. typeLeft);
-								assert(typeRight == "int" or typeRight == "double", "cannot perform arithmetic on a " .. typeRight);
+								assert(typeLeft == "int" or typeLeft == "double", tokenError(left, "arithmetic cannot be performed on a " .. typeLeft));
+								assert(typeRight == "int" or typeRight == "double", tokenError(right, "arithmetic cannot be performed on a " .. typeRight));
 							end
 							
 							typecheck(left, op, right);
