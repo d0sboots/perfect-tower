@@ -140,9 +140,16 @@ local function consumeTokensWorker(node)
 						op.op = OPERATOR[op.value];
 						
 						typecheck(left, op, right);
-						local new = newNode(left.pos, node, "arithmetic." .. resolveType(left.args[1]));
-						new.args = {left, op, right};
-						right = new;
+
+						if op.value == "." then
+							local new = newNode(left.pos, node, "concat");
+							new.args = {left, right};
+							right = new;
+						else
+							local new = newNode(left.pos, node, "arithmetic." .. resolveType(left.args[1]));
+							new.args = {left, op, right};
+							right = new;
+						end
 					end
 					
 					typecheck(left.args[1], op, right);
