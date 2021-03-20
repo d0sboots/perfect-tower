@@ -93,10 +93,11 @@ function compile(name, input, testing)
 	labels["99"] = 99;
 
 	for line in input:gmatch"[^\n]*" do
+		line = line:gsub("^%s+", ""):gsub("%s+$", "");
 		line_number = line_number + 1;
 
 		if line:match"^:" then
-			local scope, type, name = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
+			local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
 			assert(scope, "variable definition: [global/local] [int/double] name");
 
 			name = name:lower();
