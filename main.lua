@@ -170,7 +170,16 @@ function compile(name, input, testing)
 				end
 			elseif node.type == "string" then
 				ins("b", 4);
-				ins("s1", node.value);
+				local bytes = {};
+				local len = #node.value;
+
+				while len > 0 or #bytes == 0 do
+					table.insert(bytes, string.pack("B", (len >= 0x80 and 0x80 or 0x00) + (len & 0x7F)))
+					len = len >> 7;
+				end
+
+				table.insert(ret, table.concat(bytes));
+				table.insert(ret, node.value);
 			elseif node.type == "vector" then
 				ins("b", 5);
 				ins("f", node.x);
