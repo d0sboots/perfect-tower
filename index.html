@@ -30,7 +30,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.18 ─ Game: v0.8.3 B1</span>
+			<span class="infotext">Editor: 1.19 ─ Game: v0.8.3 B1</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -365,6 +365,7 @@
 		});
 
 		var scriptTemplate = `:local int i
+:local double test
 :local string var
 
 wakeup()
@@ -379,7 +380,12 @@ label:
 
 global.int.set("a*b", (i - 1) * 2)
 var = "a*b"
-gis(var, (i - 1) * 2)`;
+gis(var, (i - 1) * 2)
+
+var = "+"
+test = a.d(3., var, 0.)
+var = "=="
+gotoif(99, c.i(3, var, 3))`;
 
 		output.placeholder = `; Here's a tutorial, and a quick script to showcase it
 ;   New scripts start with this code, so don't worry about copying it by hand!
@@ -406,6 +412,7 @@ gis(var, (i - 1) * 2)`;
 ; Have fun!
 		
 :local int i
+:local double test
 :local string var
 
 ; Lines that return impulse become... well, impulses
@@ -424,7 +431,14 @@ label:
 ; This is a valid way to use variables, too
 global.int.set("a*b", (i - 1) * 2)
 var = "a*b"
-gis(var, (i - 1) * 2)`;
+gis(var, (i - 1) * 2)
+
+; This is how you use variables as operators
+var = "+"
+test = a.d(3., var, 0.)
+var = "=="
+gotoif(99, c.i(3, var, 3))
+`;
 	</script>
 </body>
 </html>

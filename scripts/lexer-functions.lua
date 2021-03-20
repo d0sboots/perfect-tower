@@ -182,6 +182,10 @@ local function parseFunction(line)
 		if a == "global" or a == "local" then
 			short = a:sub(1,1) .. b:sub(1,1) .. c:sub(1,1);
 		end
+	end):gsub("(%a+)%.(%a+)", function(a,b)
+		if a == "arithmetic" or a == "comparison" then
+			short = a:sub(1,1) .. "." .. b:sub(1,1);
+		end
 	end):gsub("%b{}", function(a)
 		a = a:sub(2, -2);
 		addList(a:match"(%a+) (.+)");

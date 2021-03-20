@@ -258,19 +258,24 @@ function import(input)
 		else
 			local func = assert(FUNCTION[func], "BUG REPORT: unknown function: " .. func);
 			local args = {};
+			local dynamicOperator = false;
 			
 			for i, arg in ipairs (func.args) do
 				table.insert(args, parse());
 				
 				if arg.type:match"^op_" then
-					args[i] = args[i]:sub(2,-2):lower()
-						:gsub("&&", "&")
-						:gsub("||", "|")
-						:gsub("^=$", "==")
-						:gsub("mod", "%%")
-						:gsub("pow", "^")
-						:gsub("log", "//")
-					;
+					if args[i]:match'^".*"$' then
+						args[i] = args[i]:sub(2, -2):lower()
+							:gsub("&&", "&")
+							:gsub("||", "|")
+							:gsub("^=$", "==")
+							:gsub("mod", "%%")
+							:gsub("pow", "^")
+							:gsub("log", "//")
+						;
+					end
+
+					dynamicOperator = not OPERATOR[ args[i] ];
 				end
 			end
 
@@ -287,7 +292,7 @@ function import(input)
 
 					return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var;
 				end
-			elseif func.name:match"^arithmetic" or func.name:match"^comparison" then
+			elseif not dynamicOperator and (func.name:match"^arithmetic" or func.name:match"^comparison") then
 				return string.format("(%s)", table.concat(args, " "));
 			elseif func.name == "concat" then
 				return string.format("(%s . %s)", table.unpack(args));
