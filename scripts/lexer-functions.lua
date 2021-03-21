@@ -151,7 +151,7 @@ int museum.stone.tier(string:inventory[inv], int:slot) Museum
 string museum.stone.element(string:inventory[inv], int:slot) Museum
 void museum.fill(bool:enable) Museum
 void museum.buy(string:element[element]) Museum
-void museum.buyMarket(string:element[elementMarket], int:tier) Museum
+void museum.buyMarket(string:element[elementMarket], int:tierMax) Museum
 void museum.combine(int:tierMax) Museum
 void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
