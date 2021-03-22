@@ -11,6 +11,7 @@ TOKEN = {
 	{name = "identifier", pattern = "[%a_][%w%._]*", "sof", "open", "next", "operator"},
 	{name = "number", pattern = "%-?%d+%.?%d*", "sof", "open", "next", "operator"},
 	{name = "string", pattern = '%b""', "sof", "open", "next", "operator"},
+	{name = "stringSQ", pattern = "%b''", alias = "string"},
 	{name = "bool", "sof", "open", "next", "operator"},
 	{name = "label", "open"},
 	{name = "operator", pattern = "[%.%+%-%*%%/^!=<>&|]+", "close", "identifier", "number", "string", "bool"},

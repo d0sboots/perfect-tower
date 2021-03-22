@@ -40,6 +40,10 @@ local function nextToken(str, pos, prev)
 			local match = str:sub(pos):match(token.pattern);
 
 			if match then
+				if token.alias then
+					token = TOKEN[token.alias];
+				end
+
 				ret.pos = pos;
 				ret.len = #match;
 				ret.type = token.name;
