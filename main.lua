@@ -250,7 +250,25 @@ function import(input)
 			elseif type == 3 then
 				return string.format("%s", read"d");
 			elseif type == 4 then
-				return string.format('"%s"', read"s1");
+				local pos, len = 0, 0;
+
+				repeat
+					local byte = read"B";
+					len = len + ((byte & 0x7F) << 7*pos);
+					pos = pos + 1;
+				until byte & 0x80 == 0
+
+				local str = read("c" .. len);
+				local sq, dq = str:match"'", str:match'"';
+
+				if sq and not dq then
+					return string.format('"%s"', str);
+				elseif dq and not sq then
+					return string.format("'%s'", str);
+				end
+
+				str = string.format('"%s"', str:gsub('"', [[" . '"' . "]])):gsub('"" %.', ""):gsub('%. ""', "");
+				return str;
 			elseif type == 5 then
 				return string.format("vec(%s, %s)", read"f", read"f");
 			else

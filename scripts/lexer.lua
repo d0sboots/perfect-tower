@@ -165,7 +165,7 @@ local function consumeTokensWorker(node)
 					if type == "op_mod" and (left.type == right.type or op.value == ".") and (left.type == "number" or left.type == "string") and (right.type == "number" or right.type == "string") then
 						local status, ret = pcall(load(
 							op.value == "."
-							and string.format('return "%s" .. "%s"', left.value, right.value)
+							and string.format('return %q .. %q', left.value, right.value)
 							or op.value == "//"
 							and string.format("return math.log(%s, %s)", left.value, right.value)
 							or string.format("return %s %s %s", left.value, op.value, right.value)
@@ -196,9 +196,16 @@ local function consumeTokensWorker(node)
 							end
 
 							typecheck(left, op, right);
-							local new = newNode(left.pos, node, "concat");
-							new.args = {left, right};
-							table.insert(node.tokens, j, new);
+
+							if left.type == "string" and left.value == "" then
+								table.insert(node.tokens, j, right);
+							elseif right.type == "string" and right.value == "" then
+								table.insert(node.tokens, j, left);
+							else
+								local new = newNode(left.pos, node, "concat");
+								new.args = {left, right};
+								table.insert(node.tokens, j, new);
+							end
 						else
 							if type == "op_mod" then
 								assert(typeLeft == "int" or typeLeft == "double", tokenError(left, "arithmetic cannot be performed on a " .. typeLeft));
