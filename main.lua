@@ -298,7 +298,7 @@ function import(input)
 				end
 			end
 
-			local scope, type, func_name = func.name:match"(%a+).(%a+).(%a+)";
+			local scope, type, func_name = func.name:match"(%a+)%.(%a+)%.(%a+)";
 
 			if scope == "global" or scope == "local" then
 				local var = args[1]:sub(2,-2):lower();
