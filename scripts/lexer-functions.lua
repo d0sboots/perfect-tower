@@ -64,11 +64,18 @@ local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector
 local functions = [[
 impulse wakeup() Impulse
 impulse key.<char>() {Impulse impulse key.#() 0-9, a-z}
-impulse open.mine() Impulse
+impulse open.arcade() Impulse
+impulse open.constructionFirm() Impulse
 impulse open.factory() Impulse
-impulse open.workshop() Impulse
-impulse open.powerplant() Impulse
+impulse open.headquarters() Impulse
+impulse open.laboratory() Impulse
+impulse open.mine() Impulse
 impulse open.museum() Impulse
+impulse open.powerplant() Impulse
+impulse open.shipyard() Impulse
+impulse open.statueofcubos() Impulse
+impulse open.tradingpost() Impulse
+impulse open.workshop() Impulse
 impulse game.newround() Impulse
 
 void <scope>.<type>.set(string:variable, <type>)
