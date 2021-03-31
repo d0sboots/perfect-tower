@@ -1,53 +1,53 @@
-.infotext {
-    position: absolute;
-    font-size: large;
-    font-weight: bolder;
-    top: 6px;
-    margin-left: 8px;
-    white-space: pre-line;
+.infotext{
+	position: absolute;
+	font-size: large;
+	font-weight: bolder;
+	top: 6px;
+	margin-left: 8px;
+	white-space: pre-line;
 }
 
-.warning {
-    color: red;
-    top: 24px;
+.warning{
+	color: red;
+	top: 24px;
 }
 
-.basicBtn {
-    background-color: royalblue;
-    color: white;
-    width: 90px;
-    margin: 10px 4px 0px;
-    padding: 6px 12px;
+.basicBtn{
+	background-color: royalblue;
+	color: white;
+	width: 90px;
+	margin: 10px 4px 0px;
+	padding: 6px 12px;
 
-    border-width: 1px;
-    border-radius: 4px;
-    border-style: solid;
-    border-color: royalblue;
+	border-width: 1px;
+	border-radius: 4px;
+	border-style: solid;
+	border-color: royalblue;
 }
 
-.basicBtnRed {
-    background-color: red;
-    border-color: red;
+.basicBtnRed{
+	background-color: red;
+	border-color: red;
 }
 
-.functionList {
-    display: inline;
+.functionList{
+	display: inline;
 }
 
-.nowrap {
-    white-space: nowrap;
+.nowrap{
+	white-space: nowrap;
 }
 
-.div-container {
-    width: 99vw;
-    height: 80vh;
+.div-container{
+	width: 98vw;
+	height: 80vh;
 }
 
-.div-container-item {
-    border: 1px solid black;
-    height: 100%;
-    margin: 10px 4px 0px;
-    float: left;
+.div-container-item{
+	border: 1px solid black;
+	height: 100%;
+	margin: 10px 4px 0px;
+	float: left;
 }
 
 .div-container-code {
@@ -58,69 +58,69 @@
     width: 28%;
 }
 
-.textarea {
-    font-family: monospace;
-    padding-left: 4px;
-    resize: none;
-    outline: none;
+.textarea{
+	font-family: monospace;
+	padding-left: 4px;
+	resize: none;
+	outline: none;
 }
 
-.functions {
-    width: 200px;
-    height: 48%;
-    padding-left: 4px;
-    border: 1px solid black;
-    resize: none;
-    outline: none;
-    overflow: auto;
+.functions{
+	width: 200px;
+	height: 48%;
+	padding-left: 4px;
+	border: 1px solid black;
+	resize: none;
+	outline: none;
+	overflow: auto;
 }
 
-.CodeMirror {
-    height: 100%;
-    border: none;
+.CodeMirror{
+	height: 100%;
+	border: none;
 }
 
-.nav-tabs {
-    display: block;
-    float: left;
-    border-right: 1px solid black;
+.nav-tabs{
+	display: block;
+	float: left;
+	border-right: 1px solid black;
     border-bottom: 1px solid black;
-    width: 200px;
-    height: 100%;
-    overflow-y: scroll;
+	width: 200px;
+	height: 100%;
+	overflow-y: scroll;
 }
 
-.nav-item {
-    background-color: inherit;
-    color: black;
-    text-align: left;
-    cursor: pointer;
-    transition: 0.3s;
-    border-bottom: 1px solid grey;
+.nav-item{
+	background-color: inherit;
+	color: black;
+	text-align: left;
+	cursor: pointer;
+	transition: 0.3s;
+	border-bottom: 1px solid grey;
 }
 
-.nav-link {
-    transition: padding 0.1s, color 0.1s;
-    overflow: hidden;
+.nav-link{
+	transition: padding 0.1s, color 0.1s;
+	overflow: hidden;
 }
 
 .nav-link.dragged {
-    padding: 0px;
-    color: white;
+	padding: 0px;
+	color: white;
 }
 
 .nav-link.dragged.active {
-    color: royalblue;
+	color: royalblue;
 }
 
-.nav-tabs .nav-link {
-    border: none;
-    margin: none;
+.nav-tabs .nav-link{
+	border: none;
+	margin: none;
 }
 
-.nav-tabs .nav-link.active {
-    background-color: royalblue;
-    color: white;
+.nav-tabs .nav-link.active{
+	background-color:royalblue;
+	color: white;
 }
 
 @media (prefers-color-scheme: dark) {
