@@ -15,9 +15,13 @@
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 
         <link rel="stylesheet" href="lib/codemirror/lib/codemirror.css" />
+
         <link rel="stylesheet" href="lib/codemirror/lib/darcula.css" />
+
         <script src="lib/codemirror/lib/codemirror.js"></script>
+
         <script src="lib/codemirror/addon/selection/active-line.js"></script>
+
         <script src="lib/codemirror/addon/edit/matchbrackets.js"></script>
 
         <link rel="stylesheet" href="./style.css" />
@@ -62,7 +66,9 @@
             </div>
 
             <div class="div-container">
-                <div class="div-container-item div-container-border">
+                <div
+                    class="div-container-item div-container-border div-container-code"
+                >
                     <ul id="scripts-tab" class="nav nav-tabs"></ul>
                     <textarea
                         id="scripts"
@@ -72,7 +78,7 @@
                 <textarea
                     id="output"
                     readonly
-                    class="div-container-item textarea"
+                    class="div-container-item div-container-textarea textarea"
                 ></textarea>
                 <input id="lua_arg" type="hidden" />
             </div>

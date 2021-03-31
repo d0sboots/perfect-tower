@@ -39,16 +39,23 @@
 }
 
 .div-container {
-    width: 98vw;
+    width: 99vw;
     height: 80vh;
 }
 
 .div-container-item {
     border: 1px solid black;
-    width: 48%;
     height: 100%;
     margin: 10px 4px 0px;
     float: left;
+}
+
+.div-container-code {
+    width: 70%;
+}
+
+.div-container-textarea {
+    width: 28%;
 }
 
 .textarea {
@@ -77,6 +84,7 @@
     display: block;
     float: left;
     border-right: 1px solid black;
+    border-bottom: 1px solid black;
     width: 200px;
     height: 100%;
     overflow-y: scroll;
@@ -120,7 +128,21 @@
     .functionList,
     .div-container-item {
         background-color: rgb(43, 43, 43);
-        color: #f8f8f2;
+        color: #a9b7c6;
         caret-color: #f8f8f2;
+    }
+
+    ::-webkit-scrollbar {
+        width: 0.5em;
+        height: 0.5em;
+    }
+
+    ::-webkit-scrollbar-track {
+        -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: darkgrey;
+        outline: 1px solid slategrey;
     }
 }
