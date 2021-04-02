@@ -51,11 +51,11 @@
 }
 
 .div-container-code {
-    width: 70%;
+    width: 60%;
 }
 
 .div-container-textarea {
-    width: 28%;
+    width: 38%;
 }
 
 .textarea{
@@ -84,7 +84,7 @@
 	display: block;
 	float: left;
 	border-right: 1px solid black;
-    border-bottom: 1px solid black;
+    border-bottom: 0px solid black;
 	width: 200px;
 	height: 100%;
 	overflow-y: scroll;

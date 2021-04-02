@@ -17,7 +17,6 @@
 
     <script src="addon/edit/matchbrackets.js"></script>
     <script src="addon/selection/active-line.js"></script>
-    
 
 	<link rel="stylesheet" href="./style.css">
 
@@ -35,7 +34,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.24 ─ Game: v0.8.4 B4</span>
+			<span class="infotext">Editor: 1.25 ─ Game: v0.8.4 B4</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -129,6 +128,14 @@
 		function scriptSelect(node) {
 			scriptSave();
 			output.value = "";
+
+			if (activeTab && node == activeTab) {
+				var tab = activeTab;
+				setTimeout(function() {
+					tab.children[0].classList.remove("active");
+				}, 0);
+				node = false;
+			}
 			activeTab = node;
 
 			noSave = true;
@@ -377,16 +384,21 @@
 		var scriptTemplate = `:local int i
 :local double test
 :local string var
+
 wakeup()
+
 isfill()
+
 i = 0
 label:
 	dig(i % 4, i / 4)
 	i += 1
 	gotoif(label, i == 1)
+
 global.int.set("a*b", (i - 1) * 2)
 var = "a*b"
 gis(var, (i - 1) * 2)
+
 var = '+'
 test = a.d(3., var, 0.)
 var = "=="
@@ -419,20 +431,25 @@ gotoif(99, c.i(3, var, 3))`;
 :local int i
 :local double test
 :local string var
+
 ; Lines that return impulse become... well, impulses
 wakeup()
+
 ; Lines that return bool become conditions
 isfill()
+
 ; Everything else is an action
 i = 0
 label:
 	dig(i % 4, i / 4)
 	i += 1
 	gotoif(label, i == 1)
+
 ; This is a valid way to use variables, too
 global.int.set("a*b", (i - 1) * 2)
 var = "a*b"
 gis(var, (i - 1) * 2)
+
 ; This is how you use variables as operators
 var = '+' ; Single quotes works too
 test = a.d(3., var, 0.)
