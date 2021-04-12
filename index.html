@@ -31,19 +31,35 @@
 			<li class="nav-item"><a class="nav-link" data-toggle="tab" onclick="scriptSelect(this.parentElement)">New Script</a></li>
 		</template>
 
-		<div class="nowrap">
-			<button class="basicBtn" onclick="scriptNew()">New</button>
-			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.26 ─ Game: v0.8.4 B4</span>
-			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
+		<div class="top-container">
+			<div class="script-buttons">
+				<button class="basicBtn" onclick="scriptNew()">New</button>
+				<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
+				<button class="basicBtn" onclick="scriptImport()">Import</button>
+				<button class="basicBtn" onclick="scriptRename()">Rename</button>
+			</div>
+
+			<div class="editor-info">
+				<span>Editor: 1.26 ─ Game: v0.8.4 B4</span>
+				<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
+				<select id="functionList" class="functionList"></select>
+			</div>
+			
+			<div class="workspaces">
+				<div>
+					<p>
+						Worskpace:
+						<select id="workspaceList" class="workspaceList" oninput="workspaceChange(this.value)"></select>
+					</p>
+				</div>
+				<div>
+					<button class="basicBtn" onclick="workspaceNew()">New Workspace</button>
+					<button class="basicBtn" onclick="workspaceRename()">Rename Workspace</button>
+					<button class="basicBtn basicBtnRed" onclick="workspaceDelete()">Delete Workspace</button>
+				</div>
+			</div>
 		</div>
 
-		<div class="nowrap">
-			<button class="basicBtn" onclick="scriptImport()">Import</button>
-			<button class="basicBtn" onclick="scriptRename()">Rename</button>
-			<select id="functionList" class="functionList"></select>
-		</div>
-		
 		<div class="div-container">
 			<div class="div-container-item div-container-border div-container-code">
 				<ul id="scripts-tab" class="nav nav-tabs"></ul>
@@ -53,6 +69,8 @@
 			<input id="lua_arg" type="hidden">
 		</div>
 	</div>
+
+	<script src="scripts/workspaces.js" defer></script>
 
 	<script>
 		const loadingText = document.getElementById("loadingText");
@@ -259,7 +277,7 @@
 			clon.children[0].addEventListener("dragleave", dragScriptLeave);
 			clon.children[0].addEventListener("drop", dropScript);
 
-			scripts.push([name, scriptTemplate]);
+			scripts.push([name, scriptTemplate, currentWorkspace]);
 			histories.push(emptyHistory);
 			tabs.appendChild(clon);
 		}
@@ -327,6 +345,11 @@
 				loaded.forEach(function(val) {
 					scriptNew(val[0]);
 					scripts[scripts.length - 1] = val;
+
+					// Add default workspace to scripts that have no workspace
+					if (!scripts[scripts.length - 1][2]) {
+						scripts[scripts.length - 1][2] = currentWorkspace;
+					}
 				})
 			}
 		}
@@ -360,6 +383,7 @@
 			storageEnabled = storageAvailable();
 			updateWarn(true);
 			scriptLoad();
+			workspaceLoad();
 
 			loadingText.style.visibility = "hidden";
 			loadingDiv.style.visibility = "visible";
