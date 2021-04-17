@@ -1,6 +1,6 @@
 local current_line, variables;
 
-local dynamicFunc = {min = true, max = true, rnd =  true};
+local dynamicFunc = {min = true, max = true, rnd =  true, ["if"] = true};
 
 local function tokenError(...)
 	local str, repl = current_line:gsub("^\1(.+)\2$", "%1");
@@ -295,16 +295,25 @@ function lexer(line, vars)
 						node.args = {new};
 						node.func = FUNCTION.click;
 					elseif dynamicFunc[node.func.name] then
-						local arg = resolveType(node.args[1]);
-						assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg)));
+						if node.func.short == "if" then
+							local arg2 = resolveType(node.args[2]);
+							local arg3 = resolveType(node.args[3]);
+							local func = FUNCTION["ternary." .. arg2];
+							assert(func, tokenError(node, node.args[2], string.format("bad argument #2 to %s (int, double, string or vector expected, got %s", node.func.short, arg2)));
+							assert(arg3 == arg2, tokenError(node, node.args[3], string.format("bad argument #3 to %s (%s expected, got %s)", node.func.short, arg2, arg3)));
+							node.func = func;
+						else
+							local arg = resolveType(node.args[1]);
+							assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg)));
 
-						for i = 2, #node.args do
-							local type = resolveType(node.args[i]);
-							assert(type == arg, tokenError(node, node.args[i], string.format("bad argument #%s to %s (%s expected, got %s)", i, node.func.short, arg, type)));
+							for i = 2, #node.args do
+								local type = resolveType(node.args[i]);
+								assert(type == arg, tokenError(node, node.args[i], string.format("bad argument #%s to %s (%s expected, got %s)", i, node.func.short, arg, type)));
+							end
+
+							local name = string.format("%s.%s", arg, node.func.name);
+							node.func = FUNCTION[name];
 						end
-
-						local name = string.format("%s.%s", arg, node.func.name);
-						node.func = FUNCTION[name];
 					end
 				end
 

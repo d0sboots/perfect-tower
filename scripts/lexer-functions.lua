@@ -102,6 +102,12 @@ double double.floor(double) Number
 double double.ceil(double) Number
 double double.round(double) Number
 
+void if(bool, void, void) {Generic type if(bool, true, false)}
+int ternary.int(bool, int, int)
+double ternary.double(bool, double, double)
+string ternary.string(bool, string, string)
+vector ternary.vec2(bool, vector, vector) #ternary.vector#
+
 int d2i(double) Conversion
 double i2d(int) Conversion
 string i2s(int) Conversion
