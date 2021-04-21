@@ -71,7 +71,7 @@ end
 local function cache(line, variables)
 	local key = {};
 
-	for k, v in pairs (variables) do
+	for _, v in pairs (variables) do
 		table.insert(key, string.format("%s.%s.%s", v.scope, v.type, v.name));
 	end
 
@@ -87,10 +87,12 @@ local function cache(line, variables)
 end
 
 function compile(name, input, testing)
-	local labels, variables, impulses, conditions, actions = {}, {}, {}, {}, {};
+	local variables, impulses, conditions, actions = {}, {}, {}, {};
 	local ret = {};
 	line_number = 0;
-	labels["99"] = 99;
+
+	local lines = {};
+	local lastLabel;
 
 	for line in input:gmatch"[^\n]*" do
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
@@ -103,45 +105,48 @@ function compile(name, input, testing)
 			name = name:lower();
 			assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
 			assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
-			assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
+			assert(not variables[name], "variable/label already exists: " .. name);
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
 			line = line
-				:gsub("^%s*([%w%.]+):", function(name)
-					assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
-					table.insert(labels, name);
+				:gsub(TOKEN.identifier.pattern .. ":", function(name)
+					assert(not variables[name], "variable/label already exists: " .. name);
+					variables[name] = {name = name, scope = "local", type = "int", label = 0};
+					lastLabel = name;
 					return "";
 				end)
 				:gsub("^%s+", ""):gsub("%s+$", "")
 			;
 
 			if #line > 0 then
-				local node = cache(line, variables);
-
-				if node and node.func then
-					if node.func.ret == "void" then
-						table.insert(actions, node);
-
-						for i = #labels, 1, -1 do
-							labels[table.remove(labels, i)] = #actions;
-						end
-					else
-						assert(#labels == 0, "labels cannot be placed before impulses/conditions");
-						
-						if node.func.ret == "impulse" then
-							table.insert(impulses, node);
-						else
-							table.insert(conditions, node);
-						end
-					end
-				end
+				table.insert(lines, {text = line, num = line_number, label = lastLabel});
+				lastLabel = nil;
 			end
 		end
 	end
 
-	for i = #labels, 1, -1 do
-		labels[table.remove(labels, i)] = 99;
+	for _, line in ipairs (lines) do
+		line_number = line.num;
+		local node = cache(line.text, variables);
+
+		if node and node.func then
+			if node.func.ret == "void" then
+				table.insert(actions, node);
+				
+				if line.label then
+					variables[line.label].label = #actions;
+				end
+			else
+				assert(not line.label, "labels cannot be placed before impulses/conditions");
+				
+				if node.func.ret == "impulse" then
+					table.insert(impulses, node);
+				else
+					table.insert(conditions, node);
+				end
+			end
+		end
 	end
 
 	local function ins(frmt, val)
@@ -150,6 +155,13 @@ function compile(name, input, testing)
 
 	local function encode(node)
 		if node.func then
+			if node.func.name == "label" then
+				local var = node.args[1].value;
+				assert(variables[var], "why are you calling the label function manually?")
+				encode{type = "number", value = variables[var].label};
+				return;
+			end
+
 			ins("s1", node.func.name);
 
 			for _, arg in ipairs (node.args) do
@@ -197,9 +209,6 @@ function compile(name, input, testing)
 				end
 
 				ins("s1", node.value);
-			elseif node.type == "label" then
-				ins("b", 2);
-				ins("i4", assert(labels[node.value], "unknown label: " .. node.value));
 			else
 				assert(false, "BUG REPORT: unknown compile type: " .. node.type);
 			end
@@ -339,7 +348,7 @@ function import(input)
 			ins(parse());
 			
 			if i == 3 then
-				ins(string.format("%s: %s", j, table.remove(ret)));
+				ins(table.remove(ret));
 			end
 		end
 
