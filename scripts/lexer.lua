@@ -70,7 +70,8 @@ end
 
 local function resolveID(token)
 	if token.type == "identifier" and not token.func then
-		token.var = assert(variables[token.value:lower()], tokenError(token, "undefined variable: " .. token.value));
+		token.value = token.value:lower();
+		token.var = assert(variables[token.value], tokenError(token, "undefined variable: " .. token.value));
 		token.type = "string";
 		
 		local new = newNode(token.pos, nil, token.var.label and "label" or string.format("%s.%s.get", token.var.scope, token.var.type));
