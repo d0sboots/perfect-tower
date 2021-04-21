@@ -73,7 +73,7 @@ local function resolveID(token)
 		token.var = assert(variables[token.value:lower()], tokenError(token, "undefined variable: " .. token.value));
 		token.type = "string";
 		
-		local new = newNode(token.pos, nil, token.var.label and "label" or string.format("%s.%s.get", token.var.scope, token.var.type));
+		local new = newNode(token.pos, nil, string.format("%s.%s.get", token.var.scope, token.var.type));
 		new.args = {token};
 		return new;
 	end
@@ -104,7 +104,17 @@ local function consumeTokensWorker(node)
 	if #node.tokens == 0 then
 		return;
 	elseif #node.tokens == 1 then
-		table.insert(node.args, resolveID(node.tokens[1]));
+		local arg = node.func and node.func.args[#node.args + 1];
+		local token = node.tokens[1];
+
+		if arg and arg.type == "label" then
+			if token.type == "number" or (token.type == "identifier" and not token.func and not variables[token.value:lower()]) then
+				token.type = "label";
+				token.value = tostring(token.value);
+			end
+		end
+
+		table.insert(node.args, resolveID(token));
 		node.tokens = {};
 		return;
 	end
@@ -127,7 +137,6 @@ local function consumeTokensWorker(node)
 				
 				if type == "op_set" then
 					local var = left.args[1].var;
-					assert(not var.label, "you can't assign values to labels");
 					local new = newNode(left.pos, node, string.format("%s.%s.set", var.scope, var.type));
 
 					if op.value ~= "=" then
@@ -232,7 +241,7 @@ local function consumeTokens(node)
 		assert(expected, tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, arg)));
 
 		if not dynamicFunc[node.func.name] then
-			assert(type == expected.type or (type == "string" and expected.type:match"^op"), tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
+			assert(type == expected.type or (type == "int" and expected.type == "label") or (type == "string" and expected.type:match"^op"), tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
 
 			if expected.valid and (last.type == "number" or last.type == "string") then
 				local status, err = expected.valid(last.value);

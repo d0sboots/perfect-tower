@@ -34,7 +34,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.28 ─ Game: v0.8.5 B1</span>
+			<span class="infotext">Editor: 1.27 ─ Game: v0.8.5 B1</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -97,7 +97,7 @@
   		});
 
 		editor.on("change", function() {
-			if (!activeTab || noSave) return;
+			if (!activeTab) return;
 			updateWarn(false);
 			runLua("compile", scripts[activeTab.id][0]);
 		});
@@ -147,7 +147,6 @@
 				editor.setOption("readOnly", false);
 				editor.setValue(scripts[node.id][1]);
 				editor.setHistory(histories[node.id]);
-				runLua("compile", scripts[activeTab.id][0]);
 			}
 			noSave = false;
 		}
@@ -396,8 +395,6 @@ label:
 	i += 1
 	gotoif(label, i == 1)
 
-i = label * 5
-
 global.int.set("a*b", (i - 1) * 2)
 var = "a*b"
 gis(var, (i - 1) * 2)
@@ -410,18 +407,18 @@ gotoif(99, c.i(3, var, 3))`;
 		output.placeholder = `; Here's a tutorial, and a quick script to showcase it
 ;   New scripts start with this code, so don't worry about copying it by hand!
 ; Everything after a semicolon ';' is a comment. It doesn't get saved with the script
-; A line starting with a colon ':' is declaring a variable
-;   Variable names are a combination of letters, digits, dots '.' and underscores '_'
-;   Names must start with a letter or underscore
-;   Names containing special characters, or that reference string variables, must use
-;   the variable functions. These take the form [local/global].[int/double/string].[get/set]
-;   That's a handful, though, so you can use the first character in each word for short
-; A line starting with a variable name, followed by a colon, is declaring a label
-;   Labels are special variables. They are automatically replaced by a line number, and
-;   exist to make 'goto' and 'gotoif' easier to use
+; A line starting with a colon ':' is declaring a variable.
+;   Declarations can only contain letters, digits, dots '.' and underscores '_'
+;   Variable names containing other characters, or that reference string variables, must
+;   use the variable functions. These take the form [local/global].[int/double/string].[get/set]
+;   That's a handful, though, so you can use the first character in each word for short.
+; A line starting with a combination of letters, digits and dots, followed
+;   by a colon, is declaring a label. Labels can be used as the first argument
+;   to 'goto' and 'gotoif', to make those functions easier to use
+;   Label 99 is a special case, it'll always go to line 99 which ends the script
 ; Operators, and their precedence:
 ;   =               assign. Can be prefixed with other operators.
-;                      Must be the second thing on a line, after a variable name!
+;                      Must be the second thing on a line, after a variable!
 ;   ^ //            exponent, logarithm
 ;   * / %           multiply, divide, modulo
 ;   + -             add, subtract
@@ -447,9 +444,6 @@ label:
 	dig(i % 4, i / 4)
 	i += 1
 	gotoif(label, i == 1)
-
-; You can do math on labels, too!
-i = label * 5
 
 ; This is a valid way to use variables, too
 global.int.set("a*b", (i - 1) * 2)
