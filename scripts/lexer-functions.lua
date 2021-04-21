@@ -59,7 +59,7 @@ VALIDATOR = {
 	elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
 };
 
-local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, label=2, op_set=2, op_comp=2, op_mod=2};
+local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
 
 local functions = [[
 impulse wakeup() Impulse
@@ -78,6 +78,7 @@ impulse open.tradingpost() Impulse
 impulse open.workshop() Impulse
 impulse game.newround() Impulse
 
+int label(string)
 void <scope>.<type>.set(string:variable, <type>)
 <type> <scope>.<type>.get(string:variable)
 void global.unset(string:variable) #gu#
@@ -124,8 +125,8 @@ void generic.stop(string:script) Generic
 void generic.wait(double:seconds) Generic
 void generic.waitwhile(bool) Generic
 void generic.waituntil(bool) Generic
-void generic.goto(label) Generic
-void generic.gotoif(label, bool) Generic
+void generic.goto(int) Generic
+void generic.gotoif(int, bool) Generic
 void generic.click(vector) Generic
 void generic.slider(vector:where, double:value[0-1]) Generic
 void generic.scrollrect(vector:where, double:horizontal[scroll], double:vertical[scroll]) Generic #scrollbar#
