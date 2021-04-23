@@ -111,6 +111,7 @@ function compile(name, input, testing)
 		else
 			line = line
 				:gsub(TOKEN.identifier.pattern .. ":", function(name)
+					assert(not lastLabel, "labels can't have labels")
 					name = name:lower();
 					assert(not variables[name], "variable/label already exists: " .. name);
 					variables[name] = {name = name, scope = "local", type = "int", label = 0};
