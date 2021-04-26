@@ -121,7 +121,7 @@ function compile(name, input, testing)
 				:gsub("^%s+", ""):gsub("%s+$", "")
 			;
 
-			if #line > 0 then
+			if #line:gsub("^%s*;.*$", "") > 0 then
 				table.insert(lines, {text = line, num = line_number, label = lastLabel});
 				lastLabel = nil;
 			end
