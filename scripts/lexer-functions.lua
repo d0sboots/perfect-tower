@@ -81,6 +81,7 @@ impulse game.newround() Impulse
 int label(string)
 void <scope>.<type>.set(string:variable, <type>)
 <type> <scope>.<type>.get(string:variable)
+bool constant.bool.get(string:variable)
 void global.unset(string:variable) #gu#
 void local.unset(string:variable) #lu#
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>)
@@ -224,7 +225,7 @@ local function parseFunction(line)
 	elseif line:match"%b<>" then
 		local done = {};
 		
-		for _, scope in ipairs {"global", "local"} do
+		for _, scope in ipairs {"global", "local", "constant"} do
 			for _, typeext in ipairs {"bool", "int", "double", "string"} do
 				for _, type in ipairs {"int", "double", "string"} do
 					for _, num in ipairs {"int", "double"} do

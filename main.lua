@@ -98,7 +98,32 @@ function compile(name, input, testing)
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
 		line_number = line_number + 1;
 
-		if line:match"^:" then
+		-- for people who like putting their multiline starts/ends on lines with actual code
+		line = line:gsub("^%s+", ""):gsub("%s+$", "");
+
+
+		if line:match"^:constant" then
+			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
+			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
+			if (type == "int" or type == "double") then
+				assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value);
+				value = tonumber(value);
+			elseif (type == "bool") then
+				value = value:lower();
+				assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'");
+				if value:match"^true$" then
+					value = true;
+				else
+					value = false;
+				end
+			elseif (type == "string") then
+				quote, value = value:match("^%s*([\"\'])([^%1]*)%1%s*$");
+				assert(value, "bad argument, string are enclosed in either single quotes or double quotes");
+			end
+			name = name:lower()
+			assert(not variables[name], "variable/label/constant already exists: " .. name);
+			variables[name] = {name = name, scope = "constant", type = type, value = value};
+		elseif line:match"^:" then
 			local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
 			assert(scope, "variable definition: [global/local] [int/double] name");
 
@@ -162,6 +187,15 @@ function compile(name, input, testing)
 				assert(variables[var], "why are you calling the label function manually?")
 				encode{type = "number", value = variables[var].label};
 				return;
+			elseif node.func.name:match"^constant%." then
+				local var = node.args[1].value;
+				assert(variables[var], "why are you calling the constant function manually?")
+				local type = variables[var].type;
+				if (type == "int" or type == "double") then
+					type = "number";
+				end
+				encode{type = type, value = variables[var].value};
+				return
 			end
 
 			ins("s1", node.func.name);
