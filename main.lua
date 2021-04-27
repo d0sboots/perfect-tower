@@ -98,10 +98,6 @@ function compile(name, input, testing)
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
 		line_number = line_number + 1;
 
-		-- for people who like putting their multiline starts/ends on lines with actual code
-		line = line:gsub("^%s+", ""):gsub("%s+$", "");
-
-
 		if line:match"^:constant" then
 			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
 			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
