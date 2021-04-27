@@ -92,7 +92,7 @@ function compile(name, input, testing)
 	line_number = 0;
 
 	local lines = {};
-	local lastLabel;
+	local labelCache = {};
 
 	for line in input:gmatch"[^\n]*" do
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
@@ -132,19 +132,18 @@ function compile(name, input, testing)
 		else
 			line = line
 				:gsub(TOKEN.identifier.pattern .. ":", function(name)
-					assert(not lastLabel, "labels can't have labels")
 					name = name:lower();
-					assert(not variables[name], "variable/label already exists: " .. name);
+					assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
 					variables[name] = {name = name, scope = "local", type = "int", label = 0};
-					lastLabel = name;
+					table.insert(labelCache, name);
 					return "";
 				end)
 				:gsub("^%s+", ""):gsub("%s+$", "")
 			;
 
 			if #line:gsub("^%s*;.*$", "") > 0 then
-				table.insert(lines, {text = line, num = line_number, label = lastLabel});
-				lastLabel = nil;
+				table.insert(lines, {text = line, num = line_number, label = labelCache});
+				labelCache = {};
 			end
 		end
 	end
@@ -157,12 +156,14 @@ function compile(name, input, testing)
 			if node.func.ret == "void" then
 				table.insert(actions, node);
 				
-				if line.label then
-					variables[line.label].label = #actions;
+				if #(line.label) > 0 then
+					for _, label in ipairs (line.label) do
+						variables[label].label = #actions;
+					end
 				end
 			else
-				assert(not line.label, "labels cannot be placed before impulses/conditions");
-				
+					assert(#(line.label) == 0, "labels cannot be placed before impulses/conditions");
+			
 				if node.func.ret == "impulse" then
 					table.insert(impulses, node);
 				else
@@ -170,6 +171,11 @@ function compile(name, input, testing)
 				end
 			end
 		end
+	end
+
+	-- anything left in the label cache points to the end of the script
+	for _, label in ipairs (labelCache) do
+		variables[label].label = 99;
 	end
 
 	local function ins(frmt, val)
