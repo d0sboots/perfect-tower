@@ -98,7 +98,7 @@ function compile(name, input, testing)
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
 		line_number = line_number + 1;
 
-		if line:match"^:constant" then
+		if line:match"^:const" then
 			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
 			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
 			if (type == "int" or type == "double") then
