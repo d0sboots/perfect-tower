@@ -121,7 +121,7 @@ function compile(name, input, testing)
 			variables[name] = {name = name, scope = "constant", type = type, value = value};
 		elseif line:match"^:" then
 			local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
-			assert(scope, "variable definition: [global/local] [int/double] name");
+			assert(scope, "variable definition: [global/local/const] [int/double/string] name");
 
 			name = name:lower();
 			assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
