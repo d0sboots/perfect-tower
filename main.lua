@@ -86,11 +86,21 @@ local function cache(line, variables)
 	return _cache[key];
 end
 
+local function parseMacro(text, macros)
+	return text:gsub("%b{}", function(macro)
+		macro = macro:sub(2,-2):lower();
+		local text = macros[macro];
+		assert(text, "macro does not exist: " .. macro);
+		return text;
+	end);
+end
+
 function compile(name, input, testing)
 	local variables, impulses, conditions, actions = {}, {}, {}, {};
 	local ret = {};
 	line_number = 0;
 
+	local macros = {};
 	local lines = {};
 	local labelCache = {};
 
@@ -98,7 +108,13 @@ function compile(name, input, testing)
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
 		line_number = line_number + 1;
 
-		if line:match"^:const" then
+		if line:match"^#" then
+			local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
+			assert(name, "macro definition: #name text");
+			name = name:lower();
+			assert(not macros[name], "macro already exists: " .. name);
+			macros[name] = parseMacro(macro, macros);
+		elseif line:match"^:const" then
 			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
 			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
 			if (type == "int" or type == "double") then
@@ -130,7 +146,7 @@ function compile(name, input, testing)
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
-			line = line
+			line = parseMacro(line, macros)
 				:gsub(TOKEN.identifier.pattern .. ":", function(name)
 					name = name:lower();
 					assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);

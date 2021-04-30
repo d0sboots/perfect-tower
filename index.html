@@ -34,7 +34,7 @@
 		<div class="nowrap">
 			<button class="basicBtn" onclick="scriptNew()">New</button>
 			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.33 ─ Game: v0.8.5 B1</span>
+			<span class="infotext">Editor: 1.34 ─ Game: v0.8.5 B1</span>
 			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 		</div>
 
@@ -416,9 +416,14 @@ gotoif(99, c.i(3, var, 3))`;
 ;   Names containing special characters, or that reference string variables, must use
 ;   the variable functions. These take the form [local/global].[int/double/string].[get/set]
 ;   That's a handful, though, so you can use the first character in each word for short
-; A line starting with a variable name, followed by a colon, is declaring a label
+; A line starting with a variable name, followed by a colon, is defining a label
 ;   Labels are special variables. They are automatically replaced by a line number, and
 ;   exist to make 'goto' and 'gotoif' easier to use
+; A line starting with a hashtag '#' is defining a macro
+;   Unlike labels, macros can only be used on lines after their definition
+;   Macros can reference other macros
+;   Macros are referenced using curly brackets '{}' and act as text replacement
+;   Useful when dealing with large amounts of copy-pasted code
 ; Operators, and their precedence:
 ;   =               assign. Can be prefixed with other operators.
 ;                      Must be the second thing on a line, after a variable name!
