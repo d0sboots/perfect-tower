@@ -125,3 +125,23 @@ function workspaceChange(value) {
         
     }
 }
+
+// Export scritps of all scripts in workspace
+function workspaceExport() {
+    let wholeExport = 'Workspace Export';
+    scripts.forEach(script => {
+        if (script[2] == currentWorkspace) {
+            runLua("compile", script[0])
+            wholeExport += output.value + "\n";
+        }
+    });
+
+    const element = document.createElement('textarea');
+    element.value = wholeExport;
+    document.body.appendChild(element);
+    element.select();
+    document.execCommand('copy');
+    document.body.removeChild(element);
+    // console.log(wholeExport);
+    runLua("compile", scripts[activeTab.id][0]);
+}
