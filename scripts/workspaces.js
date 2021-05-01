@@ -33,7 +33,7 @@ function createWorkspaceElement(workspaceName) {
 function workspaceNew() {
     const newWorkspaceName = prompt("New Workspace Name:");
 
-    if (!newWorkspaceName || newWorkspaceName.length == 0) {
+    if (!newWorkspaceName || newWorkspaceName.length == 0 || workspaces.includes(newWorkspaceName)) {
         return;
     }
 
@@ -91,6 +91,8 @@ function workspaceDelete() {
         return
     }
 
+    if (!confirm(`Are you sure you want to delete workspace ${currentWorkspace}?`)) return;
+
     // Switch all scripts from workspace to default
     scripts.forEach((script) => {
         if (script[2] === currentWorkspace) {
@@ -120,7 +122,11 @@ function workspaceChange(value) {
         if (value === workspaces[0] || currentWorkspace === scripts[tabId][2]) {
             element.classList.remove("hide-script");
         } else {
-             element.classList.add("hide-script");
+            element.classList.add("hide-script");
+
+            if (element.getElementsByClassName("active").length > 0) {
+                scriptSelect(false);
+            }
         }
         
     }
@@ -144,4 +150,11 @@ function workspaceExport() {
     document.body.removeChild(element);
     // console.log(wholeExport);
     runLua("compile", scripts[activeTab.id][0]);
+}
+
+function workspaceMoveScript() {
+    if (!activeTab) return;
+
+    scripts[activeTab.id][2] = currentWorkspace;
+    scriptSave();
 }

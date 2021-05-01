@@ -32,7 +32,6 @@
 
 .functionList{
 	display: inline;
-	width: 98%;
 }
 
 .top-container {
@@ -45,7 +44,8 @@
 .editor-info {
 	justify-self: flex-start;
 	justify-self: space-between;
-	width: 60%;
+	width: 50%;
+	padding-top: 32px;
 }
 
 .script-buttons {
@@ -58,6 +58,7 @@
 
 .workspaces {
 	max-width:100%;
+	right: 0%;
 }
 
 .workspaces > div {
@@ -69,7 +70,7 @@
 }
 
 .workspaces > div > button {
-	margin: 1px;
+	padding-left: 6px;
 	width: unset;
 	height: unset;
 	font-size: 12px;
