@@ -34,6 +34,52 @@
 	display: inline;
 }
 
+.top-container {
+	display: flex;
+	align-items: center;
+	/* justify-content: center; */
+	width: 100%;
+}
+
+.editor-info {
+	justify-self: flex-start;
+	justify-self: space-between;
+	width: 50%;
+	padding-top: 32px;
+}
+
+.script-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	align-self: flex-start;
+	max-width: 220px;
+	justify-self: flex-end;
+}
+
+.workspaces {
+	max-width:100%;
+	right: 0%;
+}
+
+.workspaces > div {
+	max-height: 48px;
+	display: flex;
+	flex-wrap: nowrap;
+	justify-self: flex-end;
+	justify-content: flex-end;
+}
+
+.workspaces > div > button {
+	padding-left: 6px;
+	width: unset;
+	height: unset;
+	font-size: 12px;
+}
+
+.workspaceList{
+	margin: 10px 4px 0px;
+}
+
 .nowrap{
 	white-space: nowrap;
 }
@@ -123,9 +169,14 @@
 	color: white;
 }
 
+.hide-script {
+	display: none;
+}
+
 @media (prefers-color-scheme: dark) {
     body,
     .functionList,
+	.workspaceList,
     .div-container-item {
         background-color: rgb(43, 43, 43);
         color: #a9b7c6;
@@ -138,6 +189,7 @@
     }
 
     ::-webkit-scrollbar-track {
+		box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
         -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
     }
 

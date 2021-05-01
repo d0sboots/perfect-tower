@@ -30,20 +30,38 @@
 		<template id="template-nav-item">
 			<li class="nav-item"><a class="nav-link" data-toggle="tab" onclick="scriptSelect(this.parentElement)">New Script</a></li>
 		</template>
+    
+		<div class="top-container">
+			<div class="script-buttons">
+				<button class="basicBtn" onclick="scriptNew()">New</button>
+				<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
+				<button class="basicBtn" onclick="scriptImport()">Import</button>
+				<button class="basicBtn" onclick="scriptRename()">Rename</button>
+			</div>
 
-		<div class="nowrap">
-			<button class="basicBtn" onclick="scriptNew()">New</button>
-			<button class="basicBtn basicBtnRed" onclick="scriptDelete()">Delete</button>
-			<span class="infotext">Editor: 1.34 ─ Game: v0.8.5 B1</span>
-			<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
+			<div class="editor-info">
+				<span class="infotext">Editor: 1.34 ─ Game: v0.8.5 B1</span>
+				<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
+				<select id="functionList" class="functionList"></select>
+			</div>
+			
+			<div class="workspaces">
+				<div>
+					<p>
+						Worskpace:
+						<select id="workspaceList" class="workspaceList" oninput="workspaceChange(this.value)"></select>
+					</p>
+				</div>
+				<div>
+					<button class="basicBtn" onclick="workspaceNew()">New Workspace</button>
+					<button class="basicBtn" onclick="workspaceRename()">Rename Workspace</button>
+					<button class="basicBtn basicBtnRed" onclick="workspaceDelete()">Delete Workspace</button>
+					<button class="basicBtn" onclick="workspaceExport()">Export Workspace</button>
+					<button class="basicBtn" onclick="workspaceMoveScript()">Move Script</button>
+				</div>
+			</div>
 		</div>
 
-		<div class="nowrap">
-			<button class="basicBtn" onclick="scriptImport()">Import</button>
-			<button class="basicBtn" onclick="scriptRename()">Rename</button>
-			<select id="functionList" class="functionList"></select>
-		</div>
-		
 		<div class="div-container">
 			<div class="div-container-item div-container-border div-container-code">
 				<ul id="scripts-tab" class="nav nav-tabs"></ul>
@@ -54,10 +72,13 @@
 		</div>
 	</div>
 
+	<script src="scripts/workspaces.js" defer></script>
+
 	<script>
 		const loadingText = document.getElementById("loadingText");
 		const loadingDiv = document.getElementById("loadingDiv");
 		const output = document.getElementById("output");
+		const lua_arg = document.getElementById("lua_arg");
 
 		window.onerror = function(msg, url, line) {
 			loadingDiv.style.visibility = "hidden";
@@ -67,14 +88,12 @@
 
 		output.onfocus = function(msg) {
 			if (typeof(output.copy) !== "undefined") {
-				console.log(output.copy);
 				output.setSelectionRange(output.copy, this.value.length);
 			}
 		}
 
 		function runLua(func, arg) {
 			if (typeof(arg) == "string") {
-				const lua_arg = document.getElementById("lua_arg");
 				lua_arg.value = arg;
 			}
 			return fengari.load("return lua_main'" + func + "';")();
@@ -128,6 +147,7 @@
 		function scriptSelect(node) {
 			scriptSave();
 			output.value = "";
+			output.copy = undefined;
 
 			if (activeTab && node == activeTab) {
 				var tab = activeTab;
@@ -260,7 +280,7 @@
 			clon.children[0].addEventListener("dragleave", dragScriptLeave);
 			clon.children[0].addEventListener("drop", dropScript);
 
-			scripts.push([name, scriptTemplate]);
+			scripts.push([name, scriptTemplate, currentWorkspace]);
 			histories.push(emptyHistory);
 			tabs.appendChild(clon);
 		}
@@ -328,6 +348,11 @@
 				loaded.forEach(function(val) {
 					scriptNew(val[0]);
 					scripts[scripts.length - 1] = val;
+
+					// Add default workspace to scripts that have no workspace
+					if (typeof(scripts[scripts.length - 1][2]) !== "string") {
+						scripts[scripts.length - 1][2] = currentWorkspace;
+					}
 				})
 			}
 		}
@@ -361,6 +386,7 @@
 			storageEnabled = storageAvailable();
 			updateWarn(true);
 			scriptLoad();
+			workspaceLoad();
 
 			loadingText.style.visibility = "hidden";
 			loadingDiv.style.visibility = "visible";

@@ -45,6 +45,16 @@ if not DEBUG then
 				output.value = ret:gsub(".*GSUB_HERE", "");
 				output.copy = nil;
 			end
+		elseif func == "workspace" then
+			assert = assert_lexer;
+			local status, ret = pcall(compile, lua_arg.name, lua_arg.text, true);
+
+			if status then
+				output.workspace = ret;
+			else
+				output.workspace = nil;
+				output.value = ret:gsub(".*GSUB_HERE", lua_arg.name .. "\n");
+			end
 		elseif func == "import" then
 			local status, ret = pcall(import, lua_arg.value);
 
