@@ -1,5 +1,5 @@
 // This code treats 0 and 1 as reserved = All and Default
-let workspaces = ["All", "Default Workspace", "Test Workspace"];
+let workspaces = ["All", "Default Workspace"];
 let currentWorkspace = workspaces[1];
 
 const workspaceList = document.getElementById("workspaceList");
