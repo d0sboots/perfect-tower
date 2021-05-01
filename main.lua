@@ -71,7 +71,7 @@ end
 local function cache(line, variables)
 	local key = {};
 
-	for k, v in pairs (variables) do
+	for _, v in pairs (variables) do
 		table.insert(key, string.format("%s.%s.%s", v.scope, v.type, v.name));
 	end
 
@@ -86,62 +86,112 @@ local function cache(line, variables)
 	return _cache[key];
 end
 
+local function parseMacro(text, macros)
+	return text:gsub("%b{}", function(macro)
+		macro = macro:sub(2,-2):lower();
+		local text = macros[macro];
+		assert(text, "macro does not exist: " .. macro);
+		return text;
+	end);
+end
+
 function compile(name, input, testing)
-	local labels, variables, impulses, conditions, actions = {}, {}, {}, {}, {};
+	local variables, impulses, conditions, actions = {}, {}, {}, {};
 	local ret = {};
 	line_number = 0;
-	labels["99"] = 99;
+
+	local macros = {};
+	local lines = {};
+	local labelCache = {};
 
 	for line in input:gmatch"[^\n]*" do
 		line = line:gsub("^%s+", ""):gsub("%s+$", "");
 		line_number = line_number + 1;
 
-		if line:match"^:" then
+		if line:match"^#" then
+			local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
+			assert(name, "macro definition: #name text");
+			name = name:lower();
+			assert(not macros[name], "macro already exists: " .. name);
+			macros[name] = parseMacro(macro, macros);
+		elseif line:match"^:const" then
+			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
+			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
+			if (type == "int" or type == "double") then
+				assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value);
+				value = tonumber(value);
+			elseif (type == "bool") then
+				value = value:lower();
+				assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'");
+				if value:match"^true$" then
+					value = true;
+				else
+					value = false;
+				end
+			elseif (type == "string") then
+				quote, value = value:match("^%s*([\"\'])([^%1]*)%1%s*$");
+				assert(value, "bad argument, string are enclosed in either single quotes or double quotes");
+			end
+			name = name:lower()
+			assert(not variables[name], "variable/label/constant already exists: " .. name);
+			variables[name] = {name = name, scope = "constant", type = type, value = value};
+		elseif line:match"^:" then
 			local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
-			assert(scope, "variable definition: [global/local] [int/double] name");
+			assert(scope, "variable definition: [global/local/const] [int/double/string] name");
 
 			name = name:lower();
 			assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
 			assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
-			assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
+			assert(not variables[name], "variable/label already exists: " .. name);
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
-			line = line
-				:gsub("^%s*([%w%.]+):", function(name)
-					assert(not variables[name] and not labels[name], "variable/label already exists: " .. name);
-					table.insert(labels, name);
+			line = parseMacro(line, macros)
+				:gsub(TOKEN.identifier.pattern .. ":", function(name)
+					name = name:lower();
+					assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
+					variables[name] = {name = name, scope = "local", type = "int", label = 0};
+					table.insert(labelCache, name);
 					return "";
 				end)
 				:gsub("^%s+", ""):gsub("%s+$", "")
 			;
 
-			if #line > 0 then
-				local node = cache(line, variables);
+			if #line:gsub("^%s*;.*$", "") > 0 then
+				table.insert(lines, {text = line, num = line_number, label = labelCache});
+				labelCache = {};
+			end
+		end
+	end
 
-				if node and node.func then
-					if node.func.ret == "void" then
-						table.insert(actions, node);
+	for _, line in ipairs (lines) do
+		line_number = line.num;
+		local node = cache(line.text, variables);
 
-						for i = #labels, 1, -1 do
-							labels[table.remove(labels, i)] = #actions;
-						end
-					else
-						assert(#labels == 0, "labels cannot be placed before impulses/conditions");
-						
-						if node.func.ret == "impulse" then
-							table.insert(impulses, node);
-						else
-							table.insert(conditions, node);
-						end
+		if node and node.func then
+			if node.func.ret == "void" then
+				table.insert(actions, node);
+				
+				if #(line.label) > 0 then
+					for _, label in ipairs (line.label) do
+						variables[label].label = #actions;
 					end
+				end
+			else
+					assert(#(line.label) == 0, "labels cannot be placed before impulses/conditions");
+			
+				if node.func.ret == "impulse" then
+					table.insert(impulses, node);
+				else
+					table.insert(conditions, node);
 				end
 			end
 		end
 	end
 
-	for i = #labels, 1, -1 do
-		labels[table.remove(labels, i)] = 99;
+	-- anything left in the label cache points to the end of the script
+	for _, label in ipairs (labelCache) do
+		variables[label].label = 99;
 	end
 
 	local function ins(frmt, val)
@@ -150,6 +200,22 @@ function compile(name, input, testing)
 
 	local function encode(node)
 		if node.func then
+			if node.func.name == "label" then
+				local var = node.args[1].value;
+				assert(variables[var], "why are you calling the label function manually?")
+				encode{type = "number", value = variables[var].label};
+				return;
+			elseif node.func.name:match"^constant%." then
+				local var = node.args[1].value;
+				assert(variables[var], "why are you calling the constant function manually?")
+				local type = variables[var].type;
+				if (type == "int" or type == "double") then
+					type = "number";
+				end
+				encode{type = type, value = variables[var].value};
+				return
+			end
+
 			ins("s1", node.func.name);
 
 			for _, arg in ipairs (node.args) do
@@ -197,9 +263,6 @@ function compile(name, input, testing)
 				end
 
 				ins("s1", node.value);
-			elseif node.type == "label" then
-				ins("b", 2);
-				ins("i4", assert(labels[node.value], "unknown label: " .. node.value));
 			else
 				assert(false, "BUG REPORT: unknown compile type: " .. node.type);
 			end
@@ -339,7 +402,7 @@ function import(input)
 			ins(parse());
 			
 			if i == 3 then
-				ins(string.format("%s: %s", j, table.remove(ret)));
+				ins(table.remove(ret));
 			end
 		end
 

@@ -1,6 +1,6 @@
 local current_line, variables;
 
-local dynamicFunc = {min = true, max = true, rnd =  true};
+local dynamicFunc = {min = true, max = true, rnd =  true, ["if"] = true};
 
 local function tokenError(...)
 	local str, repl = current_line:gsub("^\1(.+)\2$", "%1");
@@ -70,10 +70,11 @@ end
 
 local function resolveID(token)
 	if token.type == "identifier" and not token.func then
-		token.var = assert(variables[token.value:lower()], tokenError(token, "undefined variable: " .. token.value));
+		token.value = token.value:lower();
+		token.var = assert(variables[token.value], tokenError(token, "undefined variable: " .. token.value));
 		token.type = "string";
 		
-		local new = newNode(token.pos, nil, string.format("%s.%s.get", token.var.scope, token.var.type));
+		local new = newNode(token.pos, nil, token.var.label and "label" or string.format("%s.%s.get", token.var.scope, token.var.type));
 		new.args = {token};
 		return new;
 	end
@@ -104,17 +105,7 @@ local function consumeTokensWorker(node)
 	if #node.tokens == 0 then
 		return;
 	elseif #node.tokens == 1 then
-		local arg = node.func and node.func.args[#node.args + 1];
-		local token = node.tokens[1];
-
-		if arg and arg.type == "label" then
-			if token.type == "number" or (token.type == "identifier" and not token.func and not variables[token.value:lower()]) then
-				token.type = "label";
-				token.value = tostring(token.value);
-			end
-		end
-
-		table.insert(node.args, resolveID(token));
+		table.insert(node.args, resolveID(node.tokens[1]));
 		node.tokens = {};
 		return;
 	end
@@ -137,6 +128,7 @@ local function consumeTokensWorker(node)
 				
 				if type == "op_set" then
 					local var = left.args[1].var;
+					assert(not var.label, "you can't assign values to labels");
 					local new = newNode(left.pos, node, string.format("%s.%s.set", var.scope, var.type));
 
 					if op.value ~= "=" then
@@ -241,7 +233,7 @@ local function consumeTokens(node)
 		assert(expected, tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, arg)));
 
 		if not dynamicFunc[node.func.name] then
-			assert(type == expected.type or (type == "int" and expected.type == "label") or (type == "string" and expected.type:match"^op"), tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
+			assert(type == expected.type or (type == "string" and expected.type:match"^op"), tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
 
 			if expected.valid and (last.type == "number" or last.type == "string") then
 				local status, err = expected.valid(last.value);
@@ -295,16 +287,25 @@ function lexer(line, vars)
 						node.args = {new};
 						node.func = FUNCTION.click;
 					elseif dynamicFunc[node.func.name] then
-						local arg = resolveType(node.args[1]);
-						assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg)));
+						if node.func.short == "if" then
+							local arg2 = resolveType(node.args[2]);
+							local arg3 = resolveType(node.args[3]);
+							local func = FUNCTION["ternary." .. arg2];
+							assert(func, tokenError(node, node.args[2], string.format("bad argument #2 to %s (int, double, string or vector expected, got %s", node.func.short, arg2)));
+							assert(arg3 == arg2, tokenError(node, node.args[3], string.format("bad argument #3 to %s (%s expected, got %s)", node.func.short, arg2, arg3)));
+							node.func = func;
+						else
+							local arg = resolveType(node.args[1]);
+							assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg)));
 
-						for i = 2, #node.args do
-							local type = resolveType(node.args[i]);
-							assert(type == arg, tokenError(node, node.args[i], string.format("bad argument #%s to %s (%s expected, got %s)", i, node.func.short, arg, type)));
+							for i = 2, #node.args do
+								local type = resolveType(node.args[i]);
+								assert(type == arg, tokenError(node, node.args[i], string.format("bad argument #%s to %s (%s expected, got %s)", i, node.func.short, arg, type)));
+							end
+
+							local name = string.format("%s.%s", arg, node.func.name);
+							node.func = FUNCTION[name];
 						end
-
-						local name = string.format("%s.%s", arg, node.func.name);
-						node.func = FUNCTION[name];
 					end
 				end
 

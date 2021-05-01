@@ -5,7 +5,7 @@ local strings = {
 	window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
 
 	item = {"block.dense", "plate.dense", "screw", "plate.rubber", "plate.circuit", "ring", "pipe", "wire", "circuit", "hammer"},
-	craft = {"motor", "chip", "cable.insulated", "block", "pump", "plate.stack", "lump", "producer.town", "producer.mine", "producer.powerplant", "producer.factory", "producer.workshop", "producer.constructionFirm", "producer.headquarters", "producer.laboratory", "producer.tradingpost", "producer.arcade", "producer.museum", "producer.shipyard", "producer.statueofcubos", "producer.gems", "producer.exoticgems", "machine.oven", "machine.presser", "machine.transportbelt", "machine.crusher", "machine.mixer", "machine.refinery", "machine.assembler", "machine.shaper", "machine.cutter", "machine.boiler"},
+	craft = {"hammer", "motor", "chip", "cable.insulated", "block", "pump", "plate.stack", "lump", "producer.town", "producer.mine", "producer.powerplant", "producer.factory", "producer.workshop", "producer.constructionFirm", "producer.headquarters", "producer.laboratory", "producer.tradingpost", "producer.arcade", "producer.museum", "producer.shipyard", "producer.statueofcubos", "producer.gems", "producer.exoticgems", "machine.oven", "machine.presser", "machine.transportbelt", "machine.crusher", "machine.mixer", "machine.refinery", "machine.assembler", "machine.shaper", "machine.cutter", "machine.boiler"},
 	produce = {"rubber", "ore", "dust", "ingot", "plate.stack", "rod", "plate", "cable", "lump", "block"},
 	machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
 
@@ -59,7 +59,7 @@ VALIDATOR = {
 	elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
 };
 
-local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, label=2, op_set=2, op_comp=2, op_mod=2};
+local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
 
 local functions = [[
 impulse wakeup() Impulse
@@ -78,8 +78,10 @@ impulse open.tradingpost() Impulse
 impulse open.workshop() Impulse
 impulse game.newround() Impulse
 
+int label(string)
 void <scope>.<type>.set(string:variable, <type>)
 <type> <scope>.<type>.get(string:variable)
+bool constant.bool.get(string:variable)
 void global.unset(string:variable) #gu#
 void local.unset(string:variable) #lu#
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>)
@@ -102,6 +104,12 @@ double double.floor(double) Number
 double double.ceil(double) Number
 double double.round(double) Number
 
+void if(bool, void, void) {Generic type if(bool, true, false)}
+int ternary.int(bool, int, int)
+double ternary.double(bool, double, double)
+string ternary.string(bool, string, string)
+vector ternary.vec2(bool, vector, vector) #ternary.vector#
+
 int d2i(double) Conversion
 double i2d(int) Conversion
 string i2s(int) Conversion
@@ -118,8 +126,8 @@ void generic.stop(string:script) Generic
 void generic.wait(double:seconds) Generic
 void generic.waitwhile(bool) Generic
 void generic.waituntil(bool) Generic
-void generic.goto(label) Generic
-void generic.gotoif(label, bool) Generic
+void generic.goto(int) Generic
+void generic.gotoif(int, bool) Generic
 void generic.click(vector) Generic
 void generic.slider(vector:where, double:value[0-1]) Generic
 void generic.scrollrect(vector:where, double:horizontal[scroll], double:vertical[scroll]) Generic #scrollbar#
@@ -217,7 +225,7 @@ local function parseFunction(line)
 	elseif line:match"%b<>" then
 		local done = {};
 		
-		for _, scope in ipairs {"global", "local"} do
+		for _, scope in ipairs {"global", "local", "constant"} do
 			for _, typeext in ipairs {"bool", "int", "double", "string"} do
 				for _, type in ipairs {"int", "double", "string"} do
 					for _, num in ipairs {"int", "double"} do
