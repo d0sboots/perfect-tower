@@ -40,7 +40,7 @@
 			</div>
 
 			<div class="editor-info">
-				<span class="infotext">Editor: 1.35 ─ Game: v0.8.6 B2</span>
+				<span class="infotext">Editor: 1.34 ─ Game: v0.8.5 B1</span>
 				<span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
 				<select id="functionList" class="functionList"></select>
 			</div>
@@ -78,6 +78,7 @@
 		const loadingText = document.getElementById("loadingText");
 		const loadingDiv = document.getElementById("loadingDiv");
 		const output = document.getElementById("output");
+		const lua_arg = document.getElementById("lua_arg");
 
 		window.onerror = function(msg, url, line) {
 			loadingDiv.style.visibility = "hidden";
@@ -87,14 +88,12 @@
 
 		output.onfocus = function(msg) {
 			if (typeof(output.copy) !== "undefined") {
-				console.log(output.copy);
 				output.setSelectionRange(output.copy, this.value.length);
 			}
 		}
 
 		function runLua(func, arg) {
 			if (typeof(arg) == "string") {
-				const lua_arg = document.getElementById("lua_arg");
 				lua_arg.value = arg;
 			}
 			return fengari.load("return lua_main'" + func + "';")();
@@ -148,6 +147,7 @@
 		function scriptSelect(node) {
 			scriptSave();
 			output.value = "";
+			output.copy = undefined;
 
 			if (activeTab && node == activeTab) {
 				var tab = activeTab;

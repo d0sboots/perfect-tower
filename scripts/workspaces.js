@@ -132,24 +132,36 @@ function workspaceChange(value) {
     }
 }
 
-// Export scritps of all scripts in workspace
+// Export all scripts in workspace
 function workspaceExport() {
-    let wholeExport = 'Workspace Export';
+    var text = "";
+    var err = false;
+    output.copy = undefined;
+
     scripts.forEach(script => {
-        if (script[2] == currentWorkspace) {
-            runLua("compile", script[0])
-            wholeExport += output.value + "\n";
+        if (!err && (script[2] == currentWorkspace || workspaceList.value == workspaces[0])) {
+            lua_arg.name = script[0];
+            lua_arg.text = script[1];
+            runLua("workspace");
+            if (typeof(output.workspace) !== "string") {
+                err = true;
+                return;
+            }
+            text += output.workspace + ";";
         }
     });
 
-    const element = document.createElement('textarea');
-    element.value = wholeExport;
-    document.body.appendChild(element);
-    element.select();
-    document.execCommand('copy');
-    document.body.removeChild(element);
-    // console.log(wholeExport);
-    runLua("compile", scripts[activeTab.id][0]);
+    if (err) {
+        return;
+    }
+
+    if (text.length == 0) {
+        output.value = "There are no scripts here";
+        return;
+    }
+
+    output.value = text;
+    output.copy = 0;
 }
 
 function workspaceMoveScript() {
