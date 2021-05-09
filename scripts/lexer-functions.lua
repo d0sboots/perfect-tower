@@ -87,7 +87,9 @@ void local.unset(string:variable) #lu#
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>)
 <type> arithmetic.<type>(<type>, op_mod, <type>)
 
+bool string.contains(string, string) String
 int string.length(string) String #len#
+int string.indexOf(string, string, int:offset) String #index#
 string concat(string, string) String
 string substring(string, int:offset, int:length) String #sub#
 
@@ -136,6 +138,8 @@ int screen.width() Generic
 int screen.height() Generic
 double screen.width.d() Generic #width.d#
 double screen.height.d() Generic #height.d#
+
+void timestamp.now() Generic
 
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
