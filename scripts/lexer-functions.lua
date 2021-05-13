@@ -139,7 +139,7 @@ int screen.height() Generic
 double screen.width.d() Generic #width.d#
 double screen.height.d() Generic #height.d#
 
-void timestamp.now() Generic
+double timestamp.now() Generic
 
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
