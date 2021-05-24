@@ -168,6 +168,7 @@ bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
 void factory.craft(string:item[craft], int:tier[tier], double:amount) Factory
 void factory.produce(string:item[produce], int:tier[tier], double:amount, string:machine[machine]) Factory
+void factory.trash(string:item[item], int:tier[tier], double:amount) Factory
 
 bool museum.isfill() Museum
 int museum.freeSlots(string:inventory[inv]) Museum
