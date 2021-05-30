@@ -358,8 +358,6 @@ function import(input)
 				if arg.type:match"^op_" then
 					if args[i]:match'^".*"$' then
 						args[i] = args[i]:sub(2, -2):lower()
-							:gsub("&&", "&")
-							:gsub("||", "|")
 							:gsub("^=$", "==")
 							:gsub("mod", "%%")
 							:gsub("pow", "^")

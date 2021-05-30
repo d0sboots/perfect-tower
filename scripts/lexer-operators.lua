@@ -23,8 +23,10 @@ local operators = [[
 > compare
 >= compare
 
+&& compare
 & compare
 
+|| compare
 | compare
 
 = assign
