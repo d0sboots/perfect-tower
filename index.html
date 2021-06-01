@@ -446,9 +446,12 @@ gotoif(99, c.i(3, var, 3))`;
 ;   Labels are special variables. They are automatically replaced by a line number, and
 ;   exist to make 'goto' and 'gotoif' easier to use
 ; A line starting with a hashtag '#' is defining a macro
-;   Unlike labels, macros can only be used on lines after their definition
-;   Macros can reference other macros
+;   Simple macros are #macro_name macro_body
+;   Macro-functions can be be defined with #macro_name(arg1, arg2, ...) macro_body
+;   Macros can reference other macros, and also be nested inside macro calls
 ;   Macros are referenced using curly brackets '{}' and act as text replacement
+;   An example: "#concat(a, b) {a}{b}" defines a macro function that combines its arguments
+;   {co{concat(nc,at)}at("hi, there")} would result in "hi there" by applying it twice
 ;   Useful when dealing with large amounts of copy-pasted code
 ; Operators, and their precedence:
 ;   =               assign. Can be prefixed with other operators.
