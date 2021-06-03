@@ -134,7 +134,7 @@ function workspaceChange(value) {
 
 // Export all scripts in workspace
 function workspaceExport() {
-    var text = "";
+    var exported = [];
     var err = false;
     output.copy = undefined;
 
@@ -147,13 +147,14 @@ function workspaceExport() {
                 err = true;
                 return;
             }
-            text += output.workspace + ";";
+            exported.push(output.workspace);
         }
     });
 
     if (err) {
         return;
     }
+    var text = exported.join(";");
 
     if (text.length == 0) {
         output.value = "There are no scripts here";
