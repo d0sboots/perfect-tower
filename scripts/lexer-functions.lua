@@ -156,6 +156,7 @@ double tower.shield(bool:percent) Tower
 double tower.shield.max() Tower #shield.max#
 double tower.module.cooldown(int:skill) Tower
 void tower.module.useinstant(int:skill) Tower
+void tower.restart() Tower
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
