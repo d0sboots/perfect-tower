@@ -451,8 +451,12 @@ gotoif(99, c.i(3, var, 3))`;
 ;   Macros can reference other macros, and also be nested inside macro calls
 ;   Macros are referenced using curly brackets '{}' and act as text replacement
 ;   An example: "#concat(a, b) {a}{b}" defines a macro function that combines its arguments
-;   {co{concat(nc,at)}("hi, there")} would result in "hi there" by applying it twice
-;   Useful when dealing with large amounts of copy-pasted code
+;     {co{concat(nc,at)}("hi, there")} would result in "hi there" by applying it twice
+;   There are two builtin macro-functions: {len()} returns the length of its
+;     argument (including any whitespace), and {lua()} evaluates its argument
+;     as a Lua chunk (don't forget to return a value!).
+;   Macros are useful when dealing with large amounts of copy-pasted code,
+;     and macro-functions are good for more complicated code-generation needs.
 ; Operators, and their precedence:
 ;   =               assign. Can be prefixed with other operators.
 ;                      Must be the second thing on a line, after a variable name!

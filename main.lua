@@ -99,6 +99,9 @@ end
 local function parseMacro(text, macros, depth)
 	assert(depth < 100, "macro expansion depth reached " .. depth ..  ", probable infinite loop in: " .. text)
 	return text:gsub("%b{}", function(macro)
+		if #macro == 2 then
+			return
+		end
 		macro = parseMacro(macro:sub(2,-2), macros, depth + 1);
 		local arg_body = "";
 		local name = macro:match("^([^%(]+)$");
@@ -132,6 +135,15 @@ local function parseMacro(text, macros, depth)
 		assert(arg_len == arg_count,
 			"macro call has wrong number of args, expected " .. arg_len ..
 			" but got " .. arg_count .. ": " .. macro);
+		if name == "len" then
+			return tostring(#args["{#0#}"]);
+		elseif name == "lua" then
+			local chunk, err = load(args["{#0#}"]);
+			assert(chunk, err)
+			local result = chunk()
+			assert(result ~= nil, "lua() returned nil (did you forget to return?)")
+			return tostring(result);
+		end
 		return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1);
 	end);
 end
@@ -141,7 +153,7 @@ function compile(name, input, testing)
 	local ret = {};
 	line_number = 0;
 
-	local macros = {};
+	local macros = {len = {arg_len = 1}, lua = {arg_len = 1}};
 	local lines = {};
 	local labelCache = {};
 
@@ -173,7 +185,7 @@ function compile(name, input, testing)
 			end
 			name = name:lower();
 			assert(not macros[name], "macro already exists: " .. name);
-			macros[name] = {text=macro:gsub("{[^{}]+}", args), arg_len=arg_len};
+			macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len};
 		elseif line:match"^:const" then
 			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
 			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
