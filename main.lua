@@ -96,12 +96,43 @@ local function cache(line, variables)
 	return _cache[key];
 end
 
-local function parseMacro(text, macros)
+local function parseMacro(text, macros, depth)
+	assert(depth < 100, "macro expansion depth reached " .. depth ..  ", probable infinite loop in: " .. text)
 	return text:gsub("%b{}", function(macro)
-		macro = macro:sub(2,-2):lower();
-		local text = macros[macro];
-		assert(text, "macro does not exist: " .. macro);
-		return text;
+		macro = parseMacro(macro:sub(2,-2), macros, depth + 1);
+		local arg_body = "";
+		local name = macro:match("^([^%(]+)$");
+		if not name then
+			name, arg_body = macro:match("^([^%(]+)(%b())");
+		end
+		assert(name, "invalid macro call: " .. macro);
+		assert(#name + #arg_body == #macro, "trailing junk after macro call: " .. macro);
+		local args = {};
+		local arg_count = 0;
+		local arg_begin = 2;
+		local nesting = 0;
+		for i = 2, #arg_body do
+			local char = arg_body:sub(i, i);
+			if nesting == 0 and (char == "," or i == #arg_body) then
+				args["{#"..arg_count.."#}"] = arg_body:sub(arg_begin, i-1);
+				arg_count = arg_count + 1;
+				arg_begin = i + 1;
+			elseif char == "(" then
+				nesting = nesting + 1;
+			elseif char == ")" and i ~= #arg_body then
+				nesting = nesting - 1;
+				assert(nesting >= 0, "unbalanced parenthesis inside macro call: " .. macro);
+			end
+		end
+		assert(nesting == 0, "unclosed parenthesis inside macro call: " .. macro);
+		name = name:lower();
+		local macro_obj = macros[name];
+		assert(macro_obj, "macro does not exist: " .. name);
+		local unexpanded, arg_len = macro_obj.text, macro_obj.arg_len;
+		assert(arg_len == arg_count,
+			"macro call has wrong number of args, expected " .. arg_len ..
+			" but got " .. arg_count .. ": " .. macro);
+		return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1);
 	end);
 end
 
@@ -119,11 +150,30 @@ function compile(name, input, testing)
 		line_number = line_number + 1;
 
 		if line:match"^#" then
+			local macro_args = "";
 			local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
-			assert(name, "macro definition: #name text");
+			if not name then
+				name, macro_args, macro = line:sub(2):match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%)) (.+)$");
+			end
+			assert(name, "macro definition: #name <text> or #name(args...) <text>");
+			local args = {};
+			local arg_len = 0;
+			local arg_begin = 2;
+			while arg_begin <= #macro_args do
+				local pos = macro_args:find(",", arg_begin, true);
+				if not pos then
+					pos = #macro_args;
+				end
+				local arg_string = macro_args:sub(arg_begin, pos - 1);
+				local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$");
+				assert(arg, "bad macro function argument name: " .. arg_string);
+				args["{" .. arg .. "}"] = "{#" .. arg_len .. "#}";
+				arg_len = arg_len + 1;
+				arg_begin = pos + 1;
+			end
 			name = name:lower();
 			assert(not macros[name], "macro already exists: " .. name);
-			macros[name] = parseMacro(macro, macros);
+			macros[name] = {text=macro:gsub("{[^{}]+}", args), arg_len=arg_len};
 		elseif line:match"^:const" then
 			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
 			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
@@ -156,7 +206,7 @@ function compile(name, input, testing)
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
-			line = parseMacro(line, macros)
+			line = parseMacro(line, macros, 1)
 				:gsub(TOKEN.identifier.pattern .. ":", function(name)
 					name = name:lower();
 					assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
