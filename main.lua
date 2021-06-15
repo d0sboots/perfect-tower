@@ -110,6 +110,17 @@ local function parseMacro(text, macros, depth)
 		end
 		assert(name, "invalid macro call: " .. macro);
 		assert(#name + #arg_body == #macro, "trailing junk after macro call: " .. macro);
+		if name == "len" then
+			assert(arg_body ~= "", "len is a macro function")
+			return tostring(#arg_body - 2);
+		elseif name == "lua" then
+			assert(arg_body ~= "", "lua is a macro function")
+			local chunk, err = load(arg_body:sub(2,-2));
+			assert(chunk, err)
+			local result = chunk()
+			assert(result ~= nil, "lua() returned nil (did you forget to return?)")
+			return tostring(result);
+		end
 		local args = {};
 		local arg_count = 0;
 		local arg_begin = 2;
@@ -135,15 +146,6 @@ local function parseMacro(text, macros, depth)
 		assert(arg_len == arg_count,
 			"macro call has wrong number of args, expected " .. arg_len ..
 			" but got " .. arg_count .. ": " .. macro);
-		if name == "len" then
-			return tostring(#args["{#0#}"]);
-		elseif name == "lua" then
-			local chunk, err = load(args["{#0#}"]);
-			assert(chunk, err)
-			local result = chunk()
-			assert(result ~= nil, "lua() returned nil (did you forget to return?)")
-			return tostring(result);
-		end
 		return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1);
 	end);
 end
@@ -153,7 +155,7 @@ function compile(name, input, testing)
 	local ret = {};
 	line_number = 0;
 
-	local macros = {len = {arg_len = 1}, lua = {arg_len = 1}};
+	local macros = {len = '__builtin__', lua = '__builtin__'};
 	local lines = {};
 	local labelCache = {};
 
