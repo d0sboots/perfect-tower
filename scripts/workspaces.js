@@ -140,14 +140,12 @@ function workspaceExport() {
 
     scripts.forEach(script => {
         if (!err && (script[2] == currentWorkspace || workspaceList.value == workspaces[0])) {
-            lua_arg.name = script[0];
-            lua_arg.text = script[1];
-            runLua("workspace");
-            if (typeof(output.workspace) !== "string") {
+            var result = runLua("workspace", script[0], script[1]);
+            if (!result.status) {
                 err = true;
                 return;
             }
-            exported.push(output.workspace);
+            exported.push(result.output);
         }
     });
 

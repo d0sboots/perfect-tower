@@ -12,70 +12,46 @@ for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tok
 	end
 end
 
-if not DEBUG then
-	local js = require"js";
-	local window = js.global;
-	local document = window.document;
-
-	local output = document:getElementById("output");
-	local lua_arg = document:getElementById("lua_arg");
-
+do
 	local assert_old = assert;
 
 	local function assert_lexer(test, msg)
 		if not test then
-			assert_old(false, string.format("GSUB_HERE%s: %s", line_number, msg));
+			error(string.format("%s: %s", line_number, msg), 0);
 		end
 
 		return test;
 	end
 
-	function lua_main(func)
-		-- window.console.clear();
-
+	function lua_main(func, arg1, arg2)
+		local status, ret;
 		if func == "compile" then
 			assert = assert_lexer;
-			local status, ret = pcall(compile, lua_arg.value, window.editor:getValue());
+			status, ret = pcall(compile, arg1, arg2);
 			assert = assert_old;
 
 			if status then
-				output.value = ret;
-				output.copy = ret:match".*\n.*()\n";
+				return true, ret, ret:match".*\n.*()\n";
 			else
-				output.value = ret:gsub(".*GSUB_HERE", "");
-				output.copy = nil;
+				return false, ret, nil;
 			end
 		elseif func == "workspace" then
 			assert = assert_lexer;
-			local status, ret = pcall(compile, lua_arg.name, lua_arg.text, true);
-
-			if status then
-				output.workspace = ret;
-			else
-				output.workspace = nil;
-				output.value = ret:gsub(".*GSUB_HERE", lua_arg.name .. "\n");
-			end
-		elseif func == "import" then
-			local status, ret = pcall(import, lua_arg.value);
-
-			if status then
-				return ret;
-			else
-				output.value = ret;
-			end
-		elseif func == "unittest" then
-			local status, ret = pcall(unittest);
+			status, ret = pcall(compile, arg1, arg2, true);
+			assert = assert_old;
 
 			if not status then
-				output.value = ret;
+				return false, arg1 .. "\n" .. ret;
 			end
+		elseif func == "import" then
+			status, ret = pcall(import, arg1);
+		elseif func == "unittest" then
+			status, ret = pcall(unittest);
 		else
 			assert(false, "BUG REPORT: unknown lua_main function: " .. func);
 		end
+		return status, ret;
 	end
-
-	local elem = document:getElementById("functionList");
-	elem.innerHTML = FUNCTION_LIST;
 end
 
 local function cache(line, variables)
