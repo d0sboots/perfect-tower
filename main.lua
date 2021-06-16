@@ -158,10 +158,17 @@ function compile(name, input, testing)
 	local macros = {len = '__builtin__', lua = '__builtin__'};
 	local lines = {};
 	local labelCache = {};
+	local lineCache = {};
 
-	for line in input:gmatch"[^\n]*" do
-		line = line:gsub("^%s+", ""):gsub("%s+$", "");
+	for real_line in input:gmatch"[^\n]*" do
 		line_number = line_number + 1;
+		if real_line:sub(-1) == "\\" then
+			lineCache[#lineCache+1] = real_line:sub(1, -2);
+			goto continue;
+		end
+		lineCache[#lineCache+1] = real_line;
+		line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
+		lineCache = {};
 
 		if line:match"^#" then
 			local macro_args = "";
@@ -236,6 +243,7 @@ function compile(name, input, testing)
 				labelCache = {};
 			end
 		end
+		::continue::
 	end
 
 	for _, line in ipairs (lines) do
