@@ -433,6 +433,10 @@
 ; Everything after a semicolon ';' is a comment.
 ;   It doesn't get saved with the script.
 
+; A line that ends with a backslash '\\' continues
+;   to the next line. This works even for comments,
+;   which is probably not what you want/expect!
+
 ; A line starting with a colon ':' is declaring a variable.
 ;   Variable names are a combination of letters, digits,
 ;   dots '.' and underscores '_'. Names must start with a
@@ -513,10 +517,18 @@ label:
 ; You can do math on labels, too!
 i = label * 5
 
+; This is how you can use macros to cut down on duplication
+#common_expr (i - 2) * (i - 1) / 2
+
 ; This is a valid way to use variables, too
-global.int.set("a*b", (i - 1) * 2)
+global.int.set("a*b", {common_expr})
 var = "a*b"
-gis(var, (i - 1) * 2)
+gis(var, {common_expr})
+
+; Continuing a long line. Note the space before the backslash,
+; that doesn't get included automatically.
+var = "This is a really long string that probably shouldn't keep \\
+going on like this and yet it does."
 
 ; This is how you use variables as operators
 var = '+' ; Single quotes works too
@@ -524,7 +536,7 @@ test = a.d(3., var, 0.)
 var = "=="
 gotoif(99, c.i(3, var, 3))`;
 
-		var scriptTemplate = output.placeholder.split("Have fun!\n\n")[1]
+		var scriptTemplate = output.placeholder.split("Have fun!\n\n")[1];
 	</script>
 </body>
 </html>
