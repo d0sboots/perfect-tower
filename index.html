@@ -90,7 +90,7 @@
 			}
 		}
 
-		function runLua(func, args...) {
+		function runLua(...args) {
 			const L = fengari.L;
 			const lua = fengari.lua;
 			const interop = fengari.interop;
@@ -99,7 +99,7 @@
 			for (const arg of args) {
 				interop.push(L, arg);
 			}
-			lua.lua_call(L, arguments.length, lua.LUA_MULTRET);
+			lua.lua_call(L, args.length, lua.LUA_MULTRET);
 			const nresults = lua.lua_gettop(L) - initial_top;
 			let res_array = [];
 			for (let i = 0; i < nresults; i++) {
@@ -107,7 +107,7 @@
 			}
 			lua.lua_settop(L, initial_top);
 			let res = {status: res_array[0], output: res_array[1]};
-			if (func == "compile" || !res.status) {
+			if (args[0] == "compile" || !res.status) {
 				output.value = res.output;
 			}
 			if (nresults > 2) {
