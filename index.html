@@ -427,67 +427,68 @@
 			}, 500);
 		});
 
-		var scriptTemplate = `:local int i
-:local double test
-:local string var
-
-wakeup()
-
-isfill()
-
-i = 0
-label:
-	dig(i % 4, i / 4)
-	i += 1
-	gotoif(label, i == 1)
-
-i = label * 5
-
-global.int.set("a*b", (i - 1) * 2)
-var = "a*b"
-gis(var, (i - 1) * 2)
-
-var = '+'
-test = a.d(3., var, 0.)
-var = "=="
-gotoif(99, c.i(3, var, 3))`;
-
-		output.placeholder = `; Here's a tutorial, and a quick script to showcase it
+		output.placeholder = `; Here's a tutorial, and a quick script to showcase it.
 ;   New scripts start with this code, so don't worry about copying it by hand!
-; Everything after a semicolon ';' is a comment. It doesn't get saved with the script
-; A line starting with a colon ':' is declaring a variable
-;   Variable names are a combination of letters, digits, dots '.' and underscores '_'
-;   Names must start with a letter or underscore
-;   Names containing special characters, or that reference string variables, must use
-;   the variable functions. These take the form [local/global].[int/double/string].[get/set]
-;   That's a handful, though, so you can use the first character in each word for short
-; A line starting with a variable name, followed by a colon, is defining a label
-;   Labels are special variables. They are automatically replaced by a line number, and
-;   exist to make 'goto' and 'gotoif' easier to use
-; A line starting with a hashtag '#' is defining a macro
-;   Simple macros are #macro_name macro_body
-;   Macro-functions can be be defined with #macro_name(arg1, arg2, ...) macro_body
-;   Macros can reference other macros, and also be nested inside macro calls
-;   Macros are referenced using curly brackets '{}' and act as text replacement
-;   An example: "#concat(a, b) {a}{b}" defines a macro function that combines its arguments
-;     {co{concat(nc,at)}("hi, there")} would result in "hi there" by applying it twice
-;   There are two builtin macro-functions: {len()} returns the length of its
-;     argument (including any whitespace), and {lua()} evaluates its argument
-;     as a Lua chunk (don't forget to return a value!).
-;   Macros are useful when dealing with large amounts of copy-pasted code,
-;     and macro-functions are good for more complicated code-generation needs.
+
+; Everything after a semicolon ';' is a comment.
+;   It doesn't get saved with the script.
+
+; A line starting with a colon ':' is declaring a variable.
+;   Variable names are a combination of letters, digits,
+;   dots '.' and underscores '_'. Names must start with a
+;   letter or underscore.
+;   Names containing special characters, or that reference
+;   string variables, must use the variable functions.
+;   These take the form
+;     [local/global].[int/double/string].[get/set]
+;   That's a handful, though, so you can use the first
+;   character in each word for short.
+
+; A line starting with a variable name, followed by a
+;   colon, is defining a label. Labels are special variables.
+;   They are automatically replaced by a line number, and
+;   exist to make 'goto' and 'gotoif' easier to use.
+
+; A line starting with a hashtag '#' is defining a macro.
+;   Simple macros are "#macro_name macro_body".
+;   Macro-functions can be be defined with
+;     #macro_name(arg1, arg2, ...) macro_body
+;   Macros can reference other macros, and also be nested
+;   inside macro calls. Macros are referenced using curly
+;   brackets '{}' and act as text replacement.
+
+;   An example: "#concat(a, b) {a}{b}" defines a macro
+;   function that combines its arguments.
+;     {co{concat(nc,at)}("hi, there")} would result in
+;   "hi there" by applying the function twice.
+
+;   There are two builtin macro-functions: {len()} returns
+;   the length of its argument (including any whitespace),
+;   and {lua()} evaluates its argument as a Lua chunk
+;   (don't forget to return a value!).
+;   Macros are useful when dealing with large amounts of
+;   copy-pasted code, and macro-functions are good for
+;   more complicated code-generation needs.
+
 ; Operators, and their precedence:
-;   =               assign. Can be prefixed with other operators.
-;                      Must be the second thing on a line, after a variable name!
-;   ^ //            exponent, logarithm
+;   =               assignment. Can be prefixed with other
+                      operators, e.g. '+=', '*='. Must come
+                      2nd on a line, after a variable name!
+;   ^ //            exponent, logarithm (*not* floor-division!)
 ;   * / %           multiply, divide, modulo
 ;   + -             add, subtract
-;   .               string concatenation. Automatically converts int/double to string
+;   .               string concatenation. Automatically
+                      converts int/double to string. Usually
+                      requires space to parse correctly.
 ;   == != < <= > >= comparators
-;   &               and
-;   |               or
+;   && &            and
+;   || |            or
+
+; Tips: Don't forget to consult the drop-down dialog for
+;   the full list of all available functions.
+
 ; Have fun!
-		
+
 :local int i
 :local double test
 :local string var
@@ -498,12 +499,16 @@ wakeup()
 ; Lines that return bool become conditions
 isfill()
 
+; This is a macro, one that uses Lua to collapse
+; expressions into a single constant
+#collapse(expr) {lua(return {expr})}
+
 ; Everything else is an action
-i = 0
+; All variables are initialized to zero/empty string automatically
 label:
-	dig(i % 4, i / 4)
-	i += 1
-	gotoif(label, i == 1)
+  dig(i % 4, i / 4)
+  i += 1
+  gotoif(label, i < {collapse(4 * 4)})
 
 ; You can do math on labels, too!
 i = label * 5
@@ -517,8 +522,9 @@ gis(var, (i - 1) * 2)
 var = '+' ; Single quotes works too
 test = a.d(3., var, 0.)
 var = "=="
-gotoif(99, c.i(3, var, 3))
-`;
+gotoif(99, c.i(3, var, 3))`;
+
+		var scriptTemplate = output.placeholder.split("Have fun!\n\n")[1]
 	</script>
 </body>
 </html>
