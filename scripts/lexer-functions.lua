@@ -79,18 +79,18 @@ impulse open.workshop() Impulse
 impulse game.newround() Impulse
 
 int label(string)
-void <scope>.<type>.set(string:variable, <type>)
-<type> <scope>.<type>.get(string:variable)
+void <scope>.<type>.set(string:variable, <type>) {Primitive void [g/l][i/d/s]s(string:variable, type:value)   ;set}
+<type> <scope>.<type>.get(string:variable) {Primitive type [g/l][i/d/s]g(string:variable)   ;get}
 bool constant.bool.get(string:variable)
-void global.unset(string:variable) #gu#
-void local.unset(string:variable) #lu#
-bool comparison.<typeext>(<typeext>, op_comp, <typeext>)
-<type> arithmetic.<type>(<type>, op_mod, <type>)
+void global.unset(string:variable) #gu# {Primitive void gu(string:variable)   ;global.unset}
+void local.unset(string:variable) #lu# {Primitive void lu(string:variable)   ;local.unset}
+bool comparison.<typeext>(<typeext>, op_comp, <typeext>) {Primitive bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison}
+<type> arithmetic.<type>(<type>, op_mod, <type>) {Primitive type a.[i/d/s](type:lhs, op_mod, type:rhs)   ;arithmetic}
 
-bool string.contains(string, string) String
+bool string.contains(string:str, string:substr) String
 int string.length(string) String #len#
-int string.indexOf(string, string, int:offset) String #index#
-string concat(string, string) String
+int string.indexOf(string:str, string:substr, int:offset) String #index#
+string concat(string:lhs, string:rhs) String
 string substring(string, int:offset, int:length) String #sub#
 
 double const.pi() Number
@@ -295,7 +295,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Trading Post", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
