@@ -68,7 +68,6 @@
 				<textarea id="scripts" placeholder="Scripts go here"></textarea>
 			</div>
 			<textarea id="output" readonly class="div-container-item textarea div-container-textarea"></textarea>
-			<input id="lua_arg" type="hidden">
 		</div>
 	</div>
 
@@ -78,7 +77,6 @@
 		const loadingText = document.getElementById("loadingText");
 		const loadingDiv = document.getElementById("loadingDiv");
 		const output = document.getElementById("output");
-		const lua_arg = document.getElementById("lua_arg");
 
 		window.onerror = function(msg, url, line) {
 			loadingDiv.style.visibility = "hidden";
@@ -92,11 +90,30 @@
 			}
 		}
 
-		function runLua(func, arg) {
-			if (typeof(arg) == "string") {
-				lua_arg.value = arg;
+		function runLua(func, args...) {
+			const L = fengari.L;
+			const lua = fengari.lua;
+			const interop = fengari.interop;
+			const initial_top = lua.lua_gettop(L);
+			lua.lua_getglobal(L, "lua_main");
+			for (const arg of args) {
+				interop.push(L, arg);
 			}
-			return fengari.load("return lua_main'" + func + "';")();
+			lua.lua_call(L, arguments.length, lua.LUA_MULTRET);
+			const nresults = lua.lua_gettop(L) - initial_top;
+			let res_array = [];
+			for (let i = 0; i < nresults; i++) {
+				res_array[i] = interop.tojs(L, initial_top + i + 1);
+			}
+			lua.lua_settop(L, initial_top);
+			let res = {status: res_array[0], output: res_array[1]};
+			if (func == "compile" || !res.status) {
+				output.value = res.output;
+			}
+			if (nresults > 2) {
+				output.copy = res_array[2];
+			}
+			return res;
 		}
 
         const theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "darcula" : "default";
@@ -118,7 +135,7 @@
 		editor.on("change", function() {
 			if (!activeTab || noSave) return;
 			updateWarn(false);
-			runLua("compile", scripts[activeTab.id][0]);
+			runLua("compile", scripts[activeTab.id][0], editor.getValue());
 		});
 
 		editor.clearHistory();
@@ -167,7 +184,7 @@
 				editor.setOption("readOnly", false);
 				editor.setValue(scripts[node.id][1]);
 				editor.setHistory(histories[node.id]);
-				runLua("compile", scripts[activeTab.id][0]);
+				runLua("compile", scripts[activeTab.id][0], scripts[activeTab.id][1]);
 			}
 			noSave = false;
 		}
@@ -289,11 +306,11 @@
 			var input = prompt("Input");
 			if (!input || input.length == 0) return;
 
-			var output = runLua("import", input);
-			if (typeof(output) == "undefined") return;
+			var result = runLua("import", input);
+			if (!result.status) return;
 
-			scriptNew(output.get(1));
-			scripts[scripts.length - 1][1] = output.get(2);
+			scriptNew(result.output.get(1));
+			scripts[scripts.length - 1][1] = result.output.get(2);
 		}
 
 		function scriptDelete() {
@@ -320,7 +337,7 @@
 				activeTab.children[0].textContent = input;
 				updateWarn(false);
 				scriptSave();
-				runLua("compile", input);
+				runLua("compile", input, editor.getValue());
 			}
 		}
 
@@ -384,6 +401,8 @@
 
 		function doneLoading() {
 			storageEnabled = storageAvailable();
+			let functionList = document.getElementById("functionList");
+			functionList.innerHTML = fengari.load("return FUNCTION_LIST")();
 			updateWarn(true);
 			scriptLoad();
 			workspaceLoad();
