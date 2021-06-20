@@ -134,32 +134,29 @@ function workspaceChange(value) {
 
 // Export all scripts in workspace
 function workspaceExport() {
-    var exported = [];
-    var err = false;
+    output.value = " ";
     output.copy = undefined;
+    let script_list = [];
 
     scripts.forEach(script => {
-        if (!err && (script[2] == currentWorkspace || workspaceList.value == workspaces[0])) {
-            var result = runLua("workspace", script[0], script[1]);
-            if (!result.status) {
-                err = true;
-                return;
-            }
-            exported.push(result.output);
+        if (script[2] == currentWorkspace || workspaceList.value == workspaces[0]) {
+            script_list.push({name: script[0], text: script[1]})
         }
     });
+    runLua("workspace", script_list);
+}
 
-    if (err) {
+function workspaceExportDone(result) {
+    if (!result.status) {
         return;
     }
-    var text = exported.join(";");
 
-    if (text.length == 0) {
+    if (result.value.length == 0) {
         output.value = "There are no scripts here";
         return;
     }
 
-    output.value = text;
+    output.value = result.value;
     output.copy = 0;
 }
 

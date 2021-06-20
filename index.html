@@ -19,9 +19,6 @@
     <script src="addon/selection/active-line.js"></script>
 
 	<link rel="stylesheet" href="./style.css">
-
-	<script src="fengari-web.js" type="text/javascript"></script>
-	<script async src="main.lua" type="application/lua"></script>
 </head>
 <body>
 	<span id="loadingText" class="infotext">Loading...</span>
@@ -90,30 +87,9 @@
 			}
 		}
 
+		var worker = new Worker('worker.js');
 		function runLua(...args) {
-			const L = fengari.L;
-			const lua = fengari.lua;
-			const interop = fengari.interop;
-			const initial_top = lua.lua_gettop(L);
-			lua.lua_getglobal(L, "lua_main");
-			for (const arg of args) {
-				interop.push(L, arg);
-			}
-			lua.lua_call(L, args.length, lua.LUA_MULTRET);
-			const nresults = lua.lua_gettop(L) - initial_top;
-			let res_array = [];
-			for (let i = 0; i < nresults; i++) {
-				res_array[i] = interop.tojs(L, initial_top + i + 1);
-			}
-			lua.lua_settop(L, initial_top);
-			let res = {status: res_array[0], output: res_array[1]};
-			if (args[0] == "compile" || !res.status) {
-				output.value = res.output;
-			}
-			if (nresults > 2) {
-				output.copy = res_array[2];
-			}
-			return res;
+			worker.postMessage(args);
 		}
 
         const theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "darcula" : "default";
@@ -163,7 +139,6 @@
 
 		function scriptSelect(node) {
 			scriptSave();
-			output.value = "";
 			output.copy = undefined;
 
 			if (activeTab && node == activeTab) {
@@ -306,11 +281,14 @@
 			var input = prompt("Input");
 			if (!input || input.length == 0) return;
 
-			var result = runLua("import", input);
-			if (!result.status) return;
+			runLua("import", input);
+		}
 
-			scriptNew(result.output.get(1));
-			scripts[scripts.length - 1][1] = result.output.get(2);
+		function scriptImportDone(results) {
+			if (!results[0]) return;
+
+			scriptNew(results[1]);
+			scripts[scripts.length - 1][1] = results[2];
 		}
 
 		function scriptDelete() {
@@ -341,7 +319,6 @@
 			}
 		}
 
-		var saveCooldown = 0;
 		function scriptSave() {
 			if (!storageEnabled || noSave) return;
 
@@ -351,7 +328,6 @@
 				histories[activeTab.id] = editor.getHistory();
 			}
 
-			saveCooldown = 50;
 			localStorage.setItem("scripts", JSON.stringify(scripts));
 			updateWarn(true);
 		}
@@ -399,10 +375,40 @@
 			}
 		}
 
+		worker.onerror = function(error) {
+			window.onerror(error.message, error.filename, error.lineno);
+		}
+
+		worker.onmessage = function(e) {
+			let msg = e.data;
+			let results = msg.results;
+			let result = {status: results[0], value: results[1]};
+			if (!result.status) {
+				output.value = result.value;
+			}
+			switch (msg.args[0]) {
+				case 'ready':
+					document.getElementById("functionList").innerHTML = result.value;
+					doneLoading();
+					break;
+				case 'compile':
+					output.value = result.value;
+					output.copy = results[2];
+					if (msg.args[2] == editor.getValue()) {
+						scriptSave();
+					}
+					break;
+				case 'workspace':
+					workspaceExportDone(result);
+					break;
+				case 'import':
+					scriptImportDone(results);
+					break;
+			}
+		}
+
 		function doneLoading() {
 			storageEnabled = storageAvailable();
-			let functionList = document.getElementById("functionList");
-			functionList.innerHTML = fengari.load("return FUNCTION_LIST")();
 			updateWarn(true);
 			scriptLoad();
 			workspaceLoad();
@@ -411,21 +417,7 @@
 			loadingDiv.style.visibility = "visible";
 
 			runLua("unittest");
-
-			setInterval(function() {
-				if (--saveCooldown == 0) scriptSave();
-			}, 100);
 		}
-
-		$(document).ready(function() {
-			var id = setInterval(function() {
-				var ret = fengari.load("return LOAD_DONE")();
-				if (ret) {
-					clearInterval(id);
-					doneLoading();
-				}
-			}, 500);
-		});
 
 		output.placeholder = `; Here's a tutorial, and a quick script to showcase it.
 ;   New scripts start with this code, so don't worry about copying it by hand!

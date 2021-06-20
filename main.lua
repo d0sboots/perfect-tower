@@ -37,14 +37,23 @@ do
 			end
 		elseif func == "workspace" then
 			assert = assert_lexer;
-			status, ret = pcall(compile, arg1, arg2, true);
-			assert = assert_old;
-
-			if not status then
-				return false, arg1 .. "\n" .. ret;
+			local exported = {}
+			for i = 1, #arg1 do
+				local pair = arg1[i]
+				status, ret = pcall(compile, pair.name, pair.text, true);
+				if not status then
+					assert = assert_old;
+					return false, pair.name .. "\n" .. ret;
+				end
+				exported[i] = ret
 			end
+			assert = assert_old;
+			return true, table.concat(exported, ";")
 		elseif func == "import" then
 			status, ret = pcall(import, arg1);
+			if status then
+				return true, ret[1], ret[2];
+			end
 		elseif func == "unittest" then
 			status, ret = pcall(unittest);
 		else
@@ -528,5 +537,3 @@ function unittest()
 
 	return true;
 end
-
-LOAD_DONE = true;
