@@ -5,6 +5,7 @@ See it in action at https://d0sboots.github.io/perfect-tower!
 This is a fork of the original editor. However, I've added several features that the maintainer didn't want,
 or were too large of a change to include upstream:
 
+* Use of Web Workers to compile code, which greatly improves loading time and editor responsiveness.
 * Support for lua() and len() macro functions. lua(), in particular, allows you to do arbitrarily-complex preprocessing inside your code,
 eliminating the need for out-of-band data processing scripts.
 
