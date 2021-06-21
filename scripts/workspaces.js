@@ -1,3 +1,4 @@
+"use strict";
 // This code treats 0 and 1 as reserved = All and Default
 let workspaces = ["All", "Default Workspace"];
 let currentWorkspace = workspaces[1];
@@ -114,7 +115,7 @@ function workspaceChange(value) {
 
     const scriptTabs = document.getElementById("scripts-tab").getElementsByTagName("LI");
 
-    for (element of scriptTabs) {
+    for (const element of scriptTabs) {
         const tabId = element.id;
 
         // Show only scripts in current workspace
