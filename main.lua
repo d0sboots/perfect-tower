@@ -81,13 +81,13 @@ local function cache(line, variables)
 	return _cache[key];
 end
 
-local function parseMacro(text, macros, depth)
+local function parseMacro(text, macros, depth, env)
 	assert(depth < 100, "macro expansion depth reached " .. depth ..  ", probable infinite loop in: " .. text)
 	return text:gsub("%b{}", function(macro)
 		if #macro == 2 then
 			return
 		end
-		macro = parseMacro(macro:sub(2,-2), macros, depth + 1);
+		macro = parseMacro(macro:sub(2,-2), macros, depth + 1, env);
 		local arg_body = "";
 		local name = macro:match("^([^%(]+)$");
 		if not name then
@@ -100,7 +100,8 @@ local function parseMacro(text, macros, depth)
 			return tostring(#arg_body - 2);
 		elseif name == "lua" then
 			assert(arg_body ~= "", "lua is a macro function")
-			local chunk, err = load(arg_body:sub(2,-2));
+			local lua_text = arg_body:sub(2,-2);
+			local chunk, err = load(lua_text, lua_text, "t", env);
 			assert(chunk, err)
 			local result = chunk()
 			assert(result ~= nil, "lua() returned nil (did you forget to return?)")
@@ -131,12 +132,68 @@ local function parseMacro(text, macros, depth)
 		assert(arg_len == arg_count,
 			"macro call has wrong number of args, expected " .. arg_len ..
 			" but got " .. arg_count .. ": " .. macro);
-		return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1);
+		return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1, env);
 	end);
+end
+
+-- Whitelist of functions and tables that are allowed in the lua() macro. We
+-- store this as a string, so that we can bind the names properly.
+local globals_whitelist = {}
+for k in string.gmatch([[assert
+error
+getmetatable
+ipairs
+load
+next
+pairs
+pcall
+print
+rawequal
+rawget
+rawlen
+rawset
+select
+setmetatable
+tonumber
+tostring
+type
+_VERSION
+xpcall
+coroutine
+string
+utf8
+table
+math]], "%g+") do globals_whitelist[#globals_whitelist+1] = k end
+
+local os_whitelist = {'clock', 'date', 'difftime', 'time'}
+
+local function filter_table(table_in, whitelist)
+	res = {}
+	for i = 1, #whitelist do
+		local k = whitelist[i]
+		local v = table_in[k]
+		if type(v) == 'table' then
+			local new_tab = {}
+			for k2, v2 in pairs(v) do
+				new_tab[k2] = v2
+			end
+			v = new_tab
+		end
+		res[k] = v
+	end
+	return res
+end
+
+local function clone_global()
+	local new_g = filter_table(_G, globals_whitelist)
+	new_g.os = filter_table(_G.os, os_whitelist)
+	new_g._G = new_g
+	return new_g
 end
 
 function compile(name, input, testing)
 	local variables, impulses, conditions, actions = {}, {}, {}, {};
+	local env = clone_global();
 	local ret = {};
 	line_number = 0;
 
@@ -212,7 +269,7 @@ function compile(name, input, testing)
 			
 			variables[name] = {name = name, scope = scope, type = type};
 		else
-			line = parseMacro(line, macros, 1)
+			line = parseMacro(line, macros, 1, env)
 				:gsub(TOKEN.identifier.pattern .. ":", function(name)
 					name = name:lower();
 					assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
