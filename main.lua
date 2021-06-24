@@ -2,6 +2,7 @@ DEBUG = not fengari;
 package.path = "scripts/?.lua";
 
 local line_number;
+local compile_file;
 local _cache = {};
 
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer"} do
@@ -17,17 +18,17 @@ do
 
 	local function assert_lexer(test, msg)
 		if not test then
-			error(string.format("%s: %s", line_number, msg), 0);
+			error(string.format("%s:%s: %s", compile_file, line_number, msg), 0);
 		end
 
 		return test;
 	end
 
-	function lua_main(func, arg1, arg2)
+	function lua_main(func, arg1, arg2, arg3)
 		local status, ret;
 		if func == "compile" then
 			assert = assert_lexer;
-			status, ret = pcall(compile, arg1, arg2);
+			status, ret = pcall(compile, arg1, arg2, arg3);
 			assert = assert_old;
 
 			if status then
@@ -40,7 +41,7 @@ do
 			local exported = {}
 			for i = 1, #arg1 do
 				local pair = arg1[i]
-				status, ret = pcall(compile, pair.name, pair.text, true);
+				status, ret = pcall(compile, pair.name, pair.text, arg2, true);
 				if not status then
 					assert = assert_old;
 					return false, pair.name .. "\n" .. ret;
@@ -191,102 +192,142 @@ local function clone_global()
 	return new_g
 end
 
-function compile(name, input, testing)
+local function is_empty(line)
+	return line:find("^%s*$") or line:find("^%s*;.*$")
+end
+
+-- importFunc takes a string (filename) and returns a pair of (status, string)
+-- (the content of the imported file on success, an error message on failure).
+function compile(name, input, importFunc, testing)
 	local variables, impulses, conditions, actions = {}, {}, {}, {};
 	local env = clone_global();
+	local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {};
 	local ret = {};
-	line_number = 0;
 
-	local macros = {len = '__builtin__', lua = '__builtin__'};
-	local lines = {};
-	local labelCache = {};
-	local lineCache = {};
-
-	for real_line in input:gmatch"[^\n]*" do
-		line_number = line_number + 1;
-		if real_line:sub(-1) == "\\" then
-			lineCache[#lineCache+1] = real_line:sub(1, -2);
-			goto continue;
+	local function import(filename, input, isImport)
+		if imported[filename] then
+			return {}
 		end
-		lineCache[#lineCache+1] = real_line;
-		line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
-		lineCache = {};
+		imported[filename] = true
+		line_number = 0;
+		compile_file = filename
 
-		if line:match"^#" then
-			local macro_args = "";
-			local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
-			if not name then
-				name, macro_args, macro = line:sub(2):match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%)) (.+)$");
-			end
-			assert(name, "macro definition: #name <text> or #name(args...) <text>");
-			local args = {};
-			local arg_len = 0;
-			local arg_begin = 2;
-			while arg_begin <= #macro_args do
-				local pos = macro_args:find(",", arg_begin, true);
-				if not pos then
-					pos = #macro_args;
-				end
-				local arg_string = macro_args:sub(arg_begin, pos - 1);
-				local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$");
-				assert(arg, "bad macro function argument name: " .. arg_string);
-				args["{" .. arg .. "}"] = "{#" .. arg_len .. "#}";
-				arg_len = arg_len + 1;
-				arg_begin = pos + 1;
-			end
-			name = name:lower();
-			assert(not macros[name], "macro already exists: " .. name);
-			macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len};
-		elseif line:match"^:const" then
-			local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
-			assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
-			if (type == "int" or type == "double") then
-				assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value);
-				value = tonumber(value);
-			elseif (type == "bool") then
-				value = value:lower();
-				assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'");
-				if value:match"^true$" then
-					value = true;
-				else
-					value = false;
-				end
-			elseif (type == "string") then
-				quote, value = value:match("^%s*([\"\'])([^%1]*)%1%s*$");
-				assert(value, "bad argument, string are enclosed in either single quotes or double quotes");
-			end
-			name = name:lower()
-			assert(not variables[name], "variable/label/constant already exists: " .. name);
-			variables[name] = {name = name, scope = "constant", type = type, value = value};
-		elseif line:match"^:" then
-			local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
-			assert(scope, "variable definition: [global/local/const] [int/double/string] name");
+		local lines = {};
+		local labelCache = {};
+		local lineCache = {};
 
-			name = name:lower();
-			assert(scope == "global" or scope == "local", "variable scopes are 'global' and 'local'");
-			assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
-			assert(not variables[name], "variable/label already exists: " .. name);
-			
-			variables[name] = {name = name, scope = scope, type = type};
-		else
-			line = parseMacro(line, macros, 1, env)
-				:gsub(TOKEN.identifier.pattern .. ":", function(name)
+		for real_line in input:gmatch"[^\n]*" do
+			line_number = line_number + 1;
+			if real_line:sub(-1) == "\\" then
+				lineCache[#lineCache+1] = real_line:sub(1, -2);
+				goto continue;
+			end
+			lineCache[#lineCache+1] = real_line;
+			line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
+			lineCache = {};
+
+			if line:match"^#" then
+				local macro_args = "";
+				local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
+				if not name then
+					name, macro_args, macro = line:sub(2):match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%)) (.+)$");
+				end
+				assert(name, "macro definition: #name <text> or #name(args...) <text>");
+				local args = {};
+				local arg_len = 0;
+				local arg_begin = 2;
+				while arg_begin <= #macro_args do
+					local pos = macro_args:find(",", arg_begin, true);
+					if not pos then
+						pos = #macro_args;
+					end
+					local arg_string = macro_args:sub(arg_begin, pos - 1);
+					local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$");
+					assert(arg, "bad macro function argument name: " .. arg_string);
+					args["{" .. arg .. "}"] = "{#" .. arg_len .. "#}";
+					arg_len = arg_len + 1;
+					arg_begin = pos + 1;
+				end
+				name = name:lower();
+				assert(not macros[name], "macro already exists: " .. name);
+				macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len};
+			elseif line:match"^:" then
+				local token = line:match("^:(%a*)");
+				if token == "const" then
+					local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
+					assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
+					if (type == "int" or type == "double") then
+						assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value);
+						value = tonumber(value);
+					elseif (type == "bool") then
+						value = value:lower();
+						assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'");
+						if value:match"^true$" then
+							value = true;
+						else
+							value = false;
+						end
+					elseif (type == "string") then
+						quote, value = value:match("^%s*([\"\'])([^%1]*)%1%s*$");
+						assert(value, "bad argument, string are enclosed in either single quotes or double quotes");
+					end
+					name = name:lower()
+					assert(not variables[name], "variable/label/constant already exists: " .. name);
+					variables[name] = {name = name, scope = "constant", type = type, value = value};
+				elseif token == "import" then
+					local import_name = line:match("^:%a+ (.+)")
+					assert(import_name, "import directive: :import file")
+					local status, import_result = importFunc(import_name)
+					assert(status, "Import failed: " .. import_result)
+					local saved_lineno = line_number
+					import(import_name, import_result, true)
+					-- These got stomped by the import, re-set them
+					compile_file = filename
+					line_number = saved_lineno
+				elseif token == "global" or token == "local" then
+					local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
+					assert(scope, "variable definition: [global/local/const] [int/double/string] name");
+
 					name = name:lower();
-					assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
-					variables[name] = {name = name, scope = "local", type = "int", label = 0};
-					table.insert(labelCache, name);
-					return "";
-				end)
-				:gsub("^%s+", ""):gsub("%s+$", "")
-			;
+					assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
+					assert(not variables[name], "variable/label already exists: " .. name);
+					variables[name] = {name = name, scope = scope, type = type};
+				else
+					assert(false, "Unrecognized directive :" .. token);
+				end
+			else
+				if isImport then
+					assert(is_empty(line),
+						"Imported files can't produce output, they must only contain variable and macro declarations")
+					goto continue
+				end
+				line = parseMacro(line, macros, 1, env)
+					:gsub(TOKEN.identifier.pattern .. ":", function(name)
+						name = name:lower();
+						assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
+						variables[name] = {name = name, scope = "local", type = "int", label = 0};
+						table.insert(labelCache, name);
+						return "";
+					end)
+					:gsub("^%s+", ""):gsub("%s+$", "")
+				;
 
-			if #line:gsub("^%s*;.*$", "") > 0 then
-				table.insert(lines, {text = line, num = line_number, label = labelCache});
-				labelCache = {};
+				if not is_empty(line) then
+					table.insert(lines, {text = line, num = line_number, label = labelCache});
+					labelCache = {};
+				end
 			end
+			::continue::
 		end
-		::continue::
+		-- anything left in the label cache points to the end of the script
+		for _, label in ipairs (labelCache) do
+			variables[label].label = 99;
+		end
+
+		return lines
 	end
+
+	local lines = import(name, input, false)
 
 	for _, line in ipairs (lines) do
 		line_number = line.num;
@@ -311,11 +352,6 @@ function compile(name, input, testing)
 				end
 			end
 		end
-	end
-
-	-- anything left in the label cache points to the end of the script
-	for _, label in ipairs (labelCache) do
-		variables[label].label = 99;
 	end
 
 	local function ins(frmt, val)
@@ -543,7 +579,7 @@ function import(input)
 end
 
 function unittest()
-	local tests = {
+	local import_tests = {
 "C2dsb2JhbF90aWVyAQAAAAVrZXkuMQAAAAABAAAADmdsb2JhbC5pbnQuc2V0CGNvbnN0YW50BAR0aWVyDmFyaXRobWV0aWMuaW50DmFyaXRobWV0aWMuaW50Dmdsb2JhbC5pbnQuZ2V0CGNvbnN0YW50BAR0aWVyCGNvbnN0YW50BANtb2QIY29uc3RhbnQCCgAAAAhjb25zdGFudAQBKwhjb25zdGFudAIBAAAA",
 "EEdMT0JBTF9DT1VOVGRvd24BAAAABWtleS4yAAAAAAYAAAAOZ2VuZXJpYy5nb3RvaWYIY29uc3RhbnQCAwAAABFjb21wYXJpc29uLmRvdWJsZRFnbG9iYWwuZG91YmxlLmdldAhjb25zdGFudAQFY291bnQIY29uc3RhbnQEATwIY29uc3RhbnQDAAAAAAAA8D8QbG9jYWwuZG91YmxlLnNldAhjb25zdGFudAQDcG93DGRvdWJsZS5mbG9vchFhcml0aG1ldGljLmRvdWJsZQhjb25zdGFudAN7FK5H4XqEvwhjb25zdGFudAQBKxFhcml0aG1ldGljLmRvdWJsZRFnbG9iYWwuZG91YmxlLmdldAhjb25zdGFudAQFY291bnQIY29uc3RhbnQEA2xvZwhjb25zdGFudAMAAAAAAAAkQA1sb2NhbC5pbnQuc2V0CGNvbnN0YW50BANpbmMOYXJpdGhtZXRpYy5pbnQIY29uc3RhbnQCCgAAAAhjb25zdGFudAQDcG93A2QyaRBsb2NhbC5kb3VibGUuZ2V0CGNvbnN0YW50BANwb3cQbG9jYWwuZG91YmxlLnNldAhjb25zdGFudAQDdG1wEWFyaXRobWV0aWMuZG91YmxlEWdsb2JhbC5kb3VibGUuZ2V0CGNvbnN0YW50BAVjb3VudAhjb25zdGFudAQBLQNpMmQNbG9jYWwuaW50LmdldAhjb25zdGFudAQDaW5jDmdlbmVyaWMuZ290b2lmCGNvbnN0YW50AmMAAAARY29tcGFyaXNvbi5kb3VibGUQbG9jYWwuZG91YmxlLmdldAhjb25zdGFudAQDdG1wCGNvbnN0YW50BAE8CGNvbnN0YW50AwAAAAAAAPA/EWdsb2JhbC5kb3VibGUuc2V0CGNvbnN0YW50BAVjb3VudBBsb2NhbC5kb3VibGUuZ2V0CGNvbnN0YW50BAN0bXA=",
 "DkdMT0JBTF9DT1VOVFVQAQAAAAVrZXkuMwAAAAAGAAAADmdlbmVyaWMuZ290b2lmCGNvbnN0YW50AmMAAAARY29tcGFyaXNvbi5kb3VibGURZ2xvYmFsLmRvdWJsZS5nZXQIY29uc3RhbnQEBWNvdW50CGNvbnN0YW50BAE+CGNvbnN0YW50AwAAAACIKmFBDmdlbmVyaWMuZ290b2lmCGNvbnN0YW50AgQAAAARY29tcGFyaXNvbi5kb3VibGURZ2xvYmFsLmRvdWJsZS5nZXQIY29uc3RhbnQEBWNvdW50CGNvbnN0YW50BAE8CGNvbnN0YW50AwAAAAAAAPA/EGxvY2FsLmRvdWJsZS5zZXQIY29uc3RhbnQEA3Bvdwxkb3VibGUuZmxvb3IRYXJpdGhtZXRpYy5kb3VibGUIY29uc3RhbnQDexSuR+F6hD8IY29uc3RhbnQEASsRYXJpdGhtZXRpYy5kb3VibGURZ2xvYmFsLmRvdWJsZS5nZXQIY29uc3RhbnQEBWNvdW50CGNvbnN0YW50BANsb2cIY29uc3RhbnQDAAAAAAAAJEANbG9jYWwuaW50LnNldAhjb25zdGFudAQDaW5jDmFyaXRobWV0aWMuaW50CGNvbnN0YW50AgoAAAAIY29uc3RhbnQEA3BvdwNkMmkQbG9jYWwuZG91YmxlLmdldAhjb25zdGFudAQDcG93EGxvY2FsLmRvdWJsZS5zZXQIY29uc3RhbnQEA3RtcBFhcml0aG1ldGljLmRvdWJsZRFnbG9iYWwuZG91YmxlLmdldAhjb25zdGFudAQFY291bnQIY29uc3RhbnQEASsDaTJkDWxvY2FsLmludC5nZXQIY29uc3RhbnQEA2luYxFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQFY291bnQQbG9jYWwuZG91YmxlLmdldAhjb25zdGFudAQDdG1w",
@@ -573,24 +609,54 @@ function unittest()
 "BHRlc3QAAAAAAAAAAA0AAAAQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQMdG93ZXJ0ZXN0aW5nCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQLdHJhZGluZ3Bvc3QIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BApwb3dlcnBsYW50CGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQHZmFjdG9yeQhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQECmxhYm9yYXRvcnkIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BAhzaGlweWFyZAhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQECHdvcmtzaG9wCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQGYXJjYWRlCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQGbXVzZXVtCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQMaGVhZHF1YXJ0ZXJzCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQQY29uc3RydWN0aW9uZmlybQhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQEDXN0YXR1ZW9mY3Vib3MIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BARtaW5lCGNvbnN0YW50AQE=",
 
 	};
+	local compile_tests = {macro_test = {[[
+		; Basic test of macros and macro functions
+		#concat(a, b) {a}{b}
+		#concat2(a, b) {lua(return [=[{a}]=] .. [=[{b}]=])}
+		:global string res
+		res = "{concat(1,2)}{co{concat2(ncat,)}(3,4")}
+	]], "Cm1hY3JvX3Rlc3QAAAAAAAAAAAEAAAARZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEA3Jlcwhjb25zdGFudAQEMTIzNA=="},
+	imported = {[[
+		; This should compile to no code
+		:local int acc
+		:global string status
+		#output status = "Number is: " . acc
+	]], "CGltcG9ydGVkAAAAAAAAAAAAAAAA"},
+	import_test = {[[
+		:import imported
+		:import imported
+		{output}
+	]], "C2ltcG9ydF90ZXN0AAAAAAAAAAABAAAAEWdsb2JhbC5zdHJpbmcuc2V0CGNvbnN0YW50BAZzdGF0dXMGY29uY2F0CGNvbnN0YW50BAtOdW1iZXIgaXM6IANpMnMNbG9jYWwuaW50LmdldAhjb25zdGFudAQDYWNj"},
+	};
 
 	local status, ret;
 
-	for k, v in ipairs (tests) do
+	local function importFunc(name)
+		local v = compile_tests[name]
+		if v then
+			return true, v[1]
+		end
+		return false, (name .. " not found")
+	end
+	for k, v in pairs(compile_tests) do
+		status, ret = pcall(compile, k, v[1], importFunc, true);
+		assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number, ret));
+		assert(ret == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret))
+	end
+	for k, v in ipairs (import_tests) do
 		status, ret = pcall(import, v);
 		assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret));
 
-		status, ret = pcall(compile, ret[1], ret[2], true);
+		status, ret = pcall(compile, ret[1], ret[2], importFunc, true);
 		assert(status, string.format("Failed to compile unit test #%s\n\n%s", k, ret));
 
 		v = ret;
 		status, ret = pcall(import, v);
 		assert(status, string.format("Failed to re-import unit test #%s\n\n%s", k, ret));
 
-		status, ret = pcall(compile, ret[1], ret[2], true);
+		status, ret = pcall(compile, ret[1], ret[2], nil, true);
 		assert(status, string.format("Failed to re-compile unit test #%s\n\n%s", k, ret));
 		assert(ret == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret, base64.decode(v), base64.decode(ret)));
 	end
-
 	return true;
 end

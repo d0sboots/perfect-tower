@@ -25,7 +25,29 @@ function runLua(args) {
   for (const arg of args) {
     pushValue(arg);
   }
-  lua.lua_call(L, args.length, lua.LUA_MULTRET);
+
+  if (args.hasOwnProperty('scripts')) {
+    let scripts = args.scripts;
+    delete args.scripts;
+    // importFunc, which we must create on this side, because it can't be
+    // serialized. It has to be a Lua function, which means Lua semantics.
+    lua.lua_pushcfunction(L, function(lua_state) {
+      let filename = interop.tojs(lua_state, -1);
+      for (let script_arr of scripts) {
+        if (script_arr[0] === filename) {
+          lua.lua_pushboolean(lua_state, true);
+          lua.lua_pushstring(lua_state, script_arr[1]);
+          return 2;
+        }
+      }
+      lua.lua_pushboolean(lua_state, false);
+      lua.lua_pushfstring(lua_state, 'Script "%s" does not exist!', filename);
+      return 2;
+    });
+  }
+
+  const nargs = lua.lua_gettop(L) - initial_top - 1;
+  lua.lua_call(L, nargs, lua.LUA_MULTRET);
   const nresults = lua.lua_gettop(L) - initial_top;
   let res_array = [];
   for (let i = 0; i < nresults; i++) {

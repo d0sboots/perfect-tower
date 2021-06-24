@@ -90,6 +90,10 @@
 
 		var worker = new Worker('worker.js');
 		function runLua(...args) {
+			if (args[0] == "compile" || args[0] == "workspace") {
+				// Add this on, so the worker can can create an appropriate importFunc
+				args.scripts = scripts;
+			}
 			worker.postMessage(args);
 		}
 
@@ -430,7 +434,9 @@
 ;   to the next line. This works even for comments,
 ;   which is probably not what you want/expect!
 
-; A line starting with a colon ':' is declaring a variable.
+; A line starting with a colon ':' is a compiler declaration.
+;   Most declarations are variable declarations, taking
+;   the form :[local/global] [int/double/string] [name]
 ;   Variable names are a combination of letters, digits,
 ;   dots '.' and underscores '_'. Names must start with a
 ;   letter or underscore.
@@ -440,6 +446,17 @@
 ;     [local/global].[int/double/string].[get/set]
 ;   That's a handful, though, so you can use the first
 ;   character in each word for short.
+;   You can also declare constants by using "const" instead
+;   of "global", but in this case you have to assign a
+;   value immediately, since it can't be re-assigned.
+
+; Another type of declaration is :import [file], which
+;   imports the contents of the named file. Imported files
+;   can only consist of declarations, macro definitions, and
+;   comments, they can't produce any "output" (impulses,
+;   actions, etc). This allows you to import common library
+;   macros without having to copy them. The compiler will
+;   ensure that an import only happens once for a given file.
 
 ; A line starting with a variable name, followed by a
 ;   colon, is defining a label. Labels are special variables.
