@@ -283,10 +283,10 @@
 		}
 
 		function scriptImport() {
-			var input = prompt("Input");
+			let input = prompt("Input");
 			if (!input || input.length == 0) return;
 
-			runLua("import", input);
+			input.split(';').forEach(singleScript => runLua("import", singleScript));
 		}
 
 		function scriptImportDone(results) {
