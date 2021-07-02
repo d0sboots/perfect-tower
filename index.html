@@ -45,7 +45,7 @@
 			<div class="workspaces">
 				<div>
 					<p>
-						Worskpace:
+						Workspace:
 						<select id="workspaceList" class="workspaceList" oninput="workspaceChange(this.value)"></select>
 					</p>
 				</div>
@@ -88,7 +88,7 @@
 			}
 		}
 
-		var worker = new Worker('worker.js');
+		let worker = new Worker('worker.js');
 		function runLua(...args) {
 			if (args[0] == "compile" || args[0] == "workspace") {
 				// Add this on, so the worker can can create an appropriate importFunc
@@ -99,7 +99,7 @@
 
         const theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "darcula" : "default";
 
-		var editor = CodeMirror.fromTextArea(document.getElementById("scripts"), {
+		const editor = CodeMirror.fromTextArea(document.getElementById("scripts"), {
 			autocapitalize: false,
 			autocorrect: false,
 			dragDrop: false,
@@ -120,14 +120,14 @@
 		});
 
 		editor.clearHistory();
-		var emptyHistory = editor.getHistory();
+		let emptyHistory = editor.getHistory();
 
-		var storageEnabled = false;
-		var activeTab = false;
-		var noSave = false;
-		var scripts = [];
-		var histories = [];
-		var scriptCounter = 0;
+		let storageEnabled = false;
+		let activeTab = false;
+		let noSave = false;
+		let scripts = [];
+		let histories = [];
+		let scriptCounter = 0;
 
 		function updateWarn(status) {
 			if (!storageEnabled || noSave) return;
@@ -147,7 +147,7 @@
 			output.copy = undefined;
 
 			if (activeTab && node == activeTab) {
-				var tab = activeTab;
+				let tab = activeTab;
 				setTimeout(function() {
 					tab.children[0].classList.remove("active");
 				}, 0);
@@ -169,9 +169,9 @@
 			noSave = false;
 		}
 
-		var draggedOver = [];
-		var elementHeight;
-		var id;
+		let draggedOver = [];
+		let elementHeight;
+		let id;
 
 		function startDragScript(event)
 		{
@@ -225,7 +225,7 @@
 
 			if (event.target.nodeType != 1 || event.target.classList.contains("dragged") || !tabs.contains(event.target.parentNode)) // Shouldn't happen
 			{
-				console.error("A bug happend in the drag-and-drop script");
+				console.error("A bug happened in the drag-and-drop script");
 				return ;
 			}
 			event.preventDefault();
@@ -265,21 +265,21 @@
 
 			const tabs = document.getElementById("scripts-tab");
 			const temp = document.getElementById("template-nav-item");
-			var clon = temp.content.cloneNode(true);
+			const clone = temp.content.cloneNode(true);
 
-			clon.children[0].id = scripts.length;
-			clon.children[0].children[0].textContent = name;
-			clon.children[0].draggable = true;
+			clone.children[0].id = scripts.length;
+			clone.children[0].children[0].textContent = name;
+			clone.children[0].draggable = true;
 
-			clon.children[0].addEventListener("dragstart", startDragScript);
-			clon.children[0].addEventListener("dragend", endDragScript);
-			clon.children[0].addEventListener("dragover", dragScriptOver);
-			clon.children[0].addEventListener("dragleave", dragScriptLeave);
-			clon.children[0].addEventListener("drop", dropScript);
+			clone.children[0].addEventListener("dragstart", startDragScript);
+			clone.children[0].addEventListener("dragend", endDragScript);
+			clone.children[0].addEventListener("dragover", dragScriptOver);
+			clone.children[0].addEventListener("dragleave", dragScriptLeave);
+			clone.children[0].addEventListener("drop", dropScript);
 
 			scripts.push([name, scriptTemplate, currentWorkspace]);
 			histories.push(emptyHistory);
-			tabs.appendChild(clon);
+			tabs.appendChild(clone);
 		}
 
 		function scriptImport() {
@@ -300,7 +300,7 @@
 			if (!activeTab) return;
 			if (!confirm("Are you sure you want to delete " + scripts[activeTab.id][0] + "?")) return;
 
-			var node = activeTab;
+			let node = activeTab;
 			while (node = node.nextElementSibling) {
 				node.id = node.id - 1;
 			}
@@ -315,7 +315,7 @@
 		function scriptRename() {
 			if (!activeTab) return;
 
-			var input = prompt("Input", activeTab.children[0].textContent);
+			let input = prompt("Input", activeTab.children[0].textContent);
 			if (input && input.length > 0) {
 				activeTab.children[0].textContent = input;
 				updateWarn(false);
@@ -340,9 +340,9 @@
 		function scriptLoad() {
 			if (!storageEnabled) return;
 
-			var data = localStorage.getItem("scripts");
+			let data = localStorage.getItem("scripts");
 			if (data) {
-				var loaded = JSON.parse(data);
+				let loaded = JSON.parse(data);
 				loaded.forEach(function(val) {
 					scriptNew(val[0]);
 					scripts[scripts.length - 1] = val;
@@ -356,10 +356,10 @@
 		}
 
 		function storageAvailable() {
-			var storage;
+			let storage;
 			try {
 				storage = localStorage;
-				var x = '__storage_test__';
+				let x = '__storage_test__';
 				storage.setItem(x, x);
 				storage.removeItem(x);
 				return true;
@@ -546,7 +546,7 @@ test = a.d(3., var, 0.)
 var = "=="
 gotoif(99, c.i(3, var, 3))`;
 
-		var scriptTemplate = output.placeholder.split("Have fun!\n\n")[1];
+		const scriptTemplate = output.placeholder.split("Have fun!\n\n")[1];
 	</script>
 </body>
 </html>
