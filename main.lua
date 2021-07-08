@@ -296,11 +296,6 @@ function compile(name, input, importFunc, testing)
 					assert(false, "Unrecognized directive :" .. token);
 				end
 			else
-				if isImport then
-					assert(is_empty(line),
-						"Imported files can't produce output, they must only contain variable and macro declarations")
-					goto continue
-				end
 				line = parseMacro(line, macros, 1, env)
 					:gsub(TOKEN.identifier.pattern .. ":", function(name)
 						name = name:lower();
@@ -313,6 +308,8 @@ function compile(name, input, importFunc, testing)
 				;
 
 				if not is_empty(line) then
+					assert(not isImport,
+						"Imported files can't produce output, they must only contain variable and macro declarations")
 					table.insert(lines, {text = line, num = line_number, label = labelCache});
 					labelCache = {};
 				end

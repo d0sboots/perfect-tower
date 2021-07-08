@@ -455,8 +455,10 @@
 ;   imports the contents of the named file. Imported files
 ;   can only consist of declarations, macro definitions, and
 ;   comments, they can't produce any "output" (impulses,
-;   actions, etc). This allows you to import common library
-;   macros without having to copy them. The compiler will
+;   actions, etc). Macro usage is OK only if it doesn't
+;   produce "output", for instance inside of comments.
+;   This allows you to import common library macros
+;   without having to copy them. The compiler will
 ;   ensure that an import only happens once for a given file.
 
 ; A line starting with a variable name, followed by a
