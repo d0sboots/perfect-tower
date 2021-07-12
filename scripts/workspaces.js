@@ -46,10 +46,17 @@ function workspaceNew() {
 function workspaceRename() {
     const currentWorkspace = workspaceList.value;
 
-    // If "All" or "Default"
-    if (currentWorkspace === workspaces[0] || currentWorkspace === workspaces[1]) {
+    // If "All"
+    if (currentWorkspace === workspaces[0]) {
         alert(`Cannot rename ${currentWorkspace}`);
         return
+    }
+    // If "Default"
+    if (currentWorkspace === workspaces[1]) {
+        output.value = "Hidden function: Running unittests...";
+        output.copy = undefined;
+        runLua("unittest");
+        return;
     }
 
     const newWorkspaceName = prompt("New Workspace Name:");

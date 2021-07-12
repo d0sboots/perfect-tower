@@ -410,6 +410,11 @@
 				case 'import':
 					scriptImportDone(results);
 					break;
+				case 'unittest':
+					if (result.status) {
+						output.value = 'Unittest success!'
+					}
+					break;
 			}
 		}
 
@@ -421,8 +426,6 @@
 
 			loadingText.style.visibility = "hidden";
 			loadingDiv.style.visibility = "visible";
-
-			runLua("unittest");
 		}
 
 		output.placeholder = `; Here's a tutorial, and a quick script to showcase it.
