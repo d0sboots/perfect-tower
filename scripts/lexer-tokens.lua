@@ -9,6 +9,7 @@ TOKEN = {
 	{name = "next", pattern = ",", "close", "identifier", "number", "string", "bool"},
 	
 	{name = "identifier", pattern = "[%a_][%w%._]*", "sof", "open", "next", "operator"},
+	{name = "number_sci", pattern = "%-?%d+%.?%d*[eE][+-]?%d+", alias = "number"},
 	{name = "number", pattern = "%-?%d+%.?%d*", "sof", "open", "next", "operator"},
 	{name = "string", pattern = '%b""', "sof", "open", "next", "operator"},
 	{name = "stringSQ", pattern = "%b''", alias = "string"},
