@@ -97,15 +97,14 @@ local function parseMacro(text, macros, depth, env)
 		assert(name, "invalid macro call: " .. macro);
 		assert(#name + #arg_body == #macro, "trailing junk after macro call: " .. macro);
 		if name == "len" then
-			assert(arg_body ~= "", "len is a macro function")
+			assert(arg_body ~= "", "len is a macro function");
 			return tostring(#arg_body - 2);
 		elseif name == "lua" then
-			assert(arg_body ~= "", "lua is a macro function")
+			assert(arg_body ~= "", "lua is a macro function");
 			local lua_text = arg_body:sub(2,-2);
 			local chunk, err = load(lua_text, lua_text, "t", env);
-			assert(chunk, err)
-			local result = chunk()
-			assert(result ~= nil, "lua() returned nil (did you forget to return?)")
+			assert(chunk, err);
+			local result = chunk() or "";
 			return tostring(result);
 		end
 		local args = {};
