@@ -222,7 +222,10 @@ function compile(name, input, importFunc, testing)
 				goto continue;
 			end
 			lineCache[#lineCache+1] = real_line;
-			line = parseMacro(table.concat(lineCache), macros, 1, env):gsub("^%s+", ""):gsub("%s+$", "");
+			line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
+			if line:sub(1, 1) ~= "#" then
+				line = parseMacro(line, macros, 1, env);
+			end
 			lineCache = {};
 
 			if line:match"^#" then
