@@ -359,6 +359,13 @@ function compile(name, input, importFunc, testing)
 
 	local function encode(node)
 		if node.func then
+			if node.func.name == "label" then
+				local var = node.args[1].value;
+				assert(variables[var], "why are you calling the label function manually?")
+				encode{type = "number", value = variables[var].label};
+				return;
+			end
+
 			ins("s1", node.func.name);
 
 			for _, arg in ipairs (node.args) do
