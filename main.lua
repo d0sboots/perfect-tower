@@ -222,7 +222,7 @@ function compile(name, input, importFunc, testing)
 				goto continue;
 			end
 			lineCache[#lineCache+1] = real_line;
-			line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
+			line = parseMacro(table.concat(lineCache), macros, 1, env):gsub("^%s+", ""):gsub("%s+$", "");
 			lineCache = {};
 
 			if line:match"^#" then
@@ -295,7 +295,7 @@ function compile(name, input, importFunc, testing)
 					assert(false, "Unrecognized directive :" .. token);
 				end
 			else
-				line = parseMacro(line, macros, 1, env)
+				line = line
 					:gsub(TOKEN.identifier.pattern .. ":", function(name)
 						name = name:lower();
 						assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
