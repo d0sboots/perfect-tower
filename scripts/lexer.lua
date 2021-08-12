@@ -72,9 +72,23 @@ local function resolveID(token)
 	if token.type == "identifier" and not token.func then
 		token.value = token.value:lower();
 		token.var = assert(variables[token.value], tokenError(token, "undefined variable: " .. token.value));
+
+		if token.var.label then
+			token.type = "number";
+			token.value = token.var.label;
+			return token;
+		end
+		if token.var.scope == "constant" then
+			token.type = token.var.type;
+			if token.type == "int" or token.type == "double" then
+				token.type = "number";
+			end
+			token.value = token.var.value;
+			return token;
+		end
+
 		token.type = "string";
-		
-		local new = newNode(token.pos, nil, token.var.label and "label" or string.format("%s.%s.get", token.var.scope, token.var.type));
+		local new = newNode(token.pos, nil, string.format("%s.%s.get", token.var.scope, token.var.type));
 		new.args = {token};
 		return new;
 	end
@@ -127,8 +141,10 @@ local function consumeTokensWorker(node)
 				table.remove(node.tokens, j); table.remove(node.tokens, j); table.remove(node.tokens, j);
 				
 				if type == "op_set" then
+					if not left.args then
+						assert(false, "You can't assign values to labels or constants: " .. left.var.name);
+					end
 					local var = left.args[1].var;
-					assert(not var.label, "you can't assign values to labels");
 					local new = newNode(left.pos, node, string.format("%s.%s.set", var.scope, var.type));
 
 					if op.value ~= "=" then
