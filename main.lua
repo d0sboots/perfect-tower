@@ -6,134 +6,134 @@ local compile_file;
 local _cache = {};
 
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer"} do
-	if DEBUG then
-		dofile(package.path:gsub("?", lib));
-	else
-		require(lib);
-	end
+  if DEBUG then
+    dofile(package.path:gsub("?", lib));
+  else
+    require(lib);
+  end
 end
 
 do
-	local assert_old = assert;
+  local assert_old = assert;
 
-	local function assert_lexer(test, msg)
-		if not test then
-			error(string.format("%s:%s: %s", compile_file, line_number, msg), 0);
-		end
+  local function assert_lexer(test, msg)
+    if not test then
+      error(string.format("%s:%s: %s", compile_file, line_number, msg), 0);
+    end
 
-		return test;
-	end
+    return test;
+  end
 
-	function lua_main(func, arg1, arg2, arg3)
-		local status, ret;
-		if func == "compile" then
-			assert = assert_lexer;
-			status, ret = pcall(compile, arg1, arg2, arg3);
-			assert = assert_old;
+  function lua_main(func, arg1, arg2, arg3)
+    local status, ret;
+    if func == "compile" then
+      assert = assert_lexer;
+      status, ret = pcall(compile, arg1, arg2, arg3);
+      assert = assert_old;
 
-			if status then
-				return true, ret, ret:match".*\n.*()\n";
-			else
-				return false, ret, nil;
-			end
-		elseif func == "workspace" then
-			assert = assert_lexer;
-			local exported = {}
-			for i = 1, #arg1 do
-				local pair = arg1[i]
-				status, ret = pcall(compile, pair.name, pair.text, arg2, true);
-				if not status then
-					assert = assert_old;
-					return false, pair.name .. "\n" .. ret;
-				end
-				exported[i] = ret
-			end
-			assert = assert_old;
-			return true, table.concat(exported, ";")
-		elseif func == "import" then
-			status, ret = pcall(import, arg1);
-			if status then
-				return true, ret[1], ret[2];
-			end
-		elseif func == "unittest" then
-			status, ret = pcall(unittest);
-		else
-			assert(false, "BUG REPORT: unknown lua_main function: " .. func);
-		end
-		return status, ret;
-	end
+      if status then
+        return true, ret, ret:match".*\n.*()\n";
+      else
+        return false, ret, nil;
+      end
+    elseif func == "workspace" then
+      assert = assert_lexer;
+      local exported = {}
+      for i = 1, #arg1 do
+        local pair = arg1[i]
+        status, ret = pcall(compile, pair.name, pair.text, arg2, true);
+        if not status then
+          assert = assert_old;
+          return false, pair.name .. "\n" .. ret;
+        end
+        exported[i] = ret
+      end
+      assert = assert_old;
+      return true, table.concat(exported, ";")
+    elseif func == "import" then
+      status, ret = pcall(import, arg1);
+      if status then
+        return true, ret[1], ret[2];
+      end
+    elseif func == "unittest" then
+      status, ret = pcall(unittest);
+    else
+      assert(false, "BUG REPORT: unknown lua_main function: " .. func);
+    end
+    return status, ret;
+  end
 end
 
 local function cache(line, variables)
-	local key = {};
+  local key = {};
 
-	for _, v in pairs (variables) do
-		table.insert(key, string.format("%s.%s.%s", v.scope, v.type, v.name));
-	end
+  for _, v in pairs (variables) do
+    table.insert(key, string.format("%s.%s.%s", v.scope, v.type, v.name));
+  end
 
-	table.sort(key);
-	table.insert(key, line);
-	key = table.concat(key, "¤");
+  table.sort(key);
+  table.insert(key, line);
+  key = table.concat(key, "¤");
 
-	if not _cache[key] then
-		_cache[key] = lexer(line, variables);
-	end
+  if not _cache[key] then
+    _cache[key] = lexer(line, variables);
+  end
 
-	return _cache[key];
+  return _cache[key];
 end
 
 local function parseMacro(text, macros, depth, env)
-	assert(depth < 100, "macro expansion depth reached " .. depth ..  ", probable infinite loop in: " .. text)
-	return text:gsub("%b{}", function(macro)
-		if #macro == 2 then
-			return
-		end
-		macro = parseMacro(macro:sub(2,-2), macros, depth + 1, env);
-		local arg_body = "";
-		local name = macro:match("^([^%(]+)$");
-		if not name then
-			name, arg_body = macro:match("^([^%(]+)(%b())");
-		end
-		assert(name, "invalid macro call: " .. macro);
-		assert(#name + #arg_body == #macro, "trailing junk after macro call: " .. macro);
-		if name == "len" then
-			assert(arg_body ~= "", "len is a macro function");
-			return tostring(#arg_body - 2);
-		elseif name == "lua" then
-			assert(arg_body ~= "", "lua is a macro function");
-			local lua_text = arg_body:sub(2,-2);
-			local chunk, err = load(lua_text, lua_text, "t", env);
-			assert(chunk, err);
-			local result = chunk() or "";
-			return tostring(result);
-		end
-		local args = {};
-		local arg_count = 0;
-		local arg_begin = 2;
-		local nesting = 0;
-		for i = 2, #arg_body do
-			local char = arg_body:sub(i, i);
-			if nesting == 0 and (char == "," or i == #arg_body) then
-				args["{#"..arg_count.."#}"] = arg_body:sub(arg_begin, i-1);
-				arg_count = arg_count + 1;
-				arg_begin = i + 1;
-			elseif char == "(" then
-				nesting = nesting + 1;
-			elseif char == ")" and i ~= #arg_body then
-				nesting = nesting - 1;
-				assert(nesting >= 0, "unbalanced parenthesis inside macro call: " .. macro);
-			end
-		end
-		assert(nesting == 0, "unclosed parenthesis inside macro call: " .. macro);
-		name = name:lower();
-		local macro_obj = macros[name];
-		assert(macro_obj, "macro does not exist: " .. name);
-		local unexpanded, arg_len = macro_obj.text, macro_obj.arg_len;
-		assert(arg_len == arg_count,
-			"macro call has wrong number of args, expected " .. arg_len ..
-			" but got " .. arg_count .. ": " .. macro);
-		return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1, env);
-	end);
+  assert(depth < 100, "macro expansion depth reached " .. depth ..  ", probable infinite loop in: " .. text)
+  return text:gsub("%b{}", function(macro)
+    if #macro == 2 then
+      return
+    end
+    macro = parseMacro(macro:sub(2,-2), macros, depth + 1, env);
+    local arg_body = "";
+    local name = macro:match("^([^%(]+)$");
+    if not name then
+      name, arg_body = macro:match("^([^%(]+)(%b())");
+    end
+    assert(name, "invalid macro call: " .. macro);
+    assert(#name + #arg_body == #macro, "trailing junk after macro call: " .. macro);
+    if name == "len" then
+      assert(arg_body ~= "", "len is a macro function");
+      return tostring(#arg_body - 2);
+    elseif name == "lua" then
+      assert(arg_body ~= "", "lua is a macro function");
+      local lua_text = arg_body:sub(2,-2);
+      local chunk, err = load(lua_text, lua_text, "t", env);
+      assert(chunk, err);
+      local result = chunk() or "";
+      return tostring(result);
+    end
+    local args = {};
+    local arg_count = 0;
+    local arg_begin = 2;
+    local nesting = 0;
+    for i = 2, #arg_body do
+      local char = arg_body:sub(i, i);
+      if nesting == 0 and (char == "," or i == #arg_body) then
+        args["{#"..arg_count.."#}"] = arg_body:sub(arg_begin, i-1);
+        arg_count = arg_count + 1;
+        arg_begin = i + 1;
+      elseif char == "(" then
+        nesting = nesting + 1;
+      elseif char == ")" and i ~= #arg_body then
+        nesting = nesting - 1;
+        assert(nesting >= 0, "unbalanced parenthesis inside macro call: " .. macro);
+      end
+    end
+    assert(nesting == 0, "unclosed parenthesis inside macro call: " .. macro);
+    name = name:lower();
+    local macro_obj = macros[name];
+    assert(macro_obj, "macro does not exist: " .. name);
+    local unexpanded, arg_len = macro_obj.text, macro_obj.arg_len;
+    assert(arg_len == arg_count,
+    "macro call has wrong number of args, expected " .. arg_len ..
+    " but got " .. arg_count .. ": " .. macro);
+    return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1, env);
+  end);
 end
 
 -- Whitelist of functions and tables that are allowed in the lua() macro. We
@@ -168,408 +168,408 @@ math]], "%g+") do globals_whitelist[#globals_whitelist+1] = k end
 local os_whitelist = {'clock', 'date', 'difftime', 'time'}
 
 local function filter_table(table_in, whitelist)
-	res = {}
-	for i = 1, #whitelist do
-		local k = whitelist[i]
-		local v = table_in[k]
-		if type(v) == 'table' then
-			local new_tab = {}
-			for k2, v2 in pairs(v) do
-				new_tab[k2] = v2
-			end
-			v = new_tab
-		end
-		res[k] = v
-	end
-	return res
+  res = {}
+  for i = 1, #whitelist do
+    local k = whitelist[i]
+    local v = table_in[k]
+    if type(v) == 'table' then
+      local new_tab = {}
+      for k2, v2 in pairs(v) do
+        new_tab[k2] = v2
+      end
+      v = new_tab
+    end
+    res[k] = v
+  end
+  return res
 end
 
 local function clone_global()
-	local new_g = filter_table(_G, globals_whitelist)
-	new_g.os = filter_table(_G.os, os_whitelist)
-	new_g._G = new_g
-	return new_g
+  local new_g = filter_table(_G, globals_whitelist)
+  new_g.os = filter_table(_G.os, os_whitelist)
+  new_g._G = new_g
+  return new_g
 end
 
 local function is_empty(line)
-	return line:find("^%s*$") or line:find("^%s*;.*$")
+  return line:find("^%s*$") or line:find("^%s*;.*$")
 end
 
 -- importFunc takes a string (filename) and returns a pair of (status, string)
 -- (the content of the imported file on success, an error message on failure).
 function compile(name, input, importFunc, testing)
-	local variables, impulses, conditions, actions = {}, {}, {}, {};
-	local env = clone_global();
-	local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {};
-	local ret = {};
+  local variables, impulses, conditions, actions = {}, {}, {}, {};
+  local env = clone_global();
+  local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {};
+  local ret = {};
 
-	local function import(filename, input, isImport)
-		if imported[filename] then
-			return {}
-		end
-		imported[filename] = true
-		line_number = 0;
-		compile_file = filename
+  local function import(filename, input, isImport)
+    if imported[filename] then
+      return {}
+    end
+    imported[filename] = true
+    line_number = 0;
+    compile_file = filename
 
-		local lines = {};
-		local labelCache = {};
-		local lineCache = {};
+    local lines = {};
+    local labelCache = {};
+    local lineCache = {};
 
-		for real_line in input:gmatch"[^\n]*" do
-			line_number = line_number + 1;
-			if real_line:sub(-1) == "\\" then
-				lineCache[#lineCache+1] = real_line:sub(1, -2);
-				goto continue;
-			end
-			lineCache[#lineCache+1] = real_line;
-			line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
-			if line:sub(1, 1) ~= "#" then
-				line = parseMacro(line, macros, 1, env);
-			end
-			lineCache = {};
+    for real_line in input:gmatch"[^\n]*" do
+      line_number = line_number + 1;
+      if real_line:sub(-1) == "\\" then
+        lineCache[#lineCache+1] = real_line:sub(1, -2);
+        goto continue;
+      end
+      lineCache[#lineCache+1] = real_line;
+      line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "");
+      if line:sub(1, 1) ~= "#" then
+        line = parseMacro(line, macros, 1, env);
+      end
+      lineCache = {};
 
-			if line:match"^#" then
-				local macro_args = "";
-				local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
-				if not name then
-					name, macro_args, macro = line:sub(2):match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%)) (.+)$");
-				end
-				assert(name, "macro definition: #name <text> or #name(args...) <text>");
-				local args = {};
-				local arg_len = 0;
-				local arg_begin = 2;
-				while arg_begin <= #macro_args do
-					local pos = macro_args:find(",", arg_begin, true);
-					if not pos then
-						pos = #macro_args;
-					end
-					local arg_string = macro_args:sub(arg_begin, pos - 1);
-					local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$");
-					assert(arg, "bad macro function argument name: " .. arg_string);
-					args["{" .. arg .. "}"] = "{#" .. arg_len .. "#}";
-					arg_len = arg_len + 1;
-					arg_begin = pos + 1;
-				end
-				name = name:lower();
-				assert(not macros[name], "macro already exists: " .. name);
-				macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len};
-			elseif line:match"^:" then
-				local token = line:match("^:(%a*)");
-				if token == "const" then
-					local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
-					assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
-					if (type == "int" or type == "double") then
-						assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value);
-						value = tonumber(value);
-					elseif (type == "bool") then
-						value = value:lower();
-						assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'");
-						if value:match"^true$" then
-							value = true;
-						else
-							value = false;
-						end
-					elseif (type == "string") then
-						quote, value = value:match("^%s*([\"\'])([^%1]*)%1%s*$");
-						assert(value, "bad argument, string are enclosed in either single quotes or double quotes");
-					end
-					name = name:lower()
-					assert(not variables[name], "variable/label/constant already exists: " .. name);
-					variables[name] = {name = name, scope = "constant", type = type, value = value};
-				elseif token == "import" then
-					local import_name = line:match("^:%a+ (.+)")
-					assert(import_name, "import directive: :import file")
-					local status, import_result = importFunc(import_name)
-					assert(status, "Import failed: " .. import_result)
-					local saved_lineno = line_number
-					import(import_name, import_result, true)
-					-- These got stomped by the import, re-set them
-					compile_file = filename
-					line_number = saved_lineno
-				elseif token == "global" or token == "local" then
-					local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
-					assert(scope, "variable definition: [global/local/const] [int/double/string] name");
+      if line:match"^#" then
+        local macro_args = "";
+        local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$");
+        if not name then
+          name, macro_args, macro = line:sub(2):match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%)) (.+)$");
+        end
+        assert(name, "macro definition: #name <text> or #name(args...) <text>");
+        local args = {};
+        local arg_len = 0;
+        local arg_begin = 2;
+        while arg_begin <= #macro_args do
+          local pos = macro_args:find(",", arg_begin, true);
+          if not pos then
+            pos = #macro_args;
+          end
+          local arg_string = macro_args:sub(arg_begin, pos - 1);
+          local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$");
+          assert(arg, "bad macro function argument name: " .. arg_string);
+          args["{" .. arg .. "}"] = "{#" .. arg_len .. "#}";
+          arg_len = arg_len + 1;
+          arg_begin = pos + 1;
+        end
+        name = name:lower();
+        assert(not macros[name], "macro already exists: " .. name);
+        macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len};
+      elseif line:match"^:" then
+        local token = line:match("^:(%a*)");
+        if token == "const" then
+          local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$");
+          assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool");
+          if (type == "int" or type == "double") then
+            assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value);
+            value = tonumber(value);
+          elseif (type == "bool") then
+            value = value:lower();
+            assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'");
+            if value:match"^true$" then
+              value = true;
+            else
+              value = false;
+            end
+          elseif (type == "string") then
+            quote, value = value:match("^%s*([\"\'])([^%1]*)%1%s*$");
+            assert(value, "bad argument, string are enclosed in either single quotes or double quotes");
+          end
+          name = name:lower()
+          assert(not variables[name], "variable/label/constant already exists: " .. name);
+          variables[name] = {name = name, scope = "constant", type = type, value = value};
+        elseif token == "import" then
+          local import_name = line:match("^:%a+ (.+)")
+          assert(import_name, "import directive: :import file")
+          local status, import_result = importFunc(import_name)
+          assert(status, "Import failed: " .. import_result)
+          local saved_lineno = line_number
+          import(import_name, import_result, true)
+          -- These got stomped by the import, re-set them
+          compile_file = filename
+          line_number = saved_lineno
+        elseif token == "global" or token == "local" then
+          local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$");
+          assert(scope, "variable definition: [global/local/const] [int/double/string] name");
 
-					name = name:lower();
-					assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
-					assert(not variables[name], "variable/label already exists: " .. name);
-					variables[name] = {name = name, scope = scope, type = type};
-				else
-					assert(false, "Unrecognized directive :" .. token);
-				end
-			else
-				line = line
-					:gsub(TOKEN.identifier.pattern .. ":", function(name)
-						name = name:lower();
-						assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
-						variables[name] = {name = name, scope = "local", type = "int", label = 0};
-						table.insert(labelCache, name);
-						return "";
-					end)
-					:gsub("^%s+", ""):gsub("%s+$", "")
-				;
+          name = name:lower();
+          assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'");
+          assert(not variables[name], "variable/label already exists: " .. name);
+          variables[name] = {name = name, scope = scope, type = type};
+        else
+          assert(false, "Unrecognized directive :" .. token);
+        end
+      else
+        line = line
+        :gsub(TOKEN.identifier.pattern .. ":", function(name)
+          name = name:lower();
+          assert(not variables[name] or labelCache[name], "variable/label already exists: " .. name);
+          variables[name] = {name = name, scope = "local", type = "int", label = 0};
+          table.insert(labelCache, name);
+          return "";
+        end)
+        :gsub("^%s+", ""):gsub("%s+$", "")
+        ;
 
-				if not is_empty(line) then
-					assert(not isImport,
-						"Imported files can't produce output, they must only contain variable and macro declarations")
-					table.insert(lines, {text = line, num = line_number, label = labelCache});
-					labelCache = {};
-				end
-			end
-			::continue::
-		end
-		-- anything left in the label cache points to the end of the script
-		for _, label in ipairs (labelCache) do
-			variables[label].label = 99;
-		end
+        if not is_empty(line) then
+          assert(not isImport,
+          "Imported files can't produce output, they must only contain variable and macro declarations")
+          table.insert(lines, {text = line, num = line_number, label = labelCache});
+          labelCache = {};
+        end
+      end
+      ::continue::
+    end
+    -- anything left in the label cache points to the end of the script
+    for _, label in ipairs (labelCache) do
+      variables[label].label = 99;
+    end
 
-		return lines
-	end
+    return lines
+  end
 
-	local lines = import(name, input, false)
+  local lines = import(name, input, false)
 
-	for _, line in ipairs (lines) do
-		line_number = line.num;
-		local node = cache(line.text, variables);
+  for _, line in ipairs (lines) do
+    line_number = line.num;
+    local node = cache(line.text, variables);
 
-		if node and node.func then
-			if node.func.ret == "void" then
-				table.insert(actions, node);
-				
-				if #(line.label) > 0 then
-					for _, label in ipairs (line.label) do
-						variables[label].label = #actions;
-					end
-				end
-			else
-					assert(#(line.label) == 0, "labels cannot be placed before impulses/conditions");
-			
-				if node.func.ret == "impulse" then
-					table.insert(impulses, node);
-				else
-					table.insert(conditions, node);
-				end
-			end
-		end
-	end
+    if node and node.func then
+      if node.func.ret == "void" then
+        table.insert(actions, node);
 
-	local function ins(frmt, val)
-		table.insert(ret, string.pack(frmt, val));
-	end
+        if #(line.label) > 0 then
+          for _, label in ipairs (line.label) do
+            variables[label].label = #actions;
+          end
+        end
+      else
+        assert(#(line.label) == 0, "labels cannot be placed before impulses/conditions");
 
-	local function encode(node)
-		if node.func then
-			if node.func.name == "label" then
-				local var = node.args[1].value;
-				assert(variables[var], "why are you calling the label function manually?")
-				encode{type = "number", value = variables[var].label};
-				return;
-			end
+        if node.func.ret == "impulse" then
+          table.insert(impulses, node);
+        else
+          table.insert(conditions, node);
+        end
+      end
+    end
+  end
 
-			ins("s1", node.func.name);
+  local function ins(frmt, val)
+    table.insert(ret, string.pack(frmt, val));
+  end
 
-			for _, arg in ipairs (node.args) do
-				encode(arg);
-			end
-		else
-			ins("s1", "constant");
+  local function encode(node)
+    if node.func then
+      if node.func.name == "label" then
+        local var = node.args[1].value;
+        assert(variables[var], "why are you calling the label function manually?")
+        encode{type = "number", value = variables[var].label};
+        return;
+      end
 
-			if node.type == "bool" then
-				ins("b", 1);
-				ins("b", node.value and 1 or 0);
-			elseif node.type == "number" then
-				if math.type(node.value) == "integer" then
-					ins("b", 2);
-					ins("i4", node.value);
-				else
-					ins("b", 3);
-					ins("d", node.value);
-				end
-			elseif node.type == "string" then
-				ins("b", 4);
-				local bytes = {};
-				local len = #node.value;
+      ins("s1", node.func.name);
 
-				while len > 0 or #bytes == 0 do
-					table.insert(bytes, string.pack("B", (len >= 0x80 and 0x80 or 0x00) + (len & 0x7F)))
-					len = len >> 7;
-				end
+      for _, arg in ipairs (node.args) do
+        encode(arg);
+      end
+    else
+      ins("s1", "constant");
 
-				table.insert(ret, table.concat(bytes));
-				table.insert(ret, node.value);
-			elseif node.type == "vector" then
-				ins("b", 5);
-				ins("f", node.x);
-				ins("f", node.y);
-			elseif node.type == "operator" then
-				ins("b", 4);
+      if node.type == "bool" then
+        ins("b", 1);
+        ins("b", node.value and 1 or 0);
+      elseif node.type == "number" then
+        if math.type(node.value) == "integer" then
+          ins("b", 2);
+          ins("i4", node.value);
+        else
+          ins("b", 3);
+          ins("d", node.value);
+        end
+      elseif node.type == "string" then
+        ins("b", 4);
+        local bytes = {};
+        local len = #node.value;
 
-				if node.value == "%" then
-					node.value = "mod";
-				elseif node.value == "^" then
-					node.value = "pow";
-				elseif node.value == "//" then
-					node.value = "log";
-				end
+        while len > 0 or #bytes == 0 do
+          table.insert(bytes, string.pack("B", (len >= 0x80 and 0x80 or 0x00) + (len & 0x7F)))
+          len = len >> 7;
+        end
 
-				ins("s1", node.value);
-			else
-				assert(false, "BUG REPORT: unknown compile type: " .. node.type);
-			end
-		end
-	end
+        table.insert(ret, table.concat(bytes));
+        table.insert(ret, node.value);
+      elseif node.type == "vector" then
+        ins("b", 5);
+        ins("f", node.x);
+        ins("f", node.y);
+      elseif node.type == "operator" then
+        ins("b", 4);
 
-	ins("s1", name);
+        if node.value == "%" then
+          node.value = "mod";
+        elseif node.value == "^" then
+          node.value = "pow";
+        elseif node.value == "//" then
+          node.value = "log";
+        end
 
-	for _, tbl in ipairs {impulses, conditions, actions} do
-		ins("i4", #tbl);
+        ins("s1", node.value);
+      else
+        assert(false, "BUG REPORT: unknown compile type: " .. node.type);
+      end
+    end
+  end
 
-		for _, line in ipairs (tbl) do
-			encode(line);
-		end
-	end
+  ins("s1", name);
 
-	ret = base64.encode(table.concat(ret));
-	return testing and ret or string.format("%s\n%s %s %s\n%s", name, #impulses, #conditions, #actions, ret);
+  for _, tbl in ipairs {impulses, conditions, actions} do
+    ins("i4", #tbl);
+
+    for _, line in ipairs (tbl) do
+      encode(line);
+    end
+  end
+
+  ret = base64.encode(table.concat(ret));
+  return testing and ret or string.format("%s\n%s %s %s\n%s", name, #impulses, #conditions, #actions, ret);
 end
 
 function import(input)
-	local data = base64.decode(input);
-	local pos = 1;
+  local data = base64.decode(input);
+  local pos = 1;
 
-	local variables = {};
-	local ret = {};
-	
-	local function read(frmt)
-		local ret, new = string.unpack(frmt, data, pos);
-		pos = new;
-		return ret;
-	end
+  local variables = {};
+  local ret = {};
 
-	local function stripParens(text)
-		return tostring(text):gsub("^%b()", function(a) return a:sub(2,-2); end);
-	end
-	
-	local function parse()
-		local func = read"s1";
-		
-		if func == "constant" then
-			local type = read"b";
-			
-			if type == 1 then
-				return string.format("%s", read"b" == 1 and "true" or "false");
-			elseif type == 2 then
-				return string.format("%s", read"i4");
-			elseif type == 3 then
-				return string.format("%s", read"d");
-			elseif type == 4 then
-				local pos, len = 0, 0;
+  local function read(frmt)
+    local ret, new = string.unpack(frmt, data, pos);
+    pos = new;
+    return ret;
+  end
 
-				repeat
-					local byte = read"B";
-					len = len + ((byte & 0x7F) << 7*pos);
-					pos = pos + 1;
-				until byte & 0x80 == 0
+  local function stripParens(text)
+    return tostring(text):gsub("^%b()", function(a) return a:sub(2,-2); end);
+  end
 
-				local str = read("c" .. len);
-				local sq, dq = str:match"'", str:match'"';
+  local function parse()
+    local func = read"s1";
 
-				if sq and not dq then
-					return string.format('"%s"', str);
-				elseif dq and not sq then
-					return string.format("'%s'", str);
-				end
+    if func == "constant" then
+      local type = read"b";
 
-				str = string.format('"%s"', str:gsub('"', [[" . '"' . "]])):gsub('"" %.', ""):gsub('%. ""', "");
-				return str;
-			elseif type == 5 then
-				return string.format("vec(%s, %s)", read"f", read"f");
-			else
-				assert(false, "BUG REPORT: unknown constant type: " .. type);
-			end
-		else
-			local func = assert(FUNCTION[func], "BUG REPORT: unknown function: " .. func);
-			local args = {};
-			local dynamicOperator = false;
-			
-			for i, arg in ipairs (func.args) do
-				table.insert(args, parse());
-				
-				if arg.type:match"^op_" then
-					if args[i]:match'^".*"$' then
-						args[i] = args[i]:sub(2, -2):lower()
-							:gsub("^=$", "==")
-							:gsub("mod", "%%")
-							:gsub("pow", "^")
-							:gsub("log", "//")
-						;
-					end
+      if type == 1 then
+        return string.format("%s", read"b" == 1 and "true" or "false");
+      elseif type == 2 then
+        return string.format("%s", read"i4");
+      elseif type == 3 then
+        return string.format("%s", read"d");
+      elseif type == 4 then
+        local pos, len = 0, 0;
 
-					dynamicOperator = not OPERATOR[ args[i] ];
-				end
-			end
+        repeat
+          local byte = read"B";
+          len = len + ((byte & 0x7F) << 7*pos);
+          pos = pos + 1;
+        until byte & 0x80 == 0
 
-			local scope, type, func_name = func.name:match"(%a+)%.(%a+)%.(%a+)";
+        local str = read("c" .. len);
+        local sq, dq = str:match"'", str:match'"';
 
-			if (scope == "global" or scope == "local") and args[1]:match'^"' then
-				local var = args[1]:sub(2,-2):lower();
+        if sq and not dq then
+          return string.format('"%s"', str);
+        elseif dq and not sq then
+          return string.format("'%s'", str);
+        end
 
-				if var == var:match(TOKEN.identifier.pattern) then
-					if not variables[var] then
-						local key = string.format(":%s %s %s", scope, type, var);
-						variables[key] = true;
-					end
+        str = string.format('"%s"', str:gsub('"', [[" . '"' . "]])):gsub('"" %.', ""):gsub('%. ""', "");
+        return str;
+      elseif type == 5 then
+        return string.format("vec(%s, %s)", read"f", read"f");
+      else
+        assert(false, "BUG REPORT: unknown constant type: " .. type);
+      end
+    else
+      local func = assert(FUNCTION[func], "BUG REPORT: unknown function: " .. func);
+      local args = {};
+      local dynamicOperator = false;
 
-					return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var;
-				end
-			elseif not dynamicOperator and (func.name:match"^arithmetic" or func.name:match"^comparison") then
-				return string.format("(%s)", table.concat(args, " "));
-			elseif func.name == "concat" then
-				return string.format("(%s . %s)", table.unpack(args));
-			end
+      for i, arg in ipairs (func.args) do
+        table.insert(args, parse());
 
-			for k, v in ipairs (args) do
-				args[k] = stripParens(v);
-			end
+        if arg.type:match"^op_" then
+          if args[i]:match'^".*"$' then
+            args[i] = args[i]:sub(2, -2):lower()
+            :gsub("^=$", "==")
+            :gsub("mod", "%%")
+            :gsub("pow", "^")
+            :gsub("log", "//")
+            ;
+          end
 
-			return string.format("%s(%s)", func.short, table.concat(args, ", "));
-		end
-	end
+          dynamicOperator = not OPERATOR[ args[i] ];
+        end
+      end
 
-	local function ins(val)
-		local text = stripParens(val);
-		table.insert(ret, text);
+      local scope, type, func_name = func.name:match"(%a+)%.(%a+)%.(%a+)";
 
-		return val;
-	end
+      if (scope == "global" or scope == "local") and args[1]:match'^"' then
+        local var = args[1]:sub(2,-2):lower();
 
-	local name = read"s1";
+        if var == var:match(TOKEN.identifier.pattern) then
+          if not variables[var] then
+            local key = string.format(":%s %s %s", scope, type, var);
+            variables[key] = true;
+          end
 
-	for i = 1, 3 do
-		for j = 1, read"i4" do
-			ins(parse());
-			
-			if i == 3 then
-				ins(table.remove(ret));
-			end
-		end
+          return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var;
+        end
+      elseif not dynamicOperator and (func.name:match"^arithmetic" or func.name:match"^comparison") then
+        return string.format("(%s)", table.concat(args, " "));
+      elseif func.name == "concat" then
+        return string.format("(%s . %s)", table.unpack(args));
+      end
 
-		ins"";
-	end
+      for k, v in ipairs (args) do
+        args[k] = stripParens(v);
+      end
 
-	table.insert(ret, 1, "");
+      return string.format("%s(%s)", func.short, table.concat(args, ", "));
+    end
+  end
 
-	for var in pairs (variables) do
-		table.insert(ret, 1, var);
-	end
+  local function ins(val)
+    local text = stripParens(val);
+    table.insert(ret, text);
 
-	table.remove(ret);
-	ret = table.concat(ret, "\n"):gsub("\n\n+", "\n\n"):gsub("^\n", ""):gsub("\n$", "");
-	return {name, ret};
+    return val;
+  end
+
+  local name = read"s1";
+
+  for i = 1, 3 do
+    for j = 1, read"i4" do
+      ins(parse());
+
+      if i == 3 then
+        ins(table.remove(ret));
+      end
+    end
+
+    ins"";
+  end
+
+  table.insert(ret, 1, "");
+
+  for var in pairs (variables) do
+    table.insert(ret, 1, var);
+  end
+
+  table.remove(ret);
+  ret = table.concat(ret, "\n"):gsub("\n\n+", "\n\n"):gsub("^\n", ""):gsub("\n$", "");
+  return {name, ret};
 end
 
 function unittest()
-	local import_tests = {
+  local import_tests = {
 "C2dsb2JhbF90aWVyAQAAAAVrZXkuMQAAAAABAAAADmdsb2JhbC5pbnQuc2V0CGNvbnN0YW50BAR0aWVyDmFyaXRobWV0aWMuaW50DmFyaXRobWV0aWMuaW50Dmdsb2JhbC5pbnQuZ2V0CGNvbnN0YW50BAR0aWVyCGNvbnN0YW50BANtb2QIY29uc3RhbnQCCgAAAAhjb25zdGFudAQBKwhjb25zdGFudAIBAAAA",
 "EEdMT0JBTF9DT1VOVGRvd24BAAAABWtleS4yAAAAAAYAAAAOZ2VuZXJpYy5nb3RvaWYIY29uc3RhbnQCAwAAABFjb21wYXJpc29uLmRvdWJsZRFnbG9iYWwuZG91YmxlLmdldAhjb25zdGFudAQFY291bnQIY29uc3RhbnQEATwIY29uc3RhbnQDAAAAAAAA8D8QbG9jYWwuZG91YmxlLnNldAhjb25zdGFudAQDcG93DGRvdWJsZS5mbG9vchFhcml0aG1ldGljLmRvdWJsZQhjb25zdGFudAN7FK5H4XqEvwhjb25zdGFudAQBKxFhcml0aG1ldGljLmRvdWJsZRFnbG9iYWwuZG91YmxlLmdldAhjb25zdGFudAQFY291bnQIY29uc3RhbnQEA2xvZwhjb25zdGFudAMAAAAAAAAkQA1sb2NhbC5pbnQuc2V0CGNvbnN0YW50BANpbmMOYXJpdGhtZXRpYy5pbnQIY29uc3RhbnQCCgAAAAhjb25zdGFudAQDcG93A2QyaRBsb2NhbC5kb3VibGUuZ2V0CGNvbnN0YW50BANwb3cQbG9jYWwuZG91YmxlLnNldAhjb25zdGFudAQDdG1wEWFyaXRobWV0aWMuZG91YmxlEWdsb2JhbC5kb3VibGUuZ2V0CGNvbnN0YW50BAVjb3VudAhjb25zdGFudAQBLQNpMmQNbG9jYWwuaW50LmdldAhjb25zdGFudAQDaW5jDmdlbmVyaWMuZ290b2lmCGNvbnN0YW50AmMAAAARY29tcGFyaXNvbi5kb3VibGUQbG9jYWwuZG91YmxlLmdldAhjb25zdGFudAQDdG1wCGNvbnN0YW50BAE8CGNvbnN0YW50AwAAAAAAAPA/EWdsb2JhbC5kb3VibGUuc2V0CGNvbnN0YW50BAVjb3VudBBsb2NhbC5kb3VibGUuZ2V0CGNvbnN0YW50BAN0bXA=",
 "DkdMT0JBTF9DT1VOVFVQAQAAAAVrZXkuMwAAAAAGAAAADmdlbmVyaWMuZ290b2lmCGNvbnN0YW50AmMAAAARY29tcGFyaXNvbi5kb3VibGURZ2xvYmFsLmRvdWJsZS5nZXQIY29uc3RhbnQEBWNvdW50CGNvbnN0YW50BAE+CGNvbnN0YW50AwAAAACIKmFBDmdlbmVyaWMuZ290b2lmCGNvbnN0YW50AgQAAAARY29tcGFyaXNvbi5kb3VibGURZ2xvYmFsLmRvdWJsZS5nZXQIY29uc3RhbnQEBWNvdW50CGNvbnN0YW50BAE8CGNvbnN0YW50AwAAAAAAAPA/EGxvY2FsLmRvdWJsZS5zZXQIY29uc3RhbnQEA3Bvdwxkb3VibGUuZmxvb3IRYXJpdGhtZXRpYy5kb3VibGUIY29uc3RhbnQDexSuR+F6hD8IY29uc3RhbnQEASsRYXJpdGhtZXRpYy5kb3VibGURZ2xvYmFsLmRvdWJsZS5nZXQIY29uc3RhbnQEBWNvdW50CGNvbnN0YW50BANsb2cIY29uc3RhbnQDAAAAAAAAJEANbG9jYWwuaW50LnNldAhjb25zdGFudAQDaW5jDmFyaXRobWV0aWMuaW50CGNvbnN0YW50AgoAAAAIY29uc3RhbnQEA3BvdwNkMmkQbG9jYWwuZG91YmxlLmdldAhjb25zdGFudAQDcG93EGxvY2FsLmRvdWJsZS5zZXQIY29uc3RhbnQEA3RtcBFhcml0aG1ldGljLmRvdWJsZRFnbG9iYWwuZG91YmxlLmdldAhjb25zdGFudAQFY291bnQIY29uc3RhbnQEASsDaTJkDWxvY2FsLmludC5nZXQIY29uc3RhbnQEA2luYxFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQFY291bnQQbG9jYWwuZG91YmxlLmdldAhjb25zdGFudAQDdG1w",
@@ -598,55 +598,55 @@ function unittest()
 "BHRlc3QAAAAAAAAAAAkAAAARZ2xvYmFsLmRvdWJsZS5zZXQIY29uc3RhbnQEABNmYWN0b3J5Lml0ZW1zLmNvdW50CGNvbnN0YW50BAtibG9jay5kZW5zZQhjb25zdGFudAIBAAAAEWdsb2JhbC5kb3VibGUuc2V0CGNvbnN0YW50BAATZmFjdG9yeS5pdGVtcy5jb3VudAhjb25zdGFudAQLcGxhdGUuZGVuc2UIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBXNjcmV3CGNvbnN0YW50AgEAAAARZ2xvYmFsLmRvdWJsZS5zZXQIY29uc3RhbnQEABNmYWN0b3J5Lml0ZW1zLmNvdW50CGNvbnN0YW50BAxwbGF0ZS5ydWJiZXIIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEDXBsYXRlLmNpcmN1aXQIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBHJpbmcIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBHBpcGUIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBHdpcmUIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEB2NpcmN1aXQIY29uc3RhbnQCAQAAAA==",
 "BHRlc3QAAAAAAAAAAA0AAAAQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQMdG93ZXJ0ZXN0aW5nCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQLdHJhZGluZ3Bvc3QIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BApwb3dlcnBsYW50CGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQHZmFjdG9yeQhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQECmxhYm9yYXRvcnkIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BAhzaGlweWFyZAhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQECHdvcmtzaG9wCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQGYXJjYWRlCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQGbXVzZXVtCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQMaGVhZHF1YXJ0ZXJzCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQQY29uc3RydWN0aW9uZmlybQhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQEDXN0YXR1ZW9mY3Vib3MIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BARtaW5lCGNvbnN0YW50AQE=",
 "BFRlc3QAAAAAAAAAAAEAAAAQbG9jYWwuZG91YmxlLnNldAhjb25zdGFudAQBaQhjb25zdGFudAMzp6jVI/ZJOQ==",
-	};
-	local compile_tests = {macro_test = {[[
-		; Basic test of macros and macro functions
-		#concat(a, b) {a}{b}
-		#concat2(a, b) {lua(return [=[{a}]=] .. [=[{b}]=])}
-		:global string res
-		res = "{concat(1,2)}{co{concat2(ncat,)}(3,4")}
-	]], "Cm1hY3JvX3Rlc3QAAAAAAAAAAAEAAAARZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEA3Jlcwhjb25zdGFudAQEMTIzNA=="},
-	imported = {[[
-		; This should compile to no code
-		:local int acc
-		:global string status
-		#output status = "Number is: " . acc
-	]], "CGltcG9ydGVkAAAAAAAAAAAAAAAA"},
-	import_test = {[[
-		:import imported
-		:import imported
-		{output}
-	]], "C2ltcG9ydF90ZXN0AAAAAAAAAAABAAAAEWdsb2JhbC5zdHJpbmcuc2V0CGNvbnN0YW50BAZzdGF0dXMGY29uY2F0CGNvbnN0YW50BAtOdW1iZXIgaXM6IANpMnMNbG9jYWwuaW50LmdldAhjb25zdGFudAQDYWNj"},
-	};
+  };
+  local compile_tests = {macro_test = {[[
+    ; Basic test of macros and macro functions
+    #concat(a, b) {a}{b}
+    #concat2(a, b) {lua(return [=[{a}]=] .. [=[{b}]=])}
+    :global string res
+    res = "{concat(1,2)}{co{concat2(ncat,)}(3,4")}
+  ]], "Cm1hY3JvX3Rlc3QAAAAAAAAAAAEAAAARZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEA3Jlcwhjb25zdGFudAQEMTIzNA=="},
+  imported = {[[
+    ; This should compile to no code
+    :local int acc
+    :global string status
+    #output status = "Number is: " . acc
+  ]], "CGltcG9ydGVkAAAAAAAAAAAAAAAA"},
+  import_test = {[[
+    :import imported
+    :import imported
+    {output}
+  ]], "C2ltcG9ydF90ZXN0AAAAAAAAAAABAAAAEWdsb2JhbC5zdHJpbmcuc2V0CGNvbnN0YW50BAZzdGF0dXMGY29uY2F0CGNvbnN0YW50BAtOdW1iZXIgaXM6IANpMnMNbG9jYWwuaW50LmdldAhjb25zdGFudAQDYWNj"},
+  };
 
-	local status, ret;
+  local status, ret;
 
-	local function importFunc(name)
-		local v = compile_tests[name]
-		if v then
-			return true, v[1]
-		end
-		return false, (name .. " not found")
-	end
-	for k, v in pairs(compile_tests) do
-		status, ret = pcall(compile, k, v[1], importFunc, true);
-		assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number, ret));
-		assert(ret == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret))
-	end
-	for k, v in ipairs (import_tests) do
-		status, ret = pcall(import, v);
-		assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret));
+  local function importFunc(name)
+    local v = compile_tests[name]
+    if v then
+      return true, v[1]
+    end
+    return false, (name .. " not found")
+  end
+  for k, v in pairs(compile_tests) do
+    status, ret = pcall(compile, k, v[1], importFunc, true);
+    assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number, ret));
+    assert(ret == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret))
+  end
+  for k, v in ipairs (import_tests) do
+    status, ret = pcall(import, v);
+    assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret));
 
-		status, ret = pcall(compile, ret[1], ret[2], importFunc, true);
-		assert(status, string.format("Failed to compile unit test #%s\n\n%s", k, ret));
+    status, ret = pcall(compile, ret[1], ret[2], importFunc, true);
+    assert(status, string.format("Failed to compile unit test #%s\n\n%s", k, ret));
 
-		v = ret;
-		status, ret = pcall(import, v);
-		assert(status, string.format("Failed to re-import unit test #%s\n\n%s", k, ret));
+    v = ret;
+    status, ret = pcall(import, v);
+    assert(status, string.format("Failed to re-import unit test #%s\n\n%s", k, ret));
 
-		status, ret = pcall(compile, ret[1], ret[2], nil, true);
-		assert(status, string.format("Failed to re-compile unit test #%s\n\n%s", k, ret));
-		assert(ret == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret, base64.decode(v), base64.decode(ret)));
-	end
-	return true;
+    status, ret = pcall(compile, ret[1], ret[2], nil, true);
+    assert(status, string.format("Failed to re-compile unit test #%s\n\n%s", k, ret));
+    assert(ret == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret, base64.decode(v), base64.decode(ret)));
+  end
+  return true;
 end
