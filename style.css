@@ -203,3 +203,16 @@
         outline: 1px solid slategrey;
     }
 }
+
+#functionListAutoInput
+{
+	width: 25px;
+	height: 25px;
+	vertical-align: bottom;
+	margin-left: 15px;
+}
+
+#functionListAutoInputLabel
+{
+	margin-bottom: 0;
+}

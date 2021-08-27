@@ -39,7 +39,9 @@
             <div class="editor-info">
                 <span class="infotext">Editor: 1.41 ─ Game: v0.8.8 B1</span>
                 <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
-                <select id="functionList" class="functionList"></select>
+                <select id="functionList" class="functionList" onfocus="this.selectedIndex = -1;"></select>
+                <input type="checkbox" id="functionListAutoInput" name="functionListAutoInput" />
+                <label id="functionListAutoInputLabel" for="functionListAutoInput">Auto input functions</label>
             </div>
 
             <div class="workspaces">
@@ -416,6 +418,40 @@
                     break;
             }
         }
+
+        /*
+            Makes selections on the function select element input
+            the selected function into current cursor position of the code
+        */
+        let autoInputFunc = document.querySelector('#functionListAutoInput');
+
+        document.querySelector('#functionList').addEventListener('change', (e) =>
+        {
+            if(!autoInputFunc.checked)
+                return;
+
+            if (!activeTab) 
+                return;
+
+            let doc = editor.doc;
+            let cursor = doc.getCursor();
+            let line = doc.getLine(cursor.line);
+
+            let pos = 
+            {
+                line: cursor.line,
+                ch: line.length - 1
+            }
+
+            let rawValue = e.target.value;
+            
+            // Special handling for impulse select options
+            // because the impulse options are not valid code by default
+            if(rawValue.indexOf('impulse') > -1)
+                rawValue = rawValue.replace('impulse ', '');
+
+            doc.replaceRange(rawValue + '\n', pos);
+        });
 
         function doneLoading() {
             storageEnabled = storageAvailable();
