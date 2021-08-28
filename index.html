@@ -40,8 +40,6 @@
                 <span class="infotext">Editor: 1.41 ─ Game: v0.8.8 B1</span>
                 <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
                 <select id="functionList" class="functionList" onfocus="this.selectedIndex = -1;"></select>
-                <input type="checkbox" id="functionListAutoInput" name="functionListAutoInput" />
-                <label id="functionListAutoInputLabel" for="functionListAutoInput">Auto input functions</label>
             </div>
 
             <div class="workspaces">
@@ -420,17 +418,17 @@
         }
 
         /*
-            Makes selections on the function select element input
+            Makes selections on the function select element to input
             the selected function into current cursor position of the code
         */
-        let autoInputFunc = document.querySelector('#functionListAutoInput');
-
         document.querySelector('#functionList').addEventListener('change', (e) =>
         {
-            if(!autoInputFunc.checked)
+            if (!activeTab) 
                 return;
 
-            if (!activeTab) 
+            let optGroup = document.querySelector('#functionList option:checked').parentElement.label;
+
+            if(optGroup === 'Primitive')
                 return;
 
             let doc = editor.doc;
@@ -440,17 +438,22 @@
             let pos = 
             {
                 line: cursor.line,
-                ch: line.length - 1
+                ch: cursor.ch
             }
 
-            let rawValue = e.target.value;
-            
-            // Special handling for impulse select options
-            // because the impulse options are not valid code by default
-            if(rawValue.indexOf('impulse') > -1)
-                rawValue = rawValue.replace('impulse ', '');
+            let filteredReturnTypes = ['impulse', 'int', 'bool', 'double', 'void', 'string', 'type', 'vector']
 
-            doc.replaceRange(rawValue + '\n', pos);
+            let rawValue = e.target.value;
+
+            // Remove return types from the editor inputted action
+            if(filteredReturnTypes.indexOf(rawValue.substring(0, rawValue.indexOf(' '))) > -1)
+                rawValue = rawValue.substring(rawValue.indexOf(' ') + 1, rawValue.length);
+
+            // Some extra magic to make the insert behave as one would expect
+            if(cursor.ch === line.length && line.length > 0)
+                rawValue =  '\n' + rawValue;
+
+            doc.replaceRange(rawValue, pos);
         });
 
         function doneLoading() {
