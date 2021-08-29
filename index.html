@@ -39,7 +39,7 @@
             <div class="editor-info">
                 <span class="infotext">Editor: 1.41 ─ Game: v0.8.8 B1</span>
                 <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
-                <select id="functionList" class="functionList" onfocus="this.selectedIndex = -1;"></select>
+                <select id="functionList" class="functionList"></select>
             </div>
 
             <div class="workspaces">
@@ -417,13 +417,12 @@
             }
         }
 
-        /*
-            Makes selections on the function select element to input
-            the selected function into current cursor position of the code
-        */
-        document.querySelector('#functionList').addEventListener('change', (e) =>
+        function actionListSelect(v)
         {
             if (!activeTab) 
+                return;
+
+            if($('#functionList').data('clicked') == false)
                 return;
 
             let optGroup = document.querySelector('#functionList option:checked').parentElement.label;
@@ -442,7 +441,7 @@
             }
 
             let filteredReturnTypes = ['impulse', 'int', 'bool', 'double', 'void', 'string', 'type', 'vector']
-            let rawValue = e.target.value;
+            let rawValue = v;
 
             // Remove return types from the editor inputted action
             if(filteredReturnTypes.indexOf(rawValue.substring(0, rawValue.indexOf(' '))) > -1)
@@ -453,6 +452,32 @@
                 rawValue =  '\n' + rawValue;
 
             doc.replaceRange(rawValue, pos);
+        }
+
+        $('#functionList').on('change', function(e)
+        {
+            actionListSelect(e.target.value);
+        });
+
+        $('#functionList').on('click', function()
+        {
+            $(this).data('clicked', true);
+        });
+
+        $('#functionList').on('keydown', function(e)
+        {
+            var code = e.keyCode || e.which;
+  
+            if(code === 38 || code === 40) 
+            {
+                $(this).data('clicked', false);
+            }
+            else if (code === 13)
+            {
+                e.preventDefault();
+                $(this).data('clicked', true);
+                actionListSelect($('#functionList option:selected').val());
+            }
         });
 
         function doneLoading() {
