@@ -417,6 +417,69 @@
             }
         }
 
+        function actionListSelect(v)
+        {
+            if (!activeTab) 
+                return;
+
+            if($('#functionList').data('clicked') == false)
+                return;
+
+            let optGroup = document.querySelector('#functionList option:checked').parentElement.label;
+
+            if(optGroup === 'Primitive')
+                return;
+
+            let doc = editor.doc;
+            let cursor = doc.getCursor();
+            let line = doc.getLine(cursor.line);
+
+            let pos = 
+            {
+                line: cursor.line,
+                ch: cursor.ch
+            }
+
+            let filteredReturnTypes = ['impulse', 'int', 'bool', 'double', 'void', 'string', 'type', 'vector']
+            let rawValue = v;
+
+            // Remove return types from the editor inputted action
+            if(filteredReturnTypes.indexOf(rawValue.substring(0, rawValue.indexOf(' '))) > -1)
+                rawValue = rawValue.substring(rawValue.indexOf(' ') + 1, rawValue.length);
+
+            // Some extra magic to make the insert behave as one would expect
+            if(cursor.ch === line.length && line.length > 0)
+                rawValue =  '\n' + rawValue;
+
+            doc.replaceRange(rawValue, pos);
+        }
+
+        $('#functionList').on('change', function(e)
+        {
+            actionListSelect(e.target.value);
+        });
+
+        $('#functionList').on('click', function()
+        {
+            $(this).data('clicked', true);
+        });
+
+        $('#functionList').on('keydown', function(e)
+        {
+            var code = e.keyCode || e.which;
+  
+            if(code === 38 || code === 40) 
+            {
+                $(this).data('clicked', false);
+            }
+            else if (code === 13)
+            {
+                e.preventDefault();
+                $(this).data('clicked', true);
+                actionListSelect($('#functionList option:selected').val());
+            }
+        });
+
         function doneLoading() {
             storageEnabled = storageAvailable();
             updateWarn(true);
