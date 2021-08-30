@@ -63,7 +63,7 @@ local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector
 
 local functions = [[
 impulse wakeup() Impulse
-impulse key.<char>() {Impulse impulse key.#() 0-9, a-z}
+impulse key.<char>() {Impulse impulse key.#()   ;0-9, a-z}
 impulse open.arcade() Impulse
 impulse open.constructionFirm() Impulse
 impulse open.factory() Impulse
@@ -286,7 +286,7 @@ local function parseFunction(line)
 		FUNCTION[short] = FUNCTION[name];
 	end
 
-	addList(category, string.format("%s%s (%s)", ret == "void" and "" or ret .. " ", short, table.concat(display, ", ")));
+	addList(category, string.format("%s%s(%s)", ret == "void" and "" or ret .. " ", short, table.concat(display, ", ")));
 end
 
 for line in functions:gsub("\r", ""):gmatch"[^\n]+" do
