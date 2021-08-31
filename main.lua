@@ -256,7 +256,7 @@ function compile(name, input, importFunc, testing)
       elseif line:match"^:" then
         local token = line:match("^:(%a*)")
         if token == "const" then
-          local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$")
+          local _, type, name, value = line:sub(2):match("^(%a+) +(%a+) +" .. TOKEN.identifier.patternAnywhere .. " +(.+)$")
           assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool")
           if (type == "int" or type == "double") then
             assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value)
@@ -277,23 +277,27 @@ function compile(name, input, importFunc, testing)
           assert(not variables[name], "variable/label/constant already exists: " .. name)
           variables[name] = {name = name, scope = "constant", type = type, value = value}
         elseif token == "import" then
-          local import_name = line:match("^:%a+ (.+)")
+          local import_name = line:match("^:%a+ +(.+)")
           assert(import_name, "import directive: :import file")
           local status, import_result = importFunc(import_name)
           assert(status, "Import failed: " .. import_result)
-          local saved_lineno = line_number
+          local saved_lineno, saved_compile_file = line_number, compile_file
           import(import_name, import_result, true)
           -- These got stomped by the import, re-set them
-          compile_file = filename
+          compile_file = saved_compile_file
           line_number = saved_lineno
         elseif token == "global" or token == "local" then
-          local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .."$")
+          local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) +(%a+) +" .. TOKEN.identifier.patternAnywhere .."$")
           assert(scope, "variable definition: [global/local/const] [int/double/string] name")
 
           name = name:lower()
           assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'")
           assert(not variables[name], "variable/label already exists: " .. name)
           variables[name] = {name = name, scope = scope, type = type}
+        elseif token == "name" then
+          local name = line:match("^:%a+ +(.+)")
+          assert(name, "name directive: :name script_name")
+          compile_file = name
         else
           assert(false, "Unrecognized directive :" .. token)
         end
@@ -418,7 +422,7 @@ function compile(name, input, importFunc, testing)
     end
   end
 
-  ins("s1", name)
+  ins("s1", compile_file)
 
   for _, tbl in ipairs {impulses, conditions, actions} do
     ins("i4", #tbl)
@@ -429,7 +433,7 @@ function compile(name, input, importFunc, testing)
   end
 
   ret = base64.encode(table.concat(ret))
-  return testing and ret or string.format("%s\n%s %s %s\n%s", name, #impulses, #conditions, #actions, ret)
+  return testing and ret or string.format("%s\n%s %s %s\n%s", compile_file, #impulses, #conditions, #actions, ret)
 end
 
 function import(input)

@@ -419,7 +419,7 @@
 
         function actionListSelect(v)
         {
-            if (!activeTab) 
+            if (!activeTab)
                 return;
 
             if($('#functionList').data('clicked') == false)
@@ -434,7 +434,7 @@
             let cursor = doc.getCursor();
             let line = doc.getLine(cursor.line);
 
-            let pos = 
+            let pos =
             {
                 line: cursor.line,
                 ch: cursor.ch
@@ -467,8 +467,8 @@
         $('#functionList').on('keydown', function(e)
         {
             var code = e.keyCode || e.which;
-  
-            if(code === 38 || code === 40) 
+
+            if(code === 38 || code === 40)
             {
                 $(this).data('clicked', false);
             }
@@ -526,6 +526,9 @@
 ;   without having to copy them. The compiler will
 ;   ensure that an import only happens once for a given file.
 
+; You can also do :name [script_name] to override the
+;   name of the script.
+
 ; A line starting with a variable name, followed by a
 ;   colon, is defining a label. Labels are special variables.
 ;   They are automatically replaced by a line number, and
@@ -570,6 +573,9 @@
 ;   the full list of all available functions.
 
 ; Have fun!
+
+; A fun game: Try guessing what all these lines will compile to,
+; then re-import the compiled result and see if you were right.
 
 :local int i
 :local double test
