@@ -433,7 +433,9 @@ function compile(name, input, importFunc, testing)
   end
 
   ret = base64.encode(table.concat(ret))
-  return testing and ret or string.format("%s\n%s %s %s\n%s", compile_file, #impulses, #conditions, #actions, ret)
+  return testing and ret or string.format("%s\n%s %s %s\n%s",
+    string.sub(compile_file, 1, 24), #impulses, #conditions, #actions, ret
+  )
 end
 
 function import(input)
