@@ -5,7 +5,7 @@ local strings = {
 	window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
 
 	item = {"block.dense", "plate.dense", "screw", "plate.rubber", "plate.circuit", "ring", "pipe", "wire", "circuit", "hammer"},
-	craft = {"hammer", "motor", "chip", "cable.insulated", "block", "pump", "plate.stack", "lump", "producer.town", "producer.mine", "producer.powerplant", "producer.factory", "producer.workshop", "producer.constructionFirm", "producer.headquarters", "producer.laboratory", "producer.tradingpost", "producer.arcade", "producer.museum", "producer.shipyard", "producer.statueofcubos", "producer.gems", "producer.exoticgems", "machine.oven", "machine.presser", "machine.transportbelt", "machine.crusher", "machine.mixer", "machine.refinery", "machine.assembler", "machine.shaper", "machine.cutter", "machine.boiler"},
+	craft = {"hammer", "motor", "chip", "cable.insulated", "block", "pump", "plate.stack", "lump", "producer.town", "producer.mine", "producer.powerplant", "producer.factory", "producer.workshop", "producer.constructionFirm", "producer.headquarters", "producer.laboratory", "producer.tradingpost", "producer.arcade", "producer.museum", "producer.shipyard", "producer.statueofcubos", "producer.gems", "producer.exoticgems", "machine.oven", "machine.presser", "machine.transportbelt", "machine.crusher", "machine.mixer", "machine.refinery", "machine.assembler", "machine.shaper", "machine.cutter", "machine.boiler", "sapling.rubber"},
 	produce = {"rubber", "ore", "dust", "ingot", "plate.stack", "rod", "plate", "cable", "lump", "block"},
 	machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
 
@@ -161,9 +161,11 @@ void tower.restart() Tower
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
 bool mine.hasLayers() Mine
+int mine.clusters() Mine
 void mine.newlayer() Mine
 void mine.dig(int:x[dig], int:y[dig]) Mine
 void mine.tab(int[minetab]) Mine
+void mine.cluster.remove(int:cluster) Mine
 
 bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
