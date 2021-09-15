@@ -155,7 +155,9 @@ double tower.energy.regeneration() Tower #energy.regen#
 double tower.shield(bool:percent) Tower
 double tower.shield.max() Tower #shield.max#
 double tower.module.cooldown(int:skill) Tower
+double tower.attackrange() Tower #tower.range#
 void tower.module.useinstant(int:skill) Tower
+void tower.module.useposition(int:skill, vector:offset) Tower
 void tower.restart() Tower
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
