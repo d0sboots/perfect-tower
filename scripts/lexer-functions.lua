@@ -3,6 +3,7 @@ FUNCTION = {};
 
 local strings = {
 	window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
+	software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds", "software.wavefloor", "software.erafloor", "software.erahorizon"},
 
 	item = {"block.dense", "plate.dense", "screw", "plate.rubber", "plate.circuit", "ring", "pipe", "wire", "circuit", "hammer"},
 	craft = {"hammer", "motor", "chip", "cable.insulated", "block", "pump", "plate.stack", "lump", "producer.town", "producer.mine", "producer.powerplant", "producer.factory", "producer.workshop", "producer.constructionFirm", "producer.headquarters", "producer.laboratory", "producer.tradingpost", "producer.arcade", "producer.museum", "producer.shipyard", "producer.statueofcubos", "producer.gems", "producer.exoticgems", "machine.oven", "machine.presser", "machine.transportbelt", "machine.crusher", "machine.mixer", "machine.refinery", "machine.assembler", "machine.shaper", "machine.cutter", "machine.boiler", "sapling.rubber"},
@@ -41,6 +42,7 @@ VALIDATOR = {
 	scroll = function(value) local a, b = rangeValid(value, 0.0, 1.0); return value < 0.0 or a, b .. " (negative to ignore)"; end,
 
 	window = function(value) return stringValid("window", value, "Windows"); end,
+	software = function(value) return stringValid("software", value, "Software"); end,
 
 	sellx = function(value) return rangeValid(value, 0, 18); end,
 	selly = function(value) return rangeValid(value, 0, 12); end,
@@ -76,6 +78,18 @@ impulse open.shipyard() Impulse
 impulse open.statueofcubos() Impulse
 impulse open.tradingpost() Impulse
 impulse open.workshop() Impulse
+impulse close.arcade() Impulse
+impulse close.constructionFirm() Impulse
+impulse close.factory() Impulse
+impulse close.headquarters() Impulse
+impulse close.laboratory() Impulse
+impulse close.mine() Impulse
+impulse close.museum() Impulse
+impulse close.powerplant() Impulse
+impulse close.shipyard() Impulse
+impulse close.statueofcubos() Impulse
+impulse close.tradingpost() Impulse
+impulse close.workshop() Impulse
 impulse game.newround() Impulse
 
 int label(string)
@@ -93,7 +107,8 @@ int string.indexOf(string:str, string:substr, int:offset) String #index#
 string concat(string:lhs, string:rhs) String
 string substring(string, int:offset, int:length) String #sub#
 
-double const.pi() Number
+double const.pi() Number #const.pi#
+double const.e() Number #const.e#
 
 <num> <num>.min(<num>, <num>)
 <num> <num>.max(<num>, <num>)
@@ -122,6 +137,8 @@ double vec2.y(vector) Vector
 vector vec.fromCoords(double:x, double:y) Vector #vec#
 vector mouse.position() Vector
 
+string script.impulse() Generic
+
 void generic.execute(string:script) Generic
 void generic.executesync(string:script) Generic
 void generic.stop(string:script) Generic
@@ -140,6 +157,9 @@ double screen.width.d() Generic #width.d#
 double screen.height.d() Generic #height.d#
 
 double timestamp.now() Generic
+double time.delta() Generic #time.delta#
+double time.unscaledDelta() Generic #time.unscaled#
+double time.scale() Generic #time.scale#
 
 bool town.window.isopen(string:window[window]) Town
 void town.window.show(string:window[window], bool) Town
@@ -159,6 +179,17 @@ double tower.attackrange() Tower #tower.range#
 void tower.module.useinstant(int:skill) Tower
 void tower.module.useposition(int:skill, vector:offset) Tower
 void tower.restart() Tower
+void tower.exit() Tower
+
+bool game.isBossFight() Game
+bool game.isTowerTesting() Game
+double game.wave() Game
+double game.era() Game
+double game.infinity() Game
+double game.waveAcceleration() Game
+
+bool software.enabled(string:name[software]) Game #software.enabled#
+void software.toggle(string:name[software], bool:on) Game #software.toggle#
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
@@ -299,7 +330,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Power Plant", "Mine", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Power Plant", "Mine", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
