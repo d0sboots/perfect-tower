@@ -9,7 +9,7 @@ local operators = [[
 
 * multiply
 / divide
-% mod
+% remainder
 
 + add
 - subtract

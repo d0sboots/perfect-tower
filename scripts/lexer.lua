@@ -168,6 +168,15 @@ local function consumeTokensWorker(node)
 					local const = false;
 					
 					if type == "op_mod" and (left.type == right.type or op.value == ".") and (left.type == "number" or left.type == "string") and (right.type == "number" or right.type == "string") then
+						local isNegativeRemainder;
+						if op.value == "%" then
+							right.value = math.abs(right.value);
+							if left.value < 0 then
+								isNegativeRemainder = true;
+								left.value = -left.value;
+							end
+						end
+
 						local status, ret = pcall(load(
 							op.value == "."
 							and string.format('return %q .. %q', left.value, right.value)
@@ -178,7 +187,10 @@ local function consumeTokensWorker(node)
 						
 						if status then
 							const = true;
-							left.value = resolveType(left) == "int" and op.value ~= "." and math.floor(ret) or ret;
+							left.value = resolveType(left) == "int" and op.value ~= "." and math.modf(ret) or ret;
+							if isNegativeRemainder then
+								left.value = -left.value;
+							end
 							left.type = op.value == "." and "string" or "number";
 							table.insert(node.tokens, j, left);
 						end
