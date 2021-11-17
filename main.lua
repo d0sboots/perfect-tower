@@ -621,6 +621,16 @@ function unittest()
     :import imported
     {output}
   ]], "C2ltcG9ydF90ZXN0AAAAAAAAAAABAAAAEWdsb2JhbC5zdHJpbmcuc2V0CGNvbnN0YW50BAZzdGF0dXMGY29uY2F0CGNvbnN0YW50BAtOdW1iZXIgaXM6IANpMnMNbG9jYWwuaW50LmdldAhjb25zdGFudAQDYWNj"},
+  folding_test = {[[
+    :global string test
+
+    test = 1.."a"
+    test = 1 ."a"
+    test = 1 .""
+    test = "a".1.
+    test = "a".1
+    test = "".1
+  ]], "DGZvbGRpbmdfdGVzdAAAAAAAAAAABgAAABFnbG9iYWwuc3RyaW5nLnNldAhjb25zdGFudAQEdGVzdAhjb25zdGFudAQEMS4wYRFnbG9iYWwuc3RyaW5nLnNldAhjb25zdGFudAQEdGVzdAhjb25zdGFudAQCMWERZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEBHRlc3QIY29uc3RhbnQEATERZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEBHRlc3QIY29uc3RhbnQEBGExLjARZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEBHRlc3QIY29uc3RhbnQEAmExEWdsb2JhbC5zdHJpbmcuc2V0CGNvbnN0YW50BAR0ZXN0CGNvbnN0YW50BAEx"},
   }
 
   local status, ret

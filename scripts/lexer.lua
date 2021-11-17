@@ -178,7 +178,7 @@ local function consumeTokensWorker(node)
 						
 						if status then
 							const = true;
-							left.value = resolveType(left) == "int" and math.floor(ret) or ret;
+							left.value = resolveType(left) == "int" and op.value ~= "." and math.floor(ret) or ret;
 							left.type = op.value == "." and "string" or "number";
 							table.insert(node.tokens, j, left);
 						end
