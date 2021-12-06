@@ -435,8 +435,14 @@ function compile(name, input, importFunc, testing)
   end
 
   ret = base64.encode(table.concat(ret))
+  local package_name, script_name = compile_file:match("(.*):([^:]*)")
+  if not script_name then
+    script_name = compile_file
+  end
+  package_name = package_name and package_name:sub(1, 24) .. ":" or ""
+  script_name = script_name:sub(1, 24)
   return testing and ret or string.format("%s\n%s %s %s\n%s",
-    string.sub(compile_file, 1, 24), #impulses, #conditions, #actions, ret
+    package_name .. script_name, #impulses, #conditions, #actions, ret
   )
 end
 
