@@ -155,6 +155,7 @@ int screen.width() Generic
 int screen.height() Generic
 double screen.width.d() Generic #width.d#
 double screen.height.d() Generic #height.d#
+double option.ui.size() Generic #ui.size#
 
 double timestamp.now() Generic
 double time.delta() Generic #time.delta#
