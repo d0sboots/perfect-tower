@@ -619,6 +619,12 @@ var = '+' ; Single quotes works too
 test = a.d(3., var, 0.)
 var = "=="
 gotoif(99, c.i(3, var, 3))`;
+        // Firefox has a bug where placeholder text isn't used for size
+        // calculation, so there won't be scrollbars and the bottom won't be
+        // viewable. Setting the value also makes it selectable/copyable,
+        // which helps some people read. Leaving it set as a placeholder means
+        // it will still appear when there's no output.
+        output.value = output.placeholder;
 
         const scriptTemplate = output.placeholder.split("Have fun!\n\n")[1];
     </script>
