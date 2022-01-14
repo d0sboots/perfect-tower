@@ -164,7 +164,11 @@ function workspaceExportDone(result) {
         return;
     }
 
-    output.value = result.value;
+    if (doubleEncodeBox.checked) {
+      output.value = result.value.split(';').map(btoa).join(';');
+    } else {
+      output.value = result.value;
+    }
     output.copy = 0;
 }
 
