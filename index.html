@@ -44,10 +44,6 @@
 
             <div class="workspaces">
                 <div>
-                    <div>
-                        <label for="doubleEncode">Double-encode base64?</label>
-                        <input id="doubleEncode" type="checkbox">
-                    </div>
                     <p>
                         Workspace:
                         <select id="workspaceList" class="workspaceList" oninput="workspaceChange(this.value)"></select>
@@ -79,8 +75,6 @@
         const loadingText = document.getElementById("loadingText");
         const loadingDiv = document.getElementById("loadingDiv");
         const output = document.getElementById("output");
-        // Temporary hack, for working around an in-game bug
-        const doubleEncodeBox = document.getElementById("doubleEncode");
 
         window.onerror = function(msg, url, line) {
             loadingDiv.style.visibility = "hidden";
@@ -403,12 +397,7 @@
                     doneLoading();
                     break;
                 case 'compile':
-                    if (doubleEncodeBox.checked) {
-                      const splits = result.value.split('\n');
-                      output.value = splits[0] + '\n' + splits[1] + '\n' + btoa(splits[2]);
-                    } else {
-                      output.value = result.value;
-                    }
+                    output.value = result.value;
                     output.copy = results[2];
                     if (msg.args[2] == editor.getValue()) {
                         scriptSave();
