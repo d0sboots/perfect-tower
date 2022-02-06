@@ -201,6 +201,12 @@ void mine.dig(int:x[dig], int:y[dig]) Mine
 void mine.tab(int[minetab]) Mine
 void mine.cluster.remove(int:cluster) Mine
 
+bool arcade.luckywheel.isSpinning() Arcade #wheel.isSpinning#
+bool arcade.jumble.isActive() Arcade #jumble.isActive#
+void arcade.luckywheel.spin(double:wager) Arcade #wheel.spin#
+void arcade.jumble.newGame(double:wager) Arcade #jumble.new#
+void arcade.jumble.stop() Arcade #jumble.stop#
+
 bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
 void factory.craft(string:item[craft], int:tier[tier], double:amount) Factory
@@ -331,7 +337,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Power Plant", "Mine", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
