@@ -207,6 +207,20 @@ void arcade.luckywheel.spin(double:wager) Arcade #wheel.spin#
 void arcade.jumble.newGame(double:wager) Arcade #jumble.new#
 void arcade.jumble.stop() Arcade #jumble.stop#
 
+void arcade.adventure.move(vector:direction) Arcade #adventure.move#
+void arcade.adventure.wait() Arcade #adventure.wait#
+void arcade.adventure.placeBomb() Arcade #adventure.placeBomb#
+vector arcade.adventure.roomCoords() Arcade #adventure.roomCoords#
+vector arcade.adventure.playerPos() Arcade #adventure.playerPos#
+int arcade.adventure.playerHealth() Arcade #adventure.playerHealth#
+int arcade.adventure.playerArmor() Arcade #adventure.playerArmor#
+int arcade.adventure.playerAttack() Arcade #adventure.playerAttack#
+int arcade.adventure.bombs() Arcade #adventure.bombs#
+int arcade.adventure.keys() Arcade #adventure.keys#
+bool arcade.adventure.isWall(vector:position) Arcade #adventure.isWall#
+bool arcade.adventure.isBomb(vector:position) Arcade #adventure.isBomb#
+bool arcade.adventure.isEnemy(vector:position) Arcade #adventure.isEnemy#
+
 bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
 void factory.craft(string:item[craft], int:tier[tier], double:amount) Factory
