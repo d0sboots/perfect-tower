@@ -220,6 +220,8 @@ int arcade.adventure.keys() Arcade #adventure.keys#
 bool arcade.adventure.isWall(vector:position) Arcade #adventure.isWall#
 bool arcade.adventure.isBomb(vector:position) Arcade #adventure.isBomb#
 bool arcade.adventure.isEnemy(vector:position) Arcade #adventure.isEnemy#
+bool arcade.adventure.isCompleted(vector:position) Arcade #adventure.isCompleted#
+string arcade.adventure.entityType(vector:position) Arcade #adventure.entityType#
 
 bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
