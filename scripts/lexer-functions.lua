@@ -14,7 +14,7 @@ local strings = {
 	element = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity"},
 	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
 
-	taskId = {"task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "shipyard.shipping", "task.museum.buycombine", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.gems.spin", "factory.oreManagement", "factory.refiningManagement", "factory.dissolveManagement", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.construct"},
+	workerTask = {"task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "shipyard.shipping", "task.museum.buycombine", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.gems.spin", "factory.oreManagement", "factory.refiningManagement", "factory.dissolveManagement", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.construct"},
 };
 
 for _, tbl in pairs (strings) do
@@ -62,8 +62,8 @@ VALIDATOR = {
 	element = function(value) return stringValid("element", value, "Elements"); end,
 	elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
 
-	taskId = function(value) return stringValid("taskId", value, "Tasks"); end,
-	groupNum = function(value) return rangeValid(value, 0, 5); end,
+	workerGroup = function(value) return rangeValid(value, 0, 5); end,
+	workerTask = function(value) return stringValid("workerTask", value, "Tasks"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -189,6 +189,7 @@ void tower.exit() Tower
 
 bool game.isBossFight() Game
 bool game.isTowerTesting() Game
+int game.enemies.count() Game #enemies#
 double game.wave() Game
 double game.era() Game
 double game.infinity() Game
@@ -196,6 +197,19 @@ double game.waveAcceleration() Game
 
 bool software.enabled(string:name[software]) Game #software.enabled#
 void software.toggle(string:name[software], bool:on) Game #software.toggle#
+
+bool worker.paused(string:name) Worker #worker.paused#
+int worker.group.get(int:index) Worker #worker.group#
+string worker.name.get(int:index) Worker #worker.name#
+string worker.task(string:name) Worker #worker.task#
+void workers.toggle.group(int:group[workerGroup]) Worker #worker.toggleGroup#
+void workers.pause.group(int:group[workerGroup], bool:pause) Worker #worker.pauseGroup#
+void workers.toggle.name(string:name) Worker #worker.toggleName#
+void workers.pause.name(string:name, bool:pause) Worker #worker.pauseName#
+void workers.assign.group(string:task[workerTask], int:subtask, int:group[workerGroup]) Worker #worker.assignGroup#
+void workers.assign.name(string:task[workerTask], int:subtask, string:name) Worker #worker.assignName#
+void worker.name.set(int:index, string:name) Worker #worker.setName#
+void worker.group.set(int:index, int:group[workerGroup]) Worker #worker.setGroup#
 
 void powerplant.sell(int:x[sellx], int:y[selly]) Power Plant
 
@@ -250,19 +264,6 @@ void museum.clear(string:inventory[inv]) Museum
 int tradingpost.offerCount() Trading Post
 void tradingpost.refresh() Trading Post
 void tradingpost.trade(int:offer, double:pct[0-1]) Trading Post
-
-bool worker.paused(string:name) Worker
-int worker.group.get(int:index) Worker #group.get#
-string worker.name.get(int:index) Worker #name.get#
-string worker.task(string:name) Worker
-void worker.group.set(int:index, int:groupNum[groupNum]) Worker #group.set#
-void worker.name.set(int:index, string:name) Worker #name.set#
-void workers.assign.group(string:taskId[taskId], int:details, int:groupNum) Worker #assign.group#
-void workers.assign.name(string:taskId[taskId], int:details, string:name) Worker #assign.name#
-void workers.toggle.group(int:groupNum[groupNum]) Worker #toggle.group#
-void workers.toggle.name(string:name) Worker #toggle.name#
-void workers.pause.group(int:groupNum[groupNum], bool:paused) Worker #pause.group#
-void workers.pause.name(string:name, bool:paused) Worker #pause.name#
 
 void clickrel(double:x[0-1], double:y[0-1]) Shortcut
 ]]
@@ -371,7 +372,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Worker", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
