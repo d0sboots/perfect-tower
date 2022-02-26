@@ -133,7 +133,9 @@ string ternary.string(bool, string, string)
 vector ternary.vec2(bool, vector, vector) #ternary.vector#
 
 int d2i(double) Conversion
+int s2i(string:input, int:failureDefault) Conversion
 double i2d(int) Conversion
+double s2d(string:input, double:failureDefault) Conversion
 string i2s(int) Conversion
 string d2s(double) Conversion
 
