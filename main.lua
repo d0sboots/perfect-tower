@@ -474,7 +474,11 @@ function import(input)
       elseif type == 2 then
         return string.format("%s", read"i4")
       elseif type == 3 then
-        return string.format("%s", read"d")
+        local val = read"d"
+        if val == 1/0 then return "(1./0.)" end
+        if val == -1/0 then return "(-1./0.)" end
+        if val ~= val then return "(0./0.)" end
+        return string.format("%s", val)
       elseif type == 4 then
         local pos, len = 0, 0
 
