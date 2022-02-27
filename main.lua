@@ -513,15 +513,19 @@ function import(input)
         table.insert(args, parse())
 
         if arg.type:match"^op_" then
+          dynamicOperator = true
           if args[i]:match'^".*"$' then
-            args[i] = args[i]:sub(2, -2):lower()
+            local transformed = args[i]:sub(2, -2):lower()
             :gsub("^=$", "==")
             :gsub("mod", "%%")
             :gsub("pow", "^")
             :gsub("log", "//")
-          end
 
-          dynamicOperator = not OPERATOR[ args[i] ]
+            if OPERATOR[transformed] then
+              args[i] = transformed
+              dynamicOperator = false
+            end
+          end
         end
       end
 
@@ -614,6 +618,10 @@ function unittest()
 "BHRlc3QAAAAAAAAAAAkAAAARZ2xvYmFsLmRvdWJsZS5zZXQIY29uc3RhbnQEABNmYWN0b3J5Lml0ZW1zLmNvdW50CGNvbnN0YW50BAtibG9jay5kZW5zZQhjb25zdGFudAIBAAAAEWdsb2JhbC5kb3VibGUuc2V0CGNvbnN0YW50BAATZmFjdG9yeS5pdGVtcy5jb3VudAhjb25zdGFudAQLcGxhdGUuZGVuc2UIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBXNjcmV3CGNvbnN0YW50AgEAAAARZ2xvYmFsLmRvdWJsZS5zZXQIY29uc3RhbnQEABNmYWN0b3J5Lml0ZW1zLmNvdW50CGNvbnN0YW50BAxwbGF0ZS5ydWJiZXIIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEDXBsYXRlLmNpcmN1aXQIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBHJpbmcIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBHBpcGUIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEBHdpcmUIY29uc3RhbnQCAQAAABFnbG9iYWwuZG91YmxlLnNldAhjb25zdGFudAQAE2ZhY3RvcnkuaXRlbXMuY291bnQIY29uc3RhbnQEB2NpcmN1aXQIY29uc3RhbnQCAQAAAA==",
 "BHRlc3QAAAAAAAAAAA0AAAAQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQMdG93ZXJ0ZXN0aW5nCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQLdHJhZGluZ3Bvc3QIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BApwb3dlcnBsYW50CGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQHZmFjdG9yeQhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQECmxhYm9yYXRvcnkIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BAhzaGlweWFyZAhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQECHdvcmtzaG9wCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQGYXJjYWRlCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQGbXVzZXVtCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQMaGVhZHF1YXJ0ZXJzCGNvbnN0YW50AQEQdG93bi53aW5kb3cuc2hvdwhjb25zdGFudAQQY29uc3RydWN0aW9uZmlybQhjb25zdGFudAEBEHRvd24ud2luZG93LnNob3cIY29uc3RhbnQEDXN0YXR1ZW9mY3Vib3MIY29uc3RhbnQBARB0b3duLndpbmRvdy5zaG93CGNvbnN0YW50BARtaW5lCGNvbnN0YW50AQE=",
 "BFRlc3QAAAAAAAAAAAEAAAAQbG9jYWwuZG91YmxlLnNldAhjb25zdGFudAQBaQhjb25zdGFudAMzp6jVI/ZJOQ==",
+"BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0CGNvbnN0YW50AwAAAAAAAPB/",
+"BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0CGNvbnN0YW50AwAAAAAAAPD/",
+"BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0CGNvbnN0YW50AwAAAAAAAPj/",
+"BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0EWFyaXRobWV0aWMuZG91YmxlCGNvbnN0YW50AwAAAAAAAAAACGNvbnN0YW50BAR0ZXN0CGNvbnN0YW50AwAAAAAAAAAA",
   }
   local compile_tests = {macro_test = {[[
     ; Basic test of macros and macro functions
