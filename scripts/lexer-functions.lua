@@ -111,6 +111,8 @@ int string.length(string) String #len#
 int string.indexOf(string:str, string:substr, int:offset) String #index#
 string concat(string:lhs, string:rhs) String
 string substring(string, int:offset, int:length) String #sub#
+string string.lower(string) String
+string string.upper(string) String
 
 double const.pi() Number #const.pi#
 double const.e() Number #const.e#
