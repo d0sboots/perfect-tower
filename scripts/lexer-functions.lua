@@ -14,7 +14,7 @@ local strings = {
 	element = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity"},
 	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
 
-	workerTask = {"task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "shipyard.shipping", "task.museum.buycombine", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.gems.spin", "factory.oreManagement", "factory.refiningManagement", "factory.dissolveManagement", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.construct"},
+	workerTask = {"task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "shipyard.shipping", "task.museum.buycombine", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.darkness.search", "task.laboratory.gems.spin", "factory.oreManagement", "factory.refiningManagement", "factory.dissolveManagement", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.construct"},
 
 	region = {"forest", "desert", "winter", "underground", "volcano", "highmountain", "jungle", "metallicruins", "beach", "ocean", "neutral", "darkrealm", "heaven", "universe", "chaos"},
 	difficulty = {"easy", "medium", "hard", "insane", "nightmare", "impossible"},
@@ -209,6 +209,7 @@ double highscore.era(string:region[region], string:difficulty[difficulty]) Game 
 double highscore.infinity(string:region[region], string:difficulty[difficulty]) Game #highscore.infinity#
 
 bool software.enabled(string:name[software]) Game #software.enabled#
+string game.softwareid.find(string:name) Game #software.find#
 void software.toggle(string:name[software], bool:on) Game #software.toggle#
 
 bool worker.paused(string:name) Worker #worker.paused#
@@ -257,6 +258,7 @@ string arcade.adventure.entityType(vector:position) Arcade #adventure.entityType
 
 bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
+string factory.itemid.find(string:name) Factory #factory.find#
 void factory.craft(string:item[craft], int:tier[tier], double:amount) Factory
 void factory.produce(string:item[produce], int:tier[tier], double:amount, string:machine[machine]) Factory
 void factory.trash(string:item[item], int:tier[tier], double:amount) Factory
