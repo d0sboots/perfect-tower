@@ -15,6 +15,9 @@ local strings = {
 	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
 
 	workerTask = {"task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "shipyard.shipping", "task.museum.buycombine", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.gems.spin", "factory.oreManagement", "factory.refiningManagement", "factory.dissolveManagement", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.construct"},
+
+	region = {"forest", "desert", "winter", "underground", "volcano", "highmountain", "jungle", "metallicruins", "beach", "ocean", "neutral", "darkrealm", "heaven", "universe", "chaos"},
+	difficulty = {"easy", "medium", "hard", "insane", "nightmare", "impossible"},
 };
 
 for _, tbl in pairs (strings) do
@@ -64,6 +67,9 @@ VALIDATOR = {
 
 	workerGroup = function(value) return rangeValid(value, 0, 5); end,
 	workerTask = function(value) return stringValid("workerTask", value, "Tasks"); end,
+
+	region = function(value) return stringValid("region", value, "Regions"); end,
+	difficulty = function(value) return stringValid("difficulty", value, "Difficulties"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -198,6 +204,9 @@ double game.wave() Game
 double game.era() Game
 double game.infinity() Game
 double game.waveAcceleration() Game
+double highscore.wave(string:region[region], string:difficulty[difficulty]) Game #highscore.wave#
+double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
+double highscore.infinity(string:region[region], string:difficulty[difficulty]) Game #highscore.infinity#
 
 bool software.enabled(string:name[software]) Game #software.enabled#
 void software.toggle(string:name[software], bool:on) Game #software.toggle#
