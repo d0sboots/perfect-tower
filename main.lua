@@ -261,7 +261,6 @@ function compile(name, input, importFunc, testing)
             assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value)
             value = tonumber(value)
           elseif (type == "bool") then
-            value = value:lower()
             assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'")
             if value:match"^true$" then
               value = true
