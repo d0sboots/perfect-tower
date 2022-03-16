@@ -647,9 +647,9 @@ function unittest()
     test = "".1
   ]], "DGZvbGRpbmdfdGVzdAAAAAAAAAAABgAAABFnbG9iYWwuc3RyaW5nLnNldAhjb25zdGFudAQEdGVzdAhjb25zdGFudAQEMS4wYRFnbG9iYWwuc3RyaW5nLnNldAhjb25zdGFudAQEdGVzdAhjb25zdGFudAQCMWERZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEBHRlc3QIY29uc3RhbnQEATERZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEBHRlc3QIY29uc3RhbnQEBGExLjARZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEBHRlc3QIY29uc3RhbnQEAmExEWdsb2JhbC5zdHJpbmcuc2V0CGNvbnN0YW50BAR0ZXN0CGNvbnN0YW50BAEx"},
   lowercase_test = {[[
-    software.toggle("software.criticalwavejump", true)
-    craft("producer.constructionfirm", 1, 1.)
-  ]], "Dmxvd2VyY2FzZV90ZXN0AAAAAAAAAAACAAAAD3NvZnR3YXJlLnRvZ2dsZQhjb25zdGFudAQZc29mdHdhcmUuY3JpdGljYWx3YXZlanVtcAhjb25zdGFudAEBDWZhY3RvcnkuY3JhZnQIY29uc3RhbnQEGXByb2R1Y2VyLmNvbnN0cnVjdGlvbmZpcm0IY29uc3RhbnQCAQAAAAhjb25zdGFudAMAAAAAAADwPw=="},
+    software.toggle("software.criticalWavejump", true)
+    craft("producer.constructionFirm", 1, 1.)
+  ]], "Dmxvd2VyY2FzZV90ZXN0AAAAAAAAAAACAAAAD3NvZnR3YXJlLnRvZ2dsZQhjb25zdGFudAQZc29mdHdhcmUuY3JpdGljYWxXYXZlanVtcAhjb25zdGFudAEBDWZhY3RvcnkuY3JhZnQIY29uc3RhbnQEGXByb2R1Y2VyLmNvbnN0cnVjdGlvbkZpcm0IY29uc3RhbnQCAQAAAAhjb25zdGFudAMAAAAAAADwPw=="},
   }
 
   local status, ret
