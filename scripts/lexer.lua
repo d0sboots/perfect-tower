@@ -70,7 +70,6 @@ end
 
 local function resolveID(token)
 	if token.type == "identifier" and not token.func then
-		token.value = token.value:lower();
 		token.var = assert(variables[token.value], tokenError(token, "undefined variable: " .. token.value));
 
 		if token.var.scope == "constant" then
