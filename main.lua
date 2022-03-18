@@ -542,11 +542,20 @@ function import(input)
         return string.format("(%s . %s)", table.unpack(args))
       end
 
+      local type, func_name = func.name:match"(%a+)%.(%a+)"; -- rnd, min, max
+      local func_short = func.short;
+
+      if func.name:match"^ternary" then
+        func_short = "if"
+      elseif (type == "int" or type == "double") and (func_name == "rnd" or func_name == "min" or func_name == "max") then
+        func_short = func_name
+      end
+
       for k, v in ipairs (args) do
         args[k] = stripParens(v)
       end
 
-      return string.format("%s(%s)", func.short, table.concat(args, ", "))
+      return string.format("%s(%s)", func_short, table.concat(args, ", "))
     end
   end
 
