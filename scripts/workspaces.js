@@ -2,8 +2,10 @@
 // This code treats 0 and 1 as reserved = All and Default
 let workspaces = ["All", "Default Workspace"];
 let currentWorkspace = workspaces[1];
+let movingScript = false;
 
 const workspaceList = document.getElementById("workspaceList");
+const moveButton = document.getElementById("move-script");
 
 function workspaceLoad() {
     // Load saved workspaces that do not exist yet
@@ -118,7 +120,15 @@ function workspaceChange(value) {
     workspaceList.value = value;
 
     // if "All" leave currentWorkspace as is but show all scripts
-    currentWorkspace = (value === workspaces[0] ? currentWorkspace : value);
+    // Otherwise, do move-script processing
+    if (value !== workspaces[0]) {
+      currentWorkspace = value;
+      if (movingScript) {
+        scripts[movingScript.id][2] = value;
+        scriptSave();
+        workspaceCancelMove();
+      }
+    }
 
     const scriptTabs = document.getElementById("scripts-tab").getElementsByTagName("LI");
 
@@ -160,7 +170,7 @@ function workspaceExportDone(result) {
     }
 
     if (result.value.length == 0) {
-        output.value = "There are no scripts here";
+        output.value = "There are no scripts here, or they are all libraries (produce no code)";
         return;
     }
 
@@ -170,7 +180,15 @@ function workspaceExportDone(result) {
 
 function workspaceMoveScript() {
     if (!activeTab) return;
+    if (!movingScript) {
+      movingScript = activeTab;
+      moveButton.classList.add("basicBtnCyan");
+    } else {
+      workspaceCancelMove();
+    }
+}
 
-    scripts[activeTab.id][2] = currentWorkspace;
-    scriptSave();
+function workspaceCancelMove() {
+    moveButton.classList.remove("basicBtnCyan");
+    movingScript = false;
 }

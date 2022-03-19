@@ -30,6 +30,11 @@
 	border-color: red;
 }
 
+.basicBtnCyan{
+	background-color: #00bbbb;
+	border-color: #00bbbb;
+}
+
 .functionList{
 	display: inline;
 }

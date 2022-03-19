@@ -46,7 +46,9 @@ do
           assert = assert_old
           return false, pair.name .. "\n" .. ret
         end
-        exported[i] = ret
+        if ret ~= "" then
+          exported[#exported + 1] = ret
+        end
       end
       assert = assert_old
       return true, table.concat(exported, ";")
@@ -196,7 +198,7 @@ end
 
 -- importFunc takes a string (filename) and returns a pair of (status, string)
 -- (the content of the imported file on success, an error message on failure).
-function compile(name, input, importFunc, testing)
+function compile(name, input, importFunc, isExport)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
   local env = clone_global()
   local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
@@ -435,9 +437,12 @@ function compile(name, input, importFunc, testing)
   end
   package_name = package_name and package_name:sub(1, 24) .. ":" or ""
   script_name = script_name:sub(1, 24)
-  return testing and ret or string.format("%s\n%s %s %s\n%s",
-    package_name .. script_name, #impulses, #conditions, #actions, ret
-  )
+  if isExport then
+    return #impulses == 0 and #conditions == 0 and #actions == 0 and "" or ret
+  else
+    return string.format("%s\n%s %s %s\n%s",
+      package_name .. script_name, #impulses, #conditions, #actions, ret)
+  end
 end
 
 function import(input)

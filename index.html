@@ -54,7 +54,7 @@
                     <button class="basicBtn" onclick="workspaceRename()">Rename Workspace</button>
                     <button class="basicBtn basicBtnRed" onclick="workspaceDelete()">Delete Workspace</button>
                     <button class="basicBtn" onclick="workspaceExport()">Export Workspace</button>
-                    <button class="basicBtn" onclick="workspaceMoveScript()">Move Script</button>
+                    <button id="move-script" class="basicBtn" onclick="workspaceMoveScript()">Move Script</button>
                 </div>
             </div>
         </div>
@@ -142,6 +142,7 @@
         }
 
         function scriptSelect(node) {
+            workspaceCancelMove();
             scriptSave();
             output.copy = undefined;
 
