@@ -217,7 +217,8 @@ function workspaceImportSource(jsonObj) {
         output.value = "Bad JSON passed to import";
         output.copy = undefined;
     }
-    for (const workspaceName in jsonObj.workspaces) {
+    let workspaceName = "All";  // Expand scope so we can see the last element.
+    for (workspaceName in jsonObj.workspaces) {
         const wsData = jsonObj.workspaces[workspaceName];
         for (const script of wsData) {
             scriptNew(script[0]);
@@ -226,6 +227,8 @@ function workspaceImportSource(jsonObj) {
         }
     }
     scriptSave();
+    workspaceLoad();
+    workspaceChange(workspaceName);
 }
 
 // Export all source in workspace
