@@ -111,7 +111,10 @@ function workspaceDelete() {
         }
         workspaces.splice(2);
     } else {
-        if (!confirm(`Are you sure you want to delete workspace ${currentWorkspace}?`)) return;
+        const count = scripts.filter(script => script[2] === currentWorkspace).length;
+        const msg = `Are you sure you want to delete workspace ${currentWorkspace}` +
+          (count > 0 ? ` and its ${count} child(ren)?` : "?");
+        if (!confirm(msg)) return;
 
         // Delete all scripts from workspace
         for (let i = 0; i < scripts.length; ++i) {
