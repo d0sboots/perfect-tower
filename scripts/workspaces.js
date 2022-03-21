@@ -95,25 +95,41 @@ function workspaceRename() {
 function workspaceDelete() {
     const currentWorkspace = workspaceList.value;
 
-    // If "All" or "Default"
-    if (currentWorkspace === workspaces[0] || currentWorkspace === workspaces[1]) {
+    // Can't delete default
+    if (currentWorkspace === workspaces[1]) {
         alert(`Cannot delete ${currentWorkspace}`);
-        return
+        return;
     }
 
-    if (!confirm(`Are you sure you want to delete workspace ${currentWorkspace}?`)) return;
+    const tabs = document.getElementById("scripts-tab");
+    if (currentWorkspace === workspaces[0]) {
+        if (!confirm(`This will delete ***ALL*** scripts and workspaces!\nTHIS CANNOT BE UNDONE!!`)) return;
 
-    // Switch all scripts from workspace to default
-    scripts.forEach((script) => {
-        if (script[2] === currentWorkspace) {
-            script[2] = workspaces[1];
+        scripts = [];
+        while (tabs.firstChild) {
+            tabs.removeChild(tabs.lastChild);
         }
-    })
+        workspaces.splice(2);
+    } else {
+        if (!confirm(`Are you sure you want to delete workspace ${currentWorkspace}?`)) return;
 
-    // Delete
-    workspaces = workspaces.filter(workspace => workspace !== currentWorkspace);
-    
+        // Delete all scripts from workspace
+        for (let i = 0; i < scripts.length; ++i) {
+            const script = scripts[i];
+            if (script[2] === currentWorkspace) {
+                scripts.splice(i, 1);
+                tabs.removeChild(tabs.children[i]);
+                --i;  // Have to re-do this index
+            }
+        }
+
+        // Delete the workspace itself
+        workspaces = workspaces.filter(workspace => workspace !== currentWorkspace);
+    }
     workspaceLoad();
+
+    activeTab = false;
+    scriptSelect(false);
 }
 
 function workspaceChange(value) {
@@ -191,4 +207,42 @@ function workspaceMoveScript() {
 function workspaceCancelMove() {
     moveButton.classList.remove("basicBtnCyan");
     movingScript = false;
+}
+
+function workspaceImportSource(jsonObj) {
+    if (!Object.prototype.hasOwnProperty.call(jsonObj, "workspaces")) {
+        output.value = "Bad JSON passed to import";
+        output.copy = undefined;
+    }
+    for (const workspaceName in jsonObj.workspaces) {
+        const wsData = jsonObj.workspaces[workspaceName];
+        for (const script of wsData) {
+            scriptNew(script[0]);
+            scripts[scripts.length - 1][1] = script[1]
+            scripts[scripts.length - 1][2] = workspaceName;
+        }
+    }
+    scriptSave();
+}
+
+// Export all source in workspace
+function workspaceExportSource() {
+    let outputWorkspaces = {};
+    if (workspaceList.value == workspaces[0]) {
+        for (let i = 1; i < workspaces.length; ++i) {
+            outputWorkspaces[workspaces[i]] = [];
+        };
+        scripts.forEach(script => {
+            outputWorkspaces[script[2]].push([script[0], script[1]]);
+        });
+    } else {
+        outputWorkspaces[currentWorkspace] = [];
+        scripts.forEach(script => {
+            if (script[2] == currentWorkspace) {
+                outputWorkspaces[script[2]].push([script[0], script[1]]);
+            }
+        });
+    }
+    output.value = JSON.stringify({workspaces: outputWorkspaces});
+    output.copy = 0;
 }

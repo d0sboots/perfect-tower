@@ -76,6 +76,7 @@
 
 .workspaces > div > button {
 	padding-left: 6px;
+	padding-right: 6px;
 	width: unset;
 	height: unset;
 	font-size: 12px;

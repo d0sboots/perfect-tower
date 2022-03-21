@@ -44,10 +44,12 @@
 
             <div class="workspaces">
                 <div>
-                    <p>
+                    <button class="basicBtn" onclick="workspaceExportSource()">Export Source</button>
+                    <div style="flex-grow:1"></div>
+                    <div>
                         Workspace:
                         <select id="workspaceList" class="workspaceList" oninput="workspaceChange(this.value)"></select>
-                    </p>
+                    </div>
                 </div>
                 <div>
                     <button class="basicBtn" onclick="workspaceNew()">New Workspace</button>
@@ -287,6 +289,15 @@
             let input = prompt("Input");
             if (!input || input.length == 0) return;
 
+            try {
+                workspaceImportSource(JSON.parse(input));
+                return;
+            } catch (e) {
+                if (!(e instanceof SyntaxError)) {
+                    throw e;
+                }
+            }
+
             input.split(';').forEach(singleScript => runLua("import", singleScript));
         }
 
@@ -295,6 +306,7 @@
 
             scriptNew(results[1]);
             scripts[scripts.length - 1][1] = results[2];
+            scriptSave();
         }
 
         function scriptDelete() {
