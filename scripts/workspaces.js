@@ -117,14 +117,18 @@ function workspaceDelete() {
         if (!confirm(msg)) return;
 
         // Delete all scripts from workspace
+        // Have to fix all the element ids first.
+        let target = 0;
         for (let i = 0; i < scripts.length; ++i) {
-            const script = scripts[i];
-            if (script[2] === currentWorkspace) {
-                scripts.splice(i, 1);
-                tabs.removeChild(tabs.children[i]);
-                --i;  // Have to re-do this index
+            if (scripts[i][2] !== currentWorkspace) {
+                scripts[target] = scripts[i];
+                tabs.children[target].id = target;
+                target++;
+            } else {
+                tabs.removeChild(tabs.children[target]);
             }
         }
+        scripts.length = target;
 
         // Delete the workspace itself
         workspaces = workspaces.filter(workspace => workspace !== currentWorkspace);
