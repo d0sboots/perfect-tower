@@ -18,6 +18,8 @@ local strings = {
 
 	region = {"forest", "desert", "winter", "underground", "volcano", "highmountain", "jungle", "metallicruins", "beach", "ocean", "neutral", "darkrealm", "heaven", "universe", "chaos"},
 	difficulty = {"easy", "medium", "hard", "insane", "nightmare", "impossible"},
+
+	eraDivider = {"damage", "health"},
 };
 
 for _, tbl in pairs (strings) do
@@ -70,6 +72,8 @@ VALIDATOR = {
 
 	region = function(value) return stringValid("region", value, "Regions"); end,
 	difficulty = function(value) return stringValid("difficulty", value, "Difficulties"); end,
+
+	eraDivider = function(value) return stringValid("eraDivider", value, "Era dividers"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -204,9 +208,12 @@ double game.wave() Game
 double game.era() Game
 double game.infinity() Game
 double game.waveAcceleration() Game
+double player.xp() Game
 double highscore.wave(string:region[region], string:difficulty[difficulty]) Game #highscore.wave#
 double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
 double highscore.infinity(string:region[region], string:difficulty[difficulty]) Game #highscore.infinity#
+void game.disable.era(string:element[element]) Game #disable.era#
+void game.upgrade.era(string:divider[eraDivider], int:numTimes) Game #upgrade.era#
 
 bool software.enabled(string:name[software]) Game #software.enabled#
 string game.softwareid.find(string:name) Game #software.find#
