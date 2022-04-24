@@ -11,8 +11,9 @@ local strings = {
 	machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
 
 	inventory = {"inventory", "equipped", "combinator", "cuboscube"},
-	element = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity"},
+	elementMuseum = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity"},
 	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
+	elementAll = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal", "neutral"},
 
 	workerTask = {"task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "shipyard.shipping", "task.museum.buycombine", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.darkness.search", "task.laboratory.gems.spin", "factory.oreManagement", "factory.refiningManagement", "factory.dissolveManagement", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.construct"},
 
@@ -64,8 +65,9 @@ VALIDATOR = {
 	machine = function(value) return stringValid("machine", value, "Machines"); end,
 
 	inv = function(value) return stringValid("inventory", value, "Inventories"); end,
-	element = function(value) return stringValid("element", value, "Elements"); end,
+	elementMuseum = function(value) return stringValid("elementMuseum", value, "Elements"); end,
 	elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
+	elementAll = function(value) return stringValid("elementAll", value, "Elements"); end,
 
 	workerGroup = function(value) return rangeValid(value, 0, 5); end,
 	workerTask = function(value) return stringValid("workerTask", value, "Tasks"); end,
@@ -212,7 +214,7 @@ double player.xp() Game
 double highscore.wave(string:region[region], string:difficulty[difficulty]) Game #highscore.wave#
 double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
 double highscore.infinity(string:region[region], string:difficulty[difficulty]) Game #highscore.infinity#
-void game.disable.era(string:element[element]) Game #disable.era#
+void game.disable.era(string:element[elementAll]) Game #disable.era#
 void game.upgrade.era(string:divider[eraDivider], int:numTimes) Game #upgrade.era#
 
 bool software.enabled(string:name[software]) Game #software.enabled#
@@ -275,7 +277,7 @@ int museum.freeSlots(string:inventory[inv]) Museum
 int museum.stone.tier(string:inventory[inv], int:slot) Museum
 string museum.stone.element(string:inventory[inv], int:slot) Museum
 void museum.fill(bool:enable) Museum
-void museum.buy(string:element[element]) Museum
+void museum.buy(string:element[elementMuseum]) Museum
 void museum.buyMarket(string:element[elementMarket], int:tierMax) Museum
 void museum.combine(int:tierMax) Museum
 void museum.transmute() Museum
