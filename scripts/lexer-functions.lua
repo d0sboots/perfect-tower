@@ -214,6 +214,7 @@ double player.xp() Game
 double highscore.wave(string:region[region], string:difficulty[difficulty]) Game #highscore.wave#
 double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
 double highscore.infinity(string:region[region], string:difficulty[difficulty]) Game #highscore.infinity#
+double game.disable.era.cost(string:element[elementAll]) Game #disable.cost#
 void game.disable.era(string:element[elementAll]) Game #disable.era#
 void game.upgrade.era(string:divider[eraDivider], int:numTimes) Game #upgrade.era#
 
