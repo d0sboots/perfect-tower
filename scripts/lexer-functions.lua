@@ -274,9 +274,18 @@ void factory.produce(string:item[produce], int:tier[tier], double:amount, string
 void factory.trash(string:item[item], int:tier[tier], double:amount) Factory
 
 bool museum.isfill() Museum
+bool museum.market.preference(string:element[elementMarket]) Unstable #museum.preference#
+bool museum.market.slotLocked(int:offerSlot) Unstable #museum.isSlotLocked#
 int museum.freeSlots(string:inventory[inv]) Museum
 int museum.stone.tier(string:inventory[inv], int:slot) Museum
+int museum.market.preferedTier() Unstable #museum.preferredTier#
+int museum.market.maxTier(string:element[elementMarket]) Unstable #museum.maxTier#
+int museum.market.slotTier(int:offerSlot) Unstable #museum.slotTier#
+int museum.rebuy.tier(int:trashSlot) Unstable #museum.trashTier#
+double museum.market.timer() Unstable #museum.timer#
 string museum.stone.element(string:inventory[inv], int:slot) Museum
+string museum.market.slotElement(int:offerSlot) Unstable #museum.slotElement#
+string museum.rebuy.element(int:trashSlot) Unstable #museum.trashElement#
 void museum.fill(bool:enable) Museum
 void museum.buy(string:element[elementMuseum]) Museum
 void museum.buyMarket(string:element[elementMarket], int:tierMax) Museum
@@ -285,6 +294,15 @@ void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
 void museum.delete(string:inventory[inv], int:slot) Museum
 void museum.clear(string:inventory[inv]) Museum
+void museum.stone.buy(string:element[elementMarket], int:tierMax, int:quantity) Unstable #museum.buyAmount#
+void museum.stone.buyRange(string:element[elementMarket], int:tierMin, int:tierMax, int:quantity) Unstable #museum.buyRange#
+void museum.moveSlot(string:from[inv], int:fromSlot, string:to[inv] int:toSlot) Unstable #museum.moveTo#
+void museum.market.set.preferedTier(int:tier) Unstable #museum.setPreferredTier#
+void museum.market.set.preference(string:element[elementMarket], bool) Unstable #museum.setPreference#
+void museum.market.refresh() Unstable #museum.refresh#
+void museum.market.buy(int:offerSlot, int:quantity) Unstable #museum.buyOffer#
+void museum.market.set.slotLocked(int:offerSlot, bool:locked) Unstable #museum.setSlotLocked#
+void museum.rebuy.buy(int:trashSlot) Unstable #museum.rebuy#
 
 int tradingpost.offerCount() Trading Post
 void tradingpost.refresh() Trading Post
@@ -397,7 +415,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut", "Unstable"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
