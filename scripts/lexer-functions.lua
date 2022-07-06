@@ -278,7 +278,7 @@ bool museum.market.preference(string:element[elementMarket]) Unstable #museum.pr
 bool museum.market.slotLocked(int:offerSlot) Unstable #museum.isSlotLocked#
 int museum.freeSlots(string:inventory[inv]) Museum
 int museum.stone.tier(string:inventory[inv], int:slot) Museum
-int museum.market.preferedTier() Unstable #museum.preferredTier#
+int museum.market.preferredTier() Unstable #museum.preferredTier#
 int museum.market.maxTier(string:element[elementMarket]) Unstable #museum.maxTier#
 int museum.market.slotTier(int:offerSlot) Unstable #museum.slotTier#
 int museum.rebuy.tier(int:trashSlot) Unstable #museum.trashTier#
@@ -297,7 +297,7 @@ void museum.clear(string:inventory[inv]) Museum
 void museum.stone.buy(string:element[elementMarket], int:tierMax, int:quantity) Unstable #museum.buyAmount#
 void museum.stone.buyRange(string:element[elementMarket], int:tierMin, int:tierMax, int:quantity) Unstable #museum.buyRange#
 void museum.moveSlot(string:from[inv], int:fromSlot, string:to[inv] int:toSlot) Unstable #museum.moveTo#
-void museum.market.set.preferedTier(int:tier) Unstable #museum.setPreferredTier#
+void museum.market.set.preferredTier(int:tier) Unstable #museum.setPreferredTier#
 void museum.market.set.preference(string:element[elementMarket], bool) Unstable #museum.setPreference#
 void museum.market.refresh() Unstable #museum.refresh#
 void museum.market.buy(int:offerSlot, int:quantity) Unstable #museum.buyOffer#
