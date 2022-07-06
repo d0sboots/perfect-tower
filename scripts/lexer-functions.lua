@@ -294,7 +294,7 @@ void museum.transmute() Museum
 void museum.move(string:from[inv], int:slot, string:to[inv]) Museum
 void museum.delete(string:inventory[inv], int:slot) Museum
 void museum.clear(string:inventory[inv]) Museum
-void museum.stone.buy(string:element[elementMarket], int:tierMax, int:quantity) Unstable #museum.buyAmount#
+void museum.stone.buy(string:element[elementMarket], int:tier, int:quantity) Unstable #museum.buyTier#
 void museum.stone.buyRange(string:element[elementMarket], int:tierMin, int:tierMax, int:quantity) Unstable #museum.buyRange#
 void museum.moveSlot(string:from[inv], int:fromSlot, string:to[inv] int:toSlot) Unstable #museum.moveTo#
 void museum.market.set.preferredTier(int:tier) Unstable #museum.setPreferredTier#
