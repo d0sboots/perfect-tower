@@ -182,6 +182,7 @@ double time.unscaledDelta() Generic #time.unscaled#
 double time.scale() Generic #time.scale#
 
 bool town.window.isopen(string:window[window]) Town
+bool town.window.anyopen() Town
 void town.window.show(string:window[window], bool) Town
 
 bool tower.stunned() Tower
