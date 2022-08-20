@@ -10,7 +10,7 @@ local strings = {
 	produce = {"rubber", "ore", "dust", "ingot", "plate.stack", "rod", "plate", "cable", "lump", "block"},
 	machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
 
-	inventory = {"inventory", "equipped", "combinator", "cuboscube"},
+	inventory = {"inventory", "loadout", "combinator", "cuboscube"},
 	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
 	elementAll = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal", "neutral"},
 
