@@ -82,8 +82,9 @@ local function resolveID(token)
 		end
 
 		token.type = "string";
-		
-		local new = newNode(token.pos, nil, token.var.label and "label" or string.format("%s.%s.get", token.var.scope, token.var.type));
+
+		local ttype = token.var.type == "vector" and "vec2" or token.var.type;
+		local new = newNode(token.pos, nil, token.var.label and "label" or string.format("%s.%s.get", token.var.scope, ttype));
 		new.args = {token};
 		return new;
 	end
@@ -140,8 +141,9 @@ local function consumeTokensWorker(node)
 						assert(false, "You can't assign values to constants: " .. left.var.name);
 					end
 					local var = left.args[1].var;
+					local ttype = var.type == "vector" and "vec2" or var.type
 					assert(not var.label, "you can't assign values to labels");
-					local new = newNode(left.pos, node, string.format("%s.%s.set", var.scope, var.type));
+					local new = newNode(left.pos, node, string.format("%s.%s.set", var.scope, ttype));
 
 					if op.value ~= "=" then
 						op.value = op.value:sub(1, -2);

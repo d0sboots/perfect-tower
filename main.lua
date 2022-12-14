@@ -288,9 +288,9 @@ function compile(name, input, importFunc, isExport)
           line_number = saved_lineno
         elseif token == "global" or token == "local" then
           local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) +(%a+) +" .. TOKEN.identifier.patternAnywhere .."$")
-          assert(scope, "variable definition: [global/local/const] [int/double/string] name")
+          assert(scope, "variable definition: [global/local/const] [bool/int/double/string/vector] name")
 
-          assert(type == "int" or type == "double" or type == "string", "variable types are 'int', 'double' and 'string'")
+          assert(({bool=true, int=true, double=true, string=true, vector=true})[type], "variable types are 'bool', 'int', 'double', 'string', and 'vector'")
           assert(not variables[name], "variable/label already exists: " .. name)
           variables[name] = {name = name, scope = scope, type = type}
         elseif token == "name" then
@@ -528,12 +528,15 @@ function import(input)
         end
       end
 
-      local scope, type, func_name = func.name:match"(%a+)%.(%a+)%.(%a+)"
+      local scope, type, func_name = func.name:match"(%a+)%.(%w+)%.(%a+)"
 
       if (scope == "global" or scope == "local") and args[1]:match'^"' then
         local var = args[1]:sub(2,-2)
 
         if var == var:match(TOKEN.identifier.pattern) then
+          if type == "vec2" then
+            type = "vector"
+          end
           if not variables[var] then
             local key = string.format(":%s %s %s", scope, type, var)
             variables[key] = true
