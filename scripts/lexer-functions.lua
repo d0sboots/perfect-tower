@@ -108,9 +108,8 @@ impulse close.workshop() Impulse
 impulse game.newround() Impulse
 
 int label(string)
-void <scope>.<type>.set(string:variable, <type>) {Primitive void [g/l][i/d/s]s(string:variable, type:value)   ;set}
-<type> <scope>.<type>.get(string:variable) {Primitive type [g/l][i/d/s]g(string:variable)   ;get}
-bool constant.bool.get(string:variable)
+void <scope>.<typev>.set(string:variable, <typefull>) {Primitive void [g/l][b/i/d/s/v]s(string:variable, type:value)   ;set}
+<typefull> <scope>.<typev>.get(string:variable) {Primitive type [g/l][b/i/d/s/v]g(string:variable)   ;get}
 void global.unset(string:variable) #gu# {Primitive void gu(string:variable)   ;global.unset}
 void local.unset(string:variable) #lu# {Primitive void lu(string:variable)   ;local.unset}
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>) {Primitive bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison}
@@ -205,6 +204,8 @@ void tower.exit() Tower
 bool game.isBossFight() Game
 bool game.isTowerTesting() Game
 int game.enemies.count() Game #enemies#
+int game.module.active.index(string:moduleId) Game #active.index#
+int game.module.active.count() Game #active.count#
 double game.wave() Game
 double game.era() Game
 double game.infinity() Game
@@ -214,8 +215,11 @@ double highscore.wave(string:region[region], string:difficulty[difficulty]) Game
 double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
 double highscore.infinity(string:region[region], string:difficulty[difficulty]) Game #highscore.infinity#
 double game.disable.era.cost(string:element[elementAll]) Game #disable.cost#
+double game.module.secure.cost() Game #disable.inf.cost#
+string game.module.active.id(int:index) Game #active.id#
 void game.disable.era(string:element[elementAll]) Game #disable.era#
 void game.upgrade.era(string:divider[eraDivider], int:numTimes) Game #upgrade.era#
+void game.module.secure(string:moduleId) Game #disable.inf#
 
 bool software.enabled(string:name[software]) Game #software.enabled#
 string game.softwareid.find(string:name) Game #software.find#
@@ -320,7 +324,7 @@ local function parseFunction(line)
 	line = line:gsub("%b##", function(a)
 		short = a:sub(2, -2);
 		return "";
-	end):gsub("(%a+)%.(%a+)%.(%a+)", function(a,b,c)
+	end):gsub("(%a+)%.(%w+)%.(%a+)", function(a,b,c)
 		if a == "global" or a == "local" then
 			short = a:sub(1,1) .. b:sub(1,1) .. c:sub(1,1);
 		end
@@ -347,18 +351,24 @@ local function parseFunction(line)
 	elseif line:match"%b<>" then
 		local done = {};
 		
-		for _, scope in ipairs {"global", "local", "constant"} do
-			for _, typeext in ipairs {"bool", "int", "double", "string"} do
-				for _, type in ipairs {"int", "double", "string"} do
-					for _, num in ipairs {"int", "double"} do
-						local tbl = {scope=scope, typeext=typeext, type=type, num=num};
-						local new = line:gsub("%b<>", function(a) return tbl[a:sub(2,-2)]; end);
-						
-						if not done[new] then
-							done[new] = true;
-							parseFunction(new);
-						end
-					end
+		for _, scope in ipairs {"global", "local"} do
+			for _, typefull in ipairs {"bool", "int", "double", "string", "vector"} do
+				local typev = ({bool="bool", int="int", double="double", string="string", vector="vec2"})[typefull];
+				local typeext = ({bool="bool", int="int", double="double", string="string"})[typefull];
+				local type = ({int="int", double="double", string="string"})[typefull];
+				local num = ({int="int", double="double"})[typefull];
+
+				local tbl = {scope=scope, typefull=typefull, typev=typev, typeext=typeext, type=type, num=num};
+				local bad = false;
+				local new = line:gsub("%b<>", function(a)
+					local x = tbl[a:sub(2,-2)];
+					bad = bad or not x;
+					return x;
+				end);
+
+				if not bad and not done[new] then
+					done[new] = true;
+					parseFunction(new);
 				end
 			end
 		end
