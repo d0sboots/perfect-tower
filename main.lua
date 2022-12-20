@@ -646,7 +646,7 @@ function unittest()
     :local int acc
     :global string status
     #output status = "Number is: " . acc
-  ]], "CGltcG9ydGVkAAAAAAAAAAAAAAAA"},
+  ]], ""},
   import_test = {[[
     :import imported
     :import imported
