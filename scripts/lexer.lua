@@ -106,6 +106,11 @@ local function resolveType(token)
 	return token.type;
 end
 
+local function resolveTypeOp(token)
+	local resolved = resolveType(token);
+	return resolved == "vector" and "vec2" or resolved;
+end
+
 local function typecheck(left, op, right)
 	local typeLeft, typeRight = resolveType(left), resolveType(right);
 	assert(typeLeft == typeRight, tokenError(left, op, right, string.format("trying to %s different types: %s and %s", op.op.name, typeLeft, typeRight)));
@@ -156,7 +161,7 @@ local function consumeTokensWorker(node)
 							new.args = {left, right};
 							right = new;
 						else
-							local new = newNode(left.pos, node, "arithmetic." .. resolveType(left.args[1]));
+							local new = newNode(left.pos, node, "arithmetic." .. resolveTypeOp(left.args[1]));
 							new.args = {left, op, right};
 							right = new;
 						end
@@ -233,7 +238,7 @@ local function consumeTokensWorker(node)
 							end
 							
 							typecheck(left, op, right);
-							local new = newNode(left.pos, node, (type == "op_mod" and "arithmetic." or "comparison.") .. resolveType(left));
+							local new = newNode(left.pos, node, (type == "op_mod" and "arithmetic." or "comparison.") .. resolveTypeOp(left));
 							new.args = {left, op, right};
 							table.insert(node.tokens, j, new);
 						end
