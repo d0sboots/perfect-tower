@@ -81,6 +81,12 @@ local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector
 local functions = [[
 impulse wakeup() Impulse
 impulse key.<char>() {Impulse impulse key.#()   ;0-9, a-z}
+impulse mouse.0.down() Impulse
+impulse mouse.1.down() Impulse
+impulse mouse.2.down() Impulse
+impulse mouse.0.up() Impulse
+impulse mouse.1.up() Impulse
+impulse mouse.2.up() Impulse
 impulse open.arcade() Impulse
 impulse open.constructionFirm() Impulse
 impulse open.factory() Impulse
@@ -113,7 +119,7 @@ void <scope>.<typev>.set(string:variable, <typefull>) {Primitive void [g/l][b/i/
 void global.unset(string:variable) #gu# {Primitive void gu(string:variable)   ;global.unset}
 void local.unset(string:variable) #lu# {Primitive void lu(string:variable)   ;local.unset}
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>) {Primitive bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison}
-<type> arithmetic.<type>(<type>, op_mod, <type>) {Primitive type a.[i/d/s](type:lhs, op_mod, type:rhs)   ;arithmetic}
+<typefull> arithmetic.<typefull>(<typefull>, op_mod, <typefull>) {Primitive type a.[d/s/v](type:lhs, op_mod, type:rhs)   ;arithmetic}
 
 bool string.contains(string:str, string:substr) String
 int string.length(string) String #len#
@@ -154,8 +160,12 @@ double vec2.x(vector) Vector
 double vec2.y(vector) Vector
 vector vec.fromCoords(double:x, double:y) Vector #vec#
 vector mouse.position() Vector
+void canvas.draw.rect(vector:pos, vector:size, string:rgb_or_rgba) Vector #canvas.rect#
+void canvas.clear() Vector #canvas.clear#
 
-string script.impulse() Generic
+bool mouse.0.state() Generic #mouse.0.state#
+bool mouse.1.state() Generic #mouse.1.state#
+bool mouse.2.state() Generic #mouse.2.state#
 
 void generic.execute(string:script) Generic
 void generic.executesync(string:script) Generic

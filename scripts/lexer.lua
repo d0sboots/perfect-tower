@@ -226,8 +226,10 @@ local function consumeTokensWorker(node)
 							end
 						else
 							if type == "op_mod" then
-								assert(typeLeft == "int" or typeLeft == "double", tokenError(left, "arithmetic cannot be performed on a " .. typeLeft));
-								assert(typeRight == "int" or typeRight == "double", tokenError(right, "arithmetic cannot be performed on a " .. typeRight));
+								local types = {int = 1, double = 1, vector = 1};
+								assert(types[typeLeft], tokenError(left, "arithmetic cannot be performed on a " .. typeLeft));
+								assert(types[typeRight], tokenError(right, "arithmetic cannot be performed on a " .. typeRight));
+								assert(op.value ~= "%" or typeLeft ~= "vector", tokenError(op, "vector doesn't support modulus"));
 							end
 							
 							typecheck(left, op, right);
