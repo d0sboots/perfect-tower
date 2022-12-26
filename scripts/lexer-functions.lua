@@ -166,6 +166,7 @@ void canvas.clear() Vector #canvas.clear#
 bool mouse.0.state() Generic #mouse.0.state#
 bool mouse.1.state() Generic #mouse.1.state#
 bool mouse.2.state() Generic #mouse.2.state#
+string script.impulse() Generic
 
 void generic.execute(string:script) Generic
 void generic.executesync(string:script) Generic
