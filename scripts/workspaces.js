@@ -256,3 +256,18 @@ function workspaceExportSource() {
     output.value = JSON.stringify({workspaces: outputWorkspaces});
     output.copy = 0;
 }
+
+// Instructions on how to export from another website
+function workspaceOtherSite() {
+    output.value = `
+If you want to export your scripts from another website that doesn't have an "Export Source" button, you can paste the following code into the console on that site. This will put all your code into the output textbox, in a form that you can import here.
+(Pasting random code into the console is a generally dangerous thing to do, so read over the code and at least have vague confidence that it isn't doing anything evil, first!)
+
+let outw = {};
+for (let ws of workspaces.slice(1)) outw[ws] = [];
+for (let script of scripts) outw[script[2]].push(script.slice(0, 2));
+output.value = JSON.stringify({workspaces: outw});
+output.copy = 0;
+    `.trim();
+    output.copy = output.value.match(/let outw/).index;
+}
