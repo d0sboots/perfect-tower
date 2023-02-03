@@ -142,6 +142,13 @@ void rnd(void, void) {Number number rnd (min, max)}
 double double.floor(double) Number
 double double.ceil(double) Number
 double double.round(double) Number
+double double.sin(double:radians) Number
+double double.cos(double:radians) Number
+double double.tan(double:radians) Number
+double double.asin(double) Number
+double double.acos(double) Number
+double double.atan(double) Number
+double double.atan2(vector) Number #atan2#
 
 void if(bool, void, void) {Generic type if(bool, true, false)}
 int ternary.int(bool, int, int)
