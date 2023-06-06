@@ -168,8 +168,6 @@ double vec2.x(vector) Vector
 double vec2.y(vector) Vector
 vector vec.fromCoords(double:x, double:y) Vector #vec#
 vector mouse.position() Vector
-void canvas.draw.rect(vector:pos, vector:size, string:rgb_or_rgba) Vector #canvas.rect#
-void canvas.clear() Vector #canvas.clear#
 
 bool mouse.0.state() Generic #mouse.0.state#
 bool mouse.1.state() Generic #mouse.1.state#
@@ -198,6 +196,17 @@ double timestamp.now() Generic
 double time.delta() Generic #time.delta#
 double time.unscaledDelta() Generic #time.unscaled#
 double time.scale() Generic #time.scale#
+
+void canvas.draw.rect(vector:pos, vector:size, string:rgb_or_rgba) UI #canvas.rect#
+void canvas.clear() UI #canvas.clear#
+void window.create(string:windowId, string:windowType) UI
+void window.destroy(string:windowId) UI
+void window.destroy.all() UI #destroy.all#
+void window.text.set(string:windowId, string:textElementId, string:value) UI #text.set#
+void window.visibility.set(string:windowId, bool:isVisible) UI #visibility.set#
+void window.child.visibility.set(string:windowId, string:elementId, bool:isVisible) UI #child.visibility.set#
+bool window.visibility.get(string:windowId) UI #visibility.get#
+bool window.child.visibility.get(string:windowId, string:elementId) UI #child.visibility.get#
 
 bool town.window.isopen(string:window[window]) Town
 bool town.window.anyopen() Town
@@ -229,6 +238,7 @@ double game.wave() Game
 double game.era() Game
 double game.infinity() Game
 double game.waveAcceleration() Game
+double game.fixedWavesPerInterval() Game
 double player.xp() Game
 double highscore.wave(string:region[region], string:difficulty[difficulty]) Game #highscore.wave#
 double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
@@ -427,7 +437,7 @@ local function parseFunction(line)
 	};
 
 	if short ~= name then
-		assert(not FUNCTION[short], "duplicate short function: " .. name);
+		assert(not FUNCTION[short], "duplicate short function: " .. short);
 		FUNCTION[short] = FUNCTION[name];
 	end
 
@@ -440,7 +450,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
