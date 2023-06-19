@@ -206,6 +206,7 @@ void window.text.set(string:windowId, string:textElementId, string:value) UI #te
 void window.visibility.set(string:windowId, bool:isVisible) UI #visibility.set#
 void window.child.visibility.set(string:windowId, string:elementId, bool:isVisible) UI #child.visibility.set#
 void window.position.set(string:windowId, vector:position) UI #position.set#
+void window.sprite.set(string:windowId, string:elementId, string:spriteId) UI #sprite.set#
 bool window.visibility.get(string:windowId) UI #visibility.get#
 bool window.child.visibility.get(string:windowId, string:elementId) UI #child.visibility.get#
 
