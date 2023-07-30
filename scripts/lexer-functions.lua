@@ -3,7 +3,7 @@ FUNCTION = {};
 
 local strings = {
 	window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
-	software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds", "software.wavefloor", "software.erafloor", "software.erahorizon", "software.waverestart", "software.infinityhorizon"},
+	software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds","software.eratunneling", "software.wavebreach", "software.wavefloor", "software.erafloor", "software.erahorizon", "software.waverestart", "software.infinityhorizon"},
 
 -- item list only needs to include uncraftable items not used to produce
 	item = {"plate.rubber", "plate.rainbow", "essence.void", "circuit", "wire", "screw", "pipe", "ring", "block.dense", "plate.dense", "plate.circuit", "booster.resource.drops", "pumpkin.plate", "pumpkin.carved", "pumpkin.anti"};
