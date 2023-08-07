@@ -302,10 +302,13 @@ string arcade.adventure.entityType(vector:position) Arcade #adventure.entityType
 
 bool factory.machine.active(string:machine[machine]) Factory
 double factory.items.count(string:item[item], int:tier[tier]) Factory
+double factory.machine.item.count(string:machine[machine]) Factory #machine.item.count#
+string factory.machine.item(string:machine[machine]) Factory #machine.item#
 string factory.itemid.find(string:name) Factory #factory.find#
 void factory.craft(string:item[craft], int:tier[tier], double:amount) Factory
 void factory.produce(string:item[produce], int:tier[tier], double:amount, string:machine[machine]) Factory
 void factory.trash(string:item[item], int:tier[tier], double:amount) Factory
+void factory.machine.cancel(string:machine[machine]) Factory
 
 bool museum.market.preference(string:element[elementMarket]) Museum #museum.preference#
 bool museum.market.slotLocked(int:offerSlot) Museum #museum.isSlotLocked#
