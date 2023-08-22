@@ -342,7 +342,9 @@ int tradingpost.offerCount() Trading Post
 void tradingpost.refresh() Trading Post
 void tradingpost.trade(int:offer, double:pct[0-1]) Trading Post
 
-void clickrel(double:x[0-1], double:y[0-1]) Shortcut
+void bogus() Macros {Macros any {lua(lua_code)}}
+void bogus() Macros {Macros int {len(any_characters)}}
+void bogus() Macros {Macros void {click.relative(double:x_pos[0-1], double:y_pos[0-1], double:x_anchor[0-1], double:y_anchor[0-1])}}
 ]]
 
 local function addList(category, display)
@@ -374,6 +376,8 @@ local function parseFunction(line)
 
 	local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)";
 	local args, display = {}, {};
+
+	if category == "Macros" then return end;
 
 	if line:match"%b<>" == "<char>" then
 		for char in string.gmatch("0123456789abcdefghijklmnopqrstuvwxyz", ".") do
@@ -455,7 +459,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Shortcut"} do
+for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Macros"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do

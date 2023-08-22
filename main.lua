@@ -5,7 +5,7 @@ local line_number
 local compile_file
 local _cache = {}
 
-for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer"} do
+for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer", "stdlib"} do
   if DEBUG then
     dofile(package.path:gsub("?", lib))
   else
@@ -327,6 +327,7 @@ function compile(name, input, importFunc, isExport)
     return lines
   end
 
+  import("__stdlib__", STDLIB, true)
   local lines = import(name, input, false)
 
   for _, line in ipairs (lines) do
