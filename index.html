@@ -23,7 +23,7 @@
 <body>
     <span id="loadingText" class="infotext">Loading...</span>
 
-    <div id="loadingDiv" style="visibility: hidden;">
+    <div id="loadingDiv" style="display: none;">
         <template id="template-nav-item">
             <li class="nav-item"><a class="nav-link" data-toggle="tab" onclick="scriptSelect(this.parentElement)">New Script</a></li>
         </template>
@@ -37,8 +37,14 @@
             </div>
 
             <div class="editor-info">
-                <span class="infotext">Editor: 1.67 ─ Game: v0.28.1 B1</span>
-                <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
+                <div>
+                  <span class="infotext">Editor: 1.67 ─ Game: v0.28.1 B1</span>
+                  <br/>
+                  <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
+                  <a id="compression" class="infotext warning" target="_blank" style="display:none" href="old_browser.html">
+                      Browser out of date, can't access CompressionStream API!
+                  </a></span>
+                </div>
                 <select id="functionList" class="functionList"></select>
             </div>
 
@@ -80,8 +86,8 @@
         const output = document.getElementById("output");
 
         window.onerror = function(msg, url, line) {
-            loadingDiv.style.visibility = "hidden";
-            loadingText.style.visibility = "visible";
+            loadingDiv.style.display = "none";
+            loadingText.style.display = "inline";
             loadingText.textContent = "Something went wrong. :( \n\n" + line + ": " + msg;
         }
 
@@ -299,14 +305,20 @@
                 }
             }
 
-            input.split(';').forEach(singleScript => runLua("import", singleScript));
+            runLua("import", input);
         }
 
         function scriptImportDone(results) {
             if (!results[0]) return;
+            if (!results[1].length) {
+                output.value = "Import contained no scripts!";
+                return;
+            }
 
-            scriptNew(results[1]);
-            scripts[scripts.length - 1][1] = results[2];
+            for (const scriptData of results[1]) {
+              scriptNew(scriptData.name);
+              scripts[scripts.length - 1][1] = scriptData.code;
+            }
             scriptSave();
         }
 
@@ -500,8 +512,12 @@
             scriptLoad();
             workspaceLoad();
 
-            loadingText.style.visibility = "hidden";
-            loadingDiv.style.visibility = "visible";
+            if (typeof CompressionStream === "undefined") {
+              document.getElementById("compression").style.display = "inline";
+            }
+
+            loadingText.style.display = "none";
+            loadingDiv.style.display = "block";
         }
 
         output.placeholder = `; Here's a tutorial, and a quick script to showcase it.

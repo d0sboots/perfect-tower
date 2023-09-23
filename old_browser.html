@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Browser Compatibility Warning</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/bowser@2.11.0/es5.js"></script>
+
+    <link rel="stylesheet" href="lib/darcula.css">
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <h1>Browser Compatibility Warning</h1>
+
+  The editor requires a recent browser to be able to import/export scripts in
+  a compressed format. The needed API has been available since Chrome/Edge
+  103, Firefox 113, Opera 89, and Safari 16.4. Your browser is:
+  <p><p><span style="color:red">
+  <script>
+    const res = bowser.getParser(navigator.userAgent).parsedResult;
+    document.write(res.browser.name + " " + res.browser.version +
+      "</span><br>[" + navigator.userAgent + "]");
+  </script>
+</body>
+</html>

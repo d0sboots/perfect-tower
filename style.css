@@ -1,15 +1,19 @@
 .infotext{
-	position: absolute;
 	font-size: large;
 	font-weight: bolder;
-	top: 6px;
 	margin-left: 8px;
-	white-space: pre-line;
 }
 
 .warning{
 	color: red;
-	top: 24px;
+}
+
+a.warning{
+	text-decoration: revert;
+}
+
+a.warning:hover{
+	color: #d00000;
 }
 
 .basicBtn{
@@ -37,6 +41,7 @@
 
 .functionList{
 	display: inline;
+	margin-top: 18px;
 }
 
 .top-container {
@@ -47,10 +52,10 @@
 }
 
 .editor-info {
-	justify-self: flex-start;
-	justify-self: space-between;
+	align-self: flex-start;
 	width: 50%;
-	padding-top: 32px;
+	line-height: 1.1em;
+	margin-top: 11px;
 }
 
 .script-buttons {

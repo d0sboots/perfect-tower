@@ -57,6 +57,32 @@ function runLua(args) {
   return res_array;
 }
 
+async function importData(importCode) {
+  let startPos = 0;
+  let scriptNum = 1;
+  let endPos;
+  const results = [];
+  do {
+    endPos = importCode.indexOf(";", startPos);
+    if (endPos < 0) {
+      endPos = importCode.length;
+    }
+    const chunk = importCode.slice(startPos, endPos);
+    try {
+      const chunkResult = runLua(["import", chunk]);
+      if (!chunkResult[0]) {
+        throw new Error(chunkResult[1]);
+      }
+      results.push({name: chunkResult[1], code: chunkResult[2]});
+    } catch (ex) {
+      throw new Error(`While processing script ${scriptNum}, chars ${startPos+1}-${endPos}: ${ex.message}`);
+    }
+    startPos = endPos + 1;
+    scriptNum++;
+  } while (endPos < importCode.length);
+  return results;
+}
+
 var pendingWork = null;
 
 onmessage = function(e) {
@@ -64,7 +90,12 @@ onmessage = function(e) {
   // process all pending messages first, before getting in to heavy
   // processing. It also means things will be processed in the order they are
   // recieved. (Compiles won't appear later and screw things up.)
-  if (e.data[0] !== "compile") {
+  if (e.data[0] === "import") {
+    // Importing uses promises, and therefore is JS native.
+    importData(e.data[1])
+      .then(x => postMessage({args: e.data, results: [true, x]}))
+      .catch(x => postMessage({args: e.data, results: [false, String(x)]}));
+  } else if (e.data[0] !== "compile") {
     setTimeout(function() {
       let results = runLua(e.data);
       postMessage({args: e.data, results: results});
