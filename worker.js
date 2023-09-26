@@ -61,21 +61,84 @@ async function importData(importCode) {
   let startPos = 0;
   let scriptNum = 1;
   let endPos;
+  function throwErr(msg) {
+    if (startPos === 0 && endPos === importCode.length) {
+      // Don't confuse the issue when there's only one chunk
+      throw new Error(msg);
+    } else {
+      throw new Error(`While processing chunk ${scriptNum}, chars [${startPos},${endPos}): ${msg}`);
+    }
+  }
   const results = [];
   do {
     endPos = importCode.indexOf(";", startPos);
     if (endPos < 0) {
       endPos = importCode.length;
     }
+
+    // Try it as an old-format import code first. The Lua handles the base64
+    // decoding, for legacy reasons.
     const chunk = importCode.slice(startPos, endPos);
-    try {
-      const chunkResult = runLua(["import", chunk]);
-      if (!chunkResult[0]) {
-        throw new Error(chunkResult[1]);
-      }
+    const chunkResult = runLua(["import", chunk]);
+    if (chunkResult[0]) {
       results.push({name: chunkResult[1], code: chunkResult[2]});
+      continue;
+    }
+
+    // Otherwise, there are several possibilities. They all start with base64 decoding.
+    let binStr;
+    try {
+      binStr = atob(chunk);
     } catch (ex) {
-      throw new Error(`While processing script ${scriptNum}, chars ${startPos+1}-${endPos}: ${ex.message}`);
+      // By this point, it *must* decode correctly.
+      throwErr(ex.message);
+    }
+
+    let uArr = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; ++i) {
+      let code = binStr.codePointAt(i);
+      uArr[i] = code;
+    }
+
+    let textStr = null;
+    try {
+      textStr = new TextDecoder("utf-8", {fatal: true}).decode(uArr);
+    } catch (ex) {
+      if (!(ex instanceof TypeError)) {
+        throwErr(ex.message);
+      }
+      // This indicates a likely old-style blueprint, but we don't handle those yet.
+    }
+
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("Browser compatibility error: DecompressionStream not supported, can't decompress new import format!");
+    }
+    const stream = new DecompressionStream("deflate-raw");
+    // Errors are thrown by both sides of the stream, so we swallow them on the writer side.
+    const writer = stream.writable.getWriter();
+    writer.write(uArr).catch(x=>0);
+    writer.close().catch(x=>0);
+    const reader = stream.readable.getReader();
+    const decoder = new TextDecoder("utf-8", {fatal: true});
+    textStr = "";
+
+    try {
+      for (let {value, done} = await reader.read(); !done; {value, done} = await reader.read()) {
+        textStr += decoder.decode(value, {stream: true});
+      }
+      console.log("Text: " + textStr);
+      const parsedJson = JSON.parse(textStr);
+      const len = parsedJson?.scripts?.length ?? 0;
+      for (let i = 0; i < len; ++i) {
+        const chunkResult = runLua(["import", parsedJson.scripts[i]]);
+        if (chunkResult[0]) {
+          results.push({name: chunkResult[1], code: chunkResult[2]});
+        } else { // Re-thrown below
+          throw new Error(`While importing script ${i+1} of ${len}: ${chunkResult[1]}`);
+        }
+      }
+    } catch (ex) {
+      throwErr(ex.message);
     }
     startPos = endPos + 1;
     scriptNum++;
