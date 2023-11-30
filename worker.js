@@ -59,17 +59,17 @@ function runLua(args) {
 
 async function importData(importCode) {
   let startPos = 0;
-  let scriptNum = 1;
+  const results = [];
   let endPos;
-  function throwErr(msg) {
+  function throwErr(old_msg, new_msg) {
+    const msg = `Trying old-style import: ${old_msg}\nTrying new-style import: ${new_msg}`;
     if (startPos === 0 && endPos === importCode.length) {
       // Don't confuse the issue when there's only one chunk
       throw new Error(msg);
     } else {
-      throw new Error(`While processing chunk ${scriptNum}, chars [${startPos},${endPos}): ${msg}`);
+      throw new Error(`While processing chunk ${results.length + 1}, chars [${startPos},${endPos}): ${msg}`);
     }
   }
-  const results = [];
   do {
     endPos = importCode.indexOf(";", startPos);
     if (endPos < 0) {
@@ -82,6 +82,7 @@ async function importData(importCode) {
     const chunkResult = runLua(["import", chunk]);
     if (chunkResult[0]) {
       results.push({name: chunkResult[1], code: chunkResult[2]});
+      startPos = endPos + 1;
       continue;
     }
 
@@ -91,7 +92,7 @@ async function importData(importCode) {
       binStr = atob(chunk);
     } catch (ex) {
       // By this point, it *must* decode correctly.
-      throwErr(ex.message);
+      throwErr(chunkResult[1], ex.message);
     }
 
     let uArr = new Uint8Array(binStr.length);
@@ -105,7 +106,7 @@ async function importData(importCode) {
       textStr = new TextDecoder("utf-8", {fatal: true}).decode(uArr);
     } catch (ex) {
       if (!(ex instanceof TypeError)) {
-        throwErr(ex.message);
+        throwErr(chunkResult[1], ex.message);
       }
       // This indicates a likely old-style blueprint, but we don't handle those yet.
     }
@@ -138,10 +139,9 @@ async function importData(importCode) {
         }
       }
     } catch (ex) {
-      throwErr(ex.message);
+      throwErr(chunkResult[1], ex.message);
     }
     startPos = endPos + 1;
-    scriptNum++;
   } while (endPos < importCode.length);
   return results;
 }
