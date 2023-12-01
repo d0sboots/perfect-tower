@@ -193,6 +193,7 @@ double screen.height.d() Generic #height.d#
 double option.ui.size() Generic #ui.size#
 
 double timestamp.now() Generic
+double timestamp.utcnow() Generic
 double time.delta() Generic #time.delta#
 double time.unscaledDelta() Generic #time.unscaled#
 double time.scale() Generic #time.scale#
