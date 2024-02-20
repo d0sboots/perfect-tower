@@ -1,9 +1,9 @@
-STDLIB = [==[
-#click.relative(x_pos, y_pos, x_anchor, y_anchor) {lua(\
-  local x_pos = [[{x_pos}]]\
-  local y_pos = [[{y_pos}]]\
-  local x_anchor = [[{x_anchor}]]\
-  local y_anchor = [[{y_anchor}]]\
+STDLIB = [===[
+#pos.relative(x_pos, y_pos, x_anchor, y_anchor) {lua(\
+  local x_pos = [==[{x_pos}]==]\
+  local y_pos = [==[{y_pos}]==]\
+  local x_anchor = [==[{x_anchor}]==]\
+  local y_anchor = [==[{y_anchor}]==]\
 \
   function eq_part(term1, pos, anchor, mult)\
     local pos_num, anchor_num = tonumber(pos), tonumber(anchor)\
@@ -27,8 +27,10 @@ STDLIB = [==[
     return first_part .. last_part\
   end\
 \
-  return "click(vec(" ..\
+  return "vec(" ..\
     eq_part("min(width.d(), (16./9.) * height.d()) * ui.size()", x_pos, x_anchor, "width.d()") .. ", " ..\
-    eq_part("min(height.d(), (9./16.) * width.d()) * ui.size()", y_pos, y_anchor, "height.d()") .. "))"\
+    eq_part("min(height.d(), (9./16.) * width.d()) * ui.size()", y_pos, y_anchor, "height.d()") .. ")"\
 )}
-]==]
+
+#click.relative(x_pos, y_pos, x_anchor, y_anchor) click({pos.relative({x_pos},{y_pos},{x_anchor},{y_anchor})})
+]===]

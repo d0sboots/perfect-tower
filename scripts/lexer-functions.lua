@@ -21,6 +21,8 @@ local strings = {
 	difficulty = {"easy", "medium", "hard", "insane", "nightmare", "impossible"},
 
 	eraDivider = {"damage", "health"},
+
+	keyItem = {"map", "emeraldMap", "compass", "ultraKey", "lantern", "eodArmor", "thornsArmor", "bootsHaste", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "market", "bookSpells", "bag", "masterSword", "masterArmor"},
 };
 
 for _, tbl in pairs (strings) do
@@ -75,6 +77,8 @@ VALIDATOR = {
 	difficulty = function(value) return stringValid("difficulty", value, "Difficulties"); end,
 
 	eraDivider = function(value) return stringValid("eraDivider", value, "Era dividers"); end,
+
+	keyItem = function(value) return stringValid("keyItem", value, "Key Items/Relics"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -294,7 +298,11 @@ int arcade.adventure.playerHealth() Arcade #adventure.playerHealth#
 int arcade.adventure.playerArmor() Arcade #adventure.playerArmor#
 int arcade.adventure.playerAttack() Arcade #adventure.playerAttack#
 int arcade.adventure.bombs() Arcade #adventure.bombs#
+int arcade.adventure.emerald() Arcade #adventure.emeralds#
 int arcade.adventure.keys() Arcade #adventure.keys#
+int arcade.adventure.mana() Arcade #adventure.mana#
+bool arcade.adventure.hasPhoenixFeather() Arcade
+bool arcade.adventure.hasItem(string:item[keyItem]) Arcade #adventure.hasItem#
 bool arcade.adventure.isWall(vector:position) Arcade #adventure.isWall#
 bool arcade.adventure.isBomb(vector:position) Arcade #adventure.isBomb#
 bool arcade.adventure.isEnemy(vector:position) Arcade #adventure.isEnemy#
@@ -345,6 +353,7 @@ void tradingpost.trade(int:offer, double:pct[0-1]) Trading Post
 
 void bogus() Macros {Macros any {lua(lua_code)}}
 void bogus() Macros {Macros int {len(any_characters)}}
+void bogus() Macros {Macros vector {pos.relative(double:x_pos[0-1], double:y_pos[0-1], double:x_anchor[0-1], double:y_anchor[0-1])}}
 void bogus() Macros {Macros void {click.relative(double:x_pos[0-1], double:y_pos[0-1], double:x_anchor[0-1], double:y_anchor[0-1])}}
 ]]
 
