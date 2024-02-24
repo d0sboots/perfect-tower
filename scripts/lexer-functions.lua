@@ -23,6 +23,7 @@ local strings = {
 	eraDivider = {"damage", "health"},
 
 	keyItem = {"map", "emeraldMap", "compass", "ultraKey", "lantern", "eodArmor", "thornsArmor", "bootsHaste", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "market", "bookSpells", "bag", "masterSword", "masterArmor"},
+	entityType = {"Chest", "Bomb", "Rock", "Door", "Enemy", "Elite", "Mimic"},
 };
 
 for _, tbl in pairs (strings) do
@@ -79,6 +80,7 @@ VALIDATOR = {
 	eraDivider = function(value) return stringValid("eraDivider", value, "Era dividers"); end,
 
 	keyItem = function(value) return stringValid("keyItem", value, "Key Items/Relics"); end,
+	entityType = function(value) return stringValid("entityType", value, "Adventure Entity Types"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -298,7 +300,9 @@ int arcade.adventure.playerHealth() Arcade #adventure.playerHealth#
 int arcade.adventure.playerArmor() Arcade #adventure.playerArmor#
 int arcade.adventure.playerAttack() Arcade #adventure.playerAttack#
 int arcade.adventure.bombs() Arcade #adventure.bombs#
+int arcade.adventure.countEntities(string:type[entityType]) Arcade #adventure.countEntities#
 int arcade.adventure.emerald() Arcade #adventure.emeralds#
+int arcade.adventure.goldenHeart() Arcade #adventure.goldenHearts#
 int arcade.adventure.keys() Arcade #adventure.keys#
 int arcade.adventure.mana() Arcade #adventure.mana#
 bool arcade.adventure.hasPhoenixFeather() Arcade
