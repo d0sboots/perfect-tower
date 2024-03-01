@@ -23,7 +23,9 @@ local strings = {
 	eraDivider = {"damage", "health"},
 
 	keyItem = {"map", "emeraldMap", "compass", "ultraKey", "lantern", "eodArmor", "thornsArmor", "bootsHaste", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "market", "bookSpells", "bag", "masterSword", "masterArmor"},
+	marketItem = {"eodArmor", "thornsArmor", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "bookSpells"},
 	entityType = {"Chest", "Bomb", "Rock", "Door", "Enemy", "Elite", "Mimic"},
+	spell = {"identifyRoom", "manaArmor"},
 };
 
 for _, tbl in pairs (strings) do
@@ -80,7 +82,9 @@ VALIDATOR = {
 	eraDivider = function(value) return stringValid("eraDivider", value, "Era dividers"); end,
 
 	keyItem = function(value) return stringValid("keyItem", value, "Key Items/Relics"); end,
+	marketItem = function(value) return stringValid("marketItem", value, "Market Items"); end,
 	entityType = function(value) return stringValid("entityType", value, "Adventure Entity Types"); end,
+	spell = function(value) return stringValid("spell", value, "Spells"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -294,6 +298,9 @@ void arcade.jumble.stop() Arcade #jumble.stop#
 void arcade.adventure.move(vector:direction) Arcade #adventure.move#
 void arcade.adventure.wait() Arcade #adventure.wait#
 void arcade.adventure.placeBomb() Arcade #adventure.placeBomb#
+void arcade.adventrue.buyMarketItem(string:item[marketItem]) #adventure.buyMarketItem#
+void arcade.adventure.teleport(vector:roomPos) Arcade #adventure.teleport#
+void arcade.adventure.useSpell(string:spell[spell]) Arcade #adventure.useSpell#
 vector arcade.adventure.roomCoords() Arcade #adventure.roomCoords#
 vector arcade.adventure.playerPos() Arcade #adventure.playerPos#
 int arcade.adventure.playerHealth() Arcade #adventure.playerHealth#
@@ -305,6 +312,7 @@ int arcade.adventure.emerald() Arcade #adventure.emeralds#
 int arcade.adventure.goldenHeart() Arcade #adventure.goldenHearts#
 int arcade.adventure.keys() Arcade #adventure.keys#
 int arcade.adventure.mana() Arcade #adventure.mana#
+int arcade.adventure.manaArmor() Arcade #adventure.manaArmor#
 bool arcade.adventure.hasPhoenixFeather() Arcade
 bool arcade.adventure.hasItem(string:item[keyItem]) Arcade #adventure.hasItem#
 bool arcade.adventure.isWall(vector:position) Arcade #adventure.isWall#
