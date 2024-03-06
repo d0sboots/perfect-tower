@@ -23,6 +23,26 @@
 <body>
     <span id="loadingText" class="infotext">Loading...</span>
 
+    <dialog id="setup">
+        <h2 class="settings">Settings</h2>
+        <div class="settings-layout">
+            <label><input id="autoSpace" type="checkbox" checked onchange="settingsChange()">
+                Auto-indent with spaces instead of tabs
+            </label>
+            <label><input id="tabWidth" type="number" min=1 style="width: 3em" value=4 onchange="settingsChange()">
+                &lt;Tab&gt; width
+            </label>
+            <label><input id="exportFormat" type="checkbox" checked onchange="settingsChange()">
+                Use compressed export format with enhanced features
+            </label>
+            <div style="display: flex; justify-content: space-between">
+                Instructions for importing<br/>code from Kyromyr.github.io
+                <button class="basicBtn" style="width: 200px" onclick="settingsClose(); workspaceOtherSite()">Export From Other Site</button>
+            </div>
+            <button class="basicBtn" onclick="settingsClose()">Close</button>
+        </div>
+    </dialog>
+
     <div id="loadingDiv" style="display: none;">
         <template id="template-nav-item">
             <li class="nav-item"><a class="nav-link" data-toggle="tab" onclick="scriptSelect(this.parentElement)">New Script</a></li>
@@ -51,7 +71,7 @@
             <div class="workspaces">
                 <div>
                     <button class="basicBtn" onclick="workspaceExportSource()">Export Source</button>
-                    <button class="basicBtn" onclick="workspaceOtherSite()">Export From Other Site</button>
+                    <button class="basicBtn" onclick="settingsModal()">Settings ⚙️</button>
                     <div style="flex-grow:1"></div>
                     <div>
                         Workspace:
@@ -136,6 +156,7 @@
         let scripts = [];
         let histories = [];
         let scriptCounter = 0;
+        let compressedExport = true;
 
         function updateWarn(status) {
             if (!storageEnabled || noSave) return;
@@ -506,8 +527,54 @@
             }
         });
 
+        function settingsModal() {
+            const dialog = document.getElementById("setup");
+            dialog.showModal();
+        }
+
+        function settingsClose() {
+            const dialog = document.getElementById("setup");
+            dialog.close();
+        }
+
+        const SETTINGS_NAMES = new Set(
+            ["autoSpace", "tabWidth", "exportFormat"]);
+
+        function settingsLoad() {
+            if (storageEnabled) {
+                const settingsVal = JSON.parse(localStorage.getItem("settings") ?? "{}");
+                for (const [ele, value] of Object.entries(settingsVal)) {
+                    if (!SETTINGS_NAMES.has(ele)) continue;
+                    const domElement = document.getElementById(ele);
+                    if (domElement === null) continue;
+                    if (domElement.type === "checkbox") {
+                        domElement.checked = value;
+                    } else {
+                        domElement.value = value;
+                    }
+                }
+            }
+            settingsChange();
+        }
+
+        function settingsChange() {
+            const settingsVal = {};
+            for (const ele of SETTINGS_NAMES) {
+                const domElement = document.getElementById(ele);
+                settingsVal[ele] = (domElement.type === "checkbox") ? domElement.checked : domElement.value;
+            }
+            if (storageEnabled) {
+                localStorage.setItem("settings", JSON.stringify(settingsVal));
+            }
+            const tabWidth = document.getElementById("tabWidth").value;
+            editor.setOption("tabSize", tabWidth);
+            editor.setOption("indentWithTabs", !document.getElementById("autoSpace").checked);
+            compressedExport = document.getElementById("exportFormat").checked;
+        }
+
         function doneLoading() {
             storageEnabled = storageAvailable();
+            settingsLoad();
             updateWarn(true);
             scriptLoad();
             workspaceLoad();

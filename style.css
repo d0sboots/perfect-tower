@@ -184,6 +184,19 @@ a.warning:hover{
     display: none;
 }
 
+.settings {
+    text-align: center;
+}
+
+.settings-layout {
+    display: flex;
+    flex-direction: column;
+}
+
+dialog::backdrop {
+    background: #555B
+}
+
 @media (prefers-color-scheme: dark) {
     body,
     .functionList,

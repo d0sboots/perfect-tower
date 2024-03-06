@@ -179,11 +179,11 @@ function workspaceExport() {
     output.copy = undefined;
     let script_list = [];
 
-    scripts.forEach(script => {
-        if (script[2] == currentWorkspace || workspaceList.value == workspaces[0]) {
+    for (const script of scripts) {
+        if (script[2] === currentWorkspace || workspaceList.value === workspaces[0]) {
             script_list.push({name: script[0], text: script[1]})
         }
-    });
+    }
     runLua("workspace", script_list);
 }
 
