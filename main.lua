@@ -28,30 +28,18 @@ do
     local status, ret
     if func == "compile" then
       assert = assert_lexer
-      status, ret = pcall(compile, arg1, arg2, arg3)
-      assert = assert_old
-
-      if status then
-        return true, ret, ret:match".*\n.*()\n"
-      else
-        return false, ret, nil
-      end
-    elseif func == "workspace" then
-      assert = assert_lexer
       local exported = {}
       for i = 1, #arg1 do
         local pair = arg1[i]
-        status, ret = pcall(compile, pair.name, pair.text, arg2, true)
+        status, ret = pcall(compile, pair.name, pair.text, arg2)
         if not status then
           assert = assert_old
           return false, pair.name .. "\n" .. ret
         end
-        if ret ~= "" then
-          exported[#exported + 1] = ret
-        end
+        exported[i] = ret
       end
       assert = assert_old
-      return true, table.concat(exported, ";")
+      return true, exported
     elseif func == "import" then
       status, ret = pcall(import, arg1)
       if status then
@@ -198,7 +186,7 @@ end
 
 -- importFunc takes a string (filename) and returns a pair of (status, string)
 -- (the content of the imported file on success, an error message on failure).
-function compile(name, input, importFunc, isExport)
+function compile(name, input, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
   local env = clone_global()
   local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
@@ -438,12 +426,13 @@ function compile(name, input, importFunc, isExport)
   end
   package_name = package_name and package_name:sub(1, 24) .. ":" or ""
   script_name = script_name:sub(1, 24)
-  if isExport then
-    return #impulses == 0 and #conditions == 0 and #actions == 0 and "" or ret
-  else
-    return string.format("%s\n%s %s %s\n%s",
-      package_name .. script_name, #impulses, #conditions, #actions, ret)
-  end
+  return {
+    name = package_name .. script_name,
+    impulses = #impulses,
+    conditions = #conditions,
+    actions = #actions,
+    code = ret,
+  }
 end
 
 function import(input)
@@ -643,11 +632,11 @@ function unittest()
     res = "{concat(1,2)}{co{concat2(ncat,)}(3,4")}
   ]], "Cm1hY3JvX3Rlc3QAAAAAAAAAAAEAAAARZ2xvYmFsLnN0cmluZy5zZXQIY29uc3RhbnQEA3Jlcwhjb25zdGFudAQEMTIzNA=="},
   imported = {[[
-    ; This should compile to no code
+    ; This should compile to (almost) no code
     :local int acc
     :global string status
     #output status = "Number is: " . acc
-  ]], ""},
+  ]], "CGltcG9ydGVkAAAAAAAAAAAAAAAA"},
   import_test = {[[
     :import imported
     :import imported
@@ -679,24 +668,24 @@ function unittest()
     return false, (name .. " not found")
   end
   for k, v in pairs(compile_tests) do
-    status, ret = pcall(compile, k, v[1], importFunc, true)
+    status, ret = pcall(compile, k, v[1], importFunc)
     assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number, ret))
-    assert(ret == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret))
+    assert(ret.code == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret.code))
   end
   for k, v in ipairs (import_tests) do
     status, ret = pcall(import, v)
     assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret))
 
-    status, ret = pcall(compile, ret[1], ret[2], importFunc, true)
+    status, ret = pcall(compile, ret[1], ret[2], importFunc)
     assert(status, string.format("Failed to compile unit test #%s\n\n%s", k, ret))
 
-    v = ret
+    v = ret.code
     status, ret = pcall(import, v)
     assert(status, string.format("Failed to re-import unit test #%s\n\n%s", k, ret))
 
-    status, ret = pcall(compile, ret[1], ret[2], nil, true)
+    status, ret = pcall(compile, ret[1], ret[2], nil)
     assert(status, string.format("Failed to re-compile unit test #%s\n\n%s", k, ret))
-    assert(ret == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret, base64.decode(v), base64.decode(ret)))
+    assert(ret.code == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret.code, base64.decode(v), base64.decode(ret.code)))
   end
   return true
 end

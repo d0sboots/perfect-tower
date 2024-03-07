@@ -184,21 +184,7 @@ function workspaceExport() {
             script_list.push({name: script[0], text: script[1]})
         }
     }
-    runLua("workspace", script_list);
-}
-
-function workspaceExportDone(result) {
-    if (!result.status) {
-        return;
-    }
-
-    if (result.value.length == 0) {
-        output.value = "There are no scripts here, or they are all libraries (produce no code)";
-        return;
-    }
-
-    output.value = result.value;
-    output.copy = 0;
+    runLua("workspace", script_list, {name: workspaceList.value, compress: compressedExport});
 }
 
 function workspaceMoveScript() {

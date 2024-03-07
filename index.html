@@ -144,7 +144,7 @@
         editor.on("change", function() {
             if (!activeTab || noSave) return;
             updateWarn(false);
-            runLua("compile", scripts[activeTab.id][0], editor.getValue());
+            compileScript();
         });
 
         editor.clearHistory();
@@ -157,6 +157,12 @@
         let histories = [];
         let scriptCounter = 0;
         let compressedExport = true;
+
+        function compileScript() {
+            runLua("compile",
+                [{name: scripts[activeTab.id][0], text: editor.getValue()}],
+                {compress: compressedExport});
+        }
 
         function updateWarn(status) {
             if (!storageEnabled || noSave) return;
@@ -195,7 +201,7 @@
                 editor.setOption("readOnly", false);
                 editor.setValue(scripts[node.id][1]);
                 editor.setHistory(histories[node.id]);
-                runLua("compile", scripts[activeTab.id][0], scripts[activeTab.id][1]);
+                compileScript();
             }
             noSave = false;
         }
@@ -367,7 +373,7 @@
                 activeTab.children[0].textContent = input;
                 updateWarn(false);
                 scriptSave();
-                runLua("compile", input, editor.getValue());
+                compileScript();
             }
         }
 
@@ -446,12 +452,13 @@
                 case 'compile':
                     output.value = result.value;
                     output.copy = results[2];
-                    if (msg.args[2] == editor.getValue()) {
+                    if (msg.args[1][0].text == editor.getValue()) {
                         scriptSave();
                     }
                     break;
                 case 'workspace':
-                    workspaceExportDone(result);
+                    output.value = result.value;
+                    output.copy = results[2];
                     break;
                 case 'import':
                     scriptImportDone(results);

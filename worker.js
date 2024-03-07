@@ -27,13 +27,13 @@ function runLua(args) {
   }
 
   if (args.hasOwnProperty('scripts')) {
-    let scripts = args.scripts;
+    const scripts = args.scripts;
     delete args.scripts;
     // importFunc, which we must create on this side, because it can't be
     // serialized. It has to be a Lua function, which means Lua semantics.
     lua.lua_pushcfunction(L, function(lua_state) {
-      let filename = interop.tojs(lua_state, -1);
-      for (let script_arr of scripts) {
+      const filename = interop.tojs(lua_state, -1);
+      for (const script_arr of scripts) {
         if (script_arr[0] === filename) {
           lua.lua_pushboolean(lua_state, true);
           lua.lua_pushstring(lua_state, script_arr[1]);
@@ -49,7 +49,7 @@ function runLua(args) {
   const nargs = lua.lua_gettop(L) - initial_top - 1;
   lua.lua_call(L, nargs, lua.LUA_MULTRET);
   const nresults = lua.lua_gettop(L) - initial_top;
-  let res_array = [];
+  const res_array = [];
   for (let i = 0; i < nresults; i++) {
     res_array[i] = interop.tojs(L, initial_top + i + 1);
   }
@@ -95,9 +95,9 @@ async function importData(importCode) {
       throwErr(chunkResult[1], ex.message);
     }
 
-    let uArr = new Uint8Array(binStr.length);
+    const uArr = new Uint8Array(binStr.length);
     for (let i = 0; i < binStr.length; ++i) {
-      let code = binStr.codePointAt(i);
+      const code = binStr.codePointAt(i);
       uArr[i] = code;
     }
 
@@ -146,6 +146,40 @@ async function importData(importCode) {
   return results;
 }
 
+function doCompile(data_orig) {
+  const data = [data_orig[0], data_orig[1]];
+  data.scripts = data_orig.scripts;
+  const isExport = data[0] === "workspace";
+  data[0] = "compile";
+  const results = runLua(data);
+  if (!results[0]) {
+    return results;
+  }
+
+  let impulses = 0, conditions = 0, actions = 0;
+  const compiled = results[1];
+  const code = [];
+  for (let i = 1; compiled.has(i); ++i) {
+    const scriptData = compiled.get(i);
+    const imp = scriptData.get("impulses");
+    const cond = scriptData.get("conditions");
+    const act = scriptData.get("actions");
+    if (imp === 0 && cond === 0 && act === 0 && isExport) {
+      continue;
+    }
+    impulses = imp > impulses ? imp : impulses;
+    conditions = cond > conditions ? cond : conditions;
+    actions = act > actions ? act : actions;
+    code.push(scriptData.get("code"));
+  }
+  if (!code.length) {
+    return [results[0], "There are no scripts here, or they are all libraries (produce no code)", undefined];
+  }
+  const name = isExport ? data_orig[2].name : compiled.get(1).get("name");
+  const header = `${name}\n${impulses} ${conditions} ${actions}\n`
+  return [results[0], header + code.join(";"), header.length]
+}
+
 var pendingWork = null;
 
 onmessage = function(e) {
@@ -158,9 +192,14 @@ onmessage = function(e) {
     importData(e.data[1])
       .then(x => postMessage({args: e.data, results: [true, x]}))
       .catch(x => postMessage({args: e.data, results: [false, String(x)]}));
+  } else if (e.data[0] === "workspace") {
+    setTimeout(function() {
+      const results = doCompile(e.data, true);
+      postMessage({args: e.data, results: results});
+    });
   } else if (e.data[0] !== "compile") {
     setTimeout(function() {
-      let results = runLua(e.data);
+      const results = runLua(e.data);
       postMessage({args: e.data, results: results});
     });
   } else {
@@ -168,7 +207,7 @@ onmessage = function(e) {
     // relevant.
     if (pendingWork === null) {
       setTimeout(function() {
-        let results = runLua(pendingWork);
+        const results = doCompile(pendingWork);
         postMessage({args: pendingWork, results: results});
         pendingWork = null;
       });
