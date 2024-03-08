@@ -298,7 +298,7 @@ void arcade.jumble.stop() Arcade #jumble.stop#
 void arcade.adventure.move(vector:direction) Arcade #adventure.move#
 void arcade.adventure.wait() Arcade #adventure.wait#
 void arcade.adventure.placeBomb() Arcade #adventure.placeBomb#
-void arcade.adventrue.buyMarketItem(string:item[marketItem]) #adventure.buyMarketItem#
+void arcade.adventure.buyMarketItem(string:item[marketItem]) Arcade #adventure.buyMarketItem#
 void arcade.adventure.teleport(vector:roomPos) Arcade #adventure.teleport#
 void arcade.adventure.useSpell(string:spell[spell]) Arcade #adventure.useSpell#
 vector arcade.adventure.roomCoords() Arcade #adventure.roomCoords#
