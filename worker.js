@@ -146,10 +146,11 @@ async function importData(importCode) {
   return results;
 }
 
-function doCompile(data_orig) {
+async function doCompile(data_orig) {
   const data = [data_orig[0], data_orig[1]];
   data.scripts = data_orig.scripts;
   const isExport = data[0] === "workspace";
+  const compress = data_orig[2].compress;
   data[0] = "compile";
   const results = runLua(data);
   if (!results[0]) {
@@ -158,26 +159,112 @@ function doCompile(data_orig) {
 
   let impulses = 0, conditions = 0, actions = 0;
   const compiled = results[1];
-  const code = [];
+  const json = {blueprints:[], scripts:[], style:[], windows:[]};
+
   for (let i = 1; compiled.has(i); ++i) {
     const scriptData = compiled.get(i);
-    const imp = scriptData.get("impulses");
-    const cond = scriptData.get("conditions");
-    const act = scriptData.get("actions");
-    if (imp === 0 && cond === 0 && act === 0 && isExport) {
-      continue;
+    const type = scriptData.get("type");
+    if (type === "script") {
+      const imp = scriptData.get("impulses");
+      const cond = scriptData.get("conditions");
+      const act = scriptData.get("actions");
+      if (imp === 0 && cond === 0 && act === 0 && isExport) {
+        continue;
+      }
+      impulses = imp > impulses ? imp : impulses;
+      conditions = cond > conditions ? cond : conditions;
+      actions = act > actions ? act : actions;
+      json.scripts.push(scriptData.get("code"));
+    } else {
+      if (isExport && compress) {
+        continue;  // Old format can only handle scripts in bundles
+      }
+      if (type === "blueprint") {
+        json.blueprints.push(scriptData.get("code"));
+      } else if (type === "window") {
+        json.windows.push(scriptData.get("code"));
+      } else if (type === "tower") {
+        if (json.style.length) {
+          let firstName = "NOT FOUND";
+          for (let j = 1; j < i; ++j) {
+            const sd2 = compiled.get(j);
+            if (sd2.get("type") === "tower") {
+              firstName = sd2.get("name");
+              break;
+            }
+          }
+          throw new Error(`Can't export multiple tower designs at once! (${firstName} and ${scriptData.get("name")})`);
+        }
+        json.style.push(scriptData.get("code"));
+      } else {
+        throw new Error(`Unknown type "${type}" returned from compile() for ${scriptData.get("name")}`);
+      }
     }
-    impulses = imp > impulses ? imp : impulses;
-    conditions = cond > conditions ? cond : conditions;
-    actions = act > actions ? act : actions;
-    code.push(scriptData.get("code"));
   }
-  if (!code.length) {
-    return [results[0], "There are no scripts here, or they are all libraries (produce no code)", undefined];
+  if (!json.blueprints.length) delete json.blueprints;
+  if (!json.scripts.length) delete json.scripts;
+  if (!json.style.length) delete json.style;
+  if (!json.windows.length) delete json.windows;
+  if (!Object.keys(json).length) {
+    throw new Error("There are no scripts here, or they are all libraries (produce no code)");
+  }
+  let fullcode;
+  if (!compress) {
+    switch (isExport ? "script" : compiled.get(1).get("type")) {
+      case "blueprint":
+        fullcode = json.blueprint[0];
+        break;
+      case "script":
+        fullcode = json.scripts.join(";");
+        break;
+      case "tower":
+        fullcode = json.style[0];
+        break;
+      case "window":
+        fullcode = json.windows[0];
+        break;
+    }
+  } else {
+    if (typeof CompressionStream === "undefined") {
+      throw new Error("Browser compatibility error: CompressionStream not supported, can't compress new export format!");
+    }
+    const uArr = new TextEncoder().encode(JSON.stringify(json));
+    const stream = new CompressionStream("deflate-raw");
+    // Errors are thrown by both sides of the stream, so we swallow them on the writer side.
+    const writer = stream.writable.getWriter();
+    writer.write(uArr).catch(x=>0);
+    writer.close().catch(x=>0);
+    const blobs = [];
+    const reader = stream.readable.getReader();
+
+    for (let {value, done} = await reader.read(); !done; {value, done} = await reader.read()) {
+      blobs.push(value);
+    }
+    // This weird kludge is the fastest u8array -> base64 conversion for
+    // medium-to-large data. For small data, there are faster ways, but this
+    // will be good enough.
+    const str = new FileReaderSync().readAsDataURL(new Blob(blobs));
+    fullcode = str.slice(str.indexOf(',') + 1);
+  }
+  let header1 = "";
+  if (isExport) {
+    if (Object.hasOwn(json, "blueprints")) header1 += `${json.blueprints.length} blueprint(s), `;
+    if (Object.hasOwn(json, "scripts")) header1 += `${json.scripts.length} script(s), `;
+    if (Object.hasOwn(json, "style")) header1 += `${json.style.length} tower design, `;
+    if (Object.hasOwn(json, "windows")) header1 += `${json.style.length} window(s), `;
+    header1 += `${fullcode.length}b`;
+    if (compress) header1 += " (compressed)";
+    header1 += "\n";
   }
   const name = isExport ? data_orig[2].name : compiled.get(1).get("name");
-  const header = `${name}\n${impulses} ${conditions} ${actions}\n`
-  return [results[0], header + code.join(";"), header.length]
+  const header = `${name}\n${header1}${impulses} ${conditions} ${actions}\n`
+  return [results[0], header + fullcode, header.length]
+}
+
+function asyncCompile(data) {
+  doCompile(data)
+    .then(x => postMessage({args: data, results: x}))
+    .catch(x => postMessage({args: data, results: [false, String(x)]}));
 }
 
 var pendingWork = null;
@@ -194,8 +281,7 @@ onmessage = function(e) {
       .catch(x => postMessage({args: e.data, results: [false, String(x)]}));
   } else if (e.data[0] === "workspace") {
     setTimeout(function() {
-      const results = doCompile(e.data, true);
-      postMessage({args: e.data, results: results});
+      asyncCompile(e.data);
     });
   } else if (e.data[0] !== "compile") {
     setTimeout(function() {
@@ -207,8 +293,11 @@ onmessage = function(e) {
     // relevant.
     if (pendingWork === null) {
       setTimeout(function() {
-        const results = doCompile(pendingWork);
-        postMessage({args: pendingWork, results: results});
+        // The bulk of the work happens synchronously, and then some trailing
+        // compression stuff happens async. The pendingWork gets reset after
+        // the first async op, so some stuff can be happening in parallel, but
+        // we still achieve the goal of avoiding most of the redundant work.
+        asyncCompile(e.data);
         pendingWork = null;
       });
     }

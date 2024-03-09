@@ -428,6 +428,7 @@ function compile(name, input, importFunc)
   script_name = script_name:sub(1, 24)
   return {
     name = package_name .. script_name,
+    type = "script",
     impulses = #impulses,
     conditions = #conditions,
     actions = #actions,
