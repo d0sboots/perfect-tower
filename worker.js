@@ -261,13 +261,29 @@ async function doCompile(data_orig) {
   return [results[0], header + fullcode, header.length]
 }
 
-function asyncCompile(data) {
-  doCompile(data)
-    .then(x => postMessage({args: data, results: x}))
-    .catch(x => postMessage({args: data, results: [false, String(x)]}));
-}
-
 var pendingWork = null;
+
+function deferCompile() {
+  // The bulk of the work happens synchronously, and then some trailing
+  // compression stuff happens async. We don't know if that async work will
+  // finish within this task, so we have to check to see if we need to start
+  // another.
+  setTimeout(function() {
+    const work = pendingWork;
+    const finish = (res) => {
+      postMessage({args: work, results: res});
+      if (work === pendingWork) {
+        // The current task is the one we just finished, we can shut down.
+        pendingWork = null;
+      } else {
+        // Something new came in, start a new cycle.
+        deferCompile();
+      }
+    };
+    doCompile(work)
+      .then(x => finish(x), rej => finish([false, String(rej)]));
+  });
+}
 
 onmessage = function(e) {
   // Set a callback to do the actual work. This gives us breathing room to
@@ -289,17 +305,9 @@ onmessage = function(e) {
       postMessage({args: e.data, results: results});
     });
   } else {
-    // We drop multiple compile messages, because only the last one is
-    // relevant.
+    // Only have one deferred compilation running at a time.
     if (pendingWork === null) {
-      setTimeout(function() {
-        // The bulk of the work happens synchronously, and then some trailing
-        // compression stuff happens async. The pendingWork gets reset after
-        // the first async op, so some stuff can be happening in parallel, but
-        // we still achieve the goal of avoiding most of the redundant work.
-        asyncCompile(e.data);
-        pendingWork = null;
-      });
+      deferCompile();
     }
     pendingWork = e.data;
   }
