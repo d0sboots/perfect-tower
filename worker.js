@@ -263,6 +263,12 @@ async function doCompile(data_orig) {
 
 var pendingWork = null;
 
+function asyncCompile(work) {
+  const finish = (res) => postMessage({args: work, results: res});
+  return doCompile(work)
+    .then(x => finish(x), rej => finish([false, String(rej)]));
+}
+
 function deferCompile() {
   // The bulk of the work happens synchronously, and then some trailing
   // compression stuff happens async. We don't know if that async work will
@@ -270,8 +276,7 @@ function deferCompile() {
   // another.
   setTimeout(function() {
     const work = pendingWork;
-    const finish = (res) => {
-      postMessage({args: work, results: res});
+    asyncCompile(work).finally(() => {
       if (work === pendingWork) {
         // The current task is the one we just finished, we can shut down.
         pendingWork = null;
@@ -279,9 +284,7 @@ function deferCompile() {
         // Something new came in, start a new cycle.
         deferCompile();
       }
-    };
-    doCompile(work)
-      .then(x => finish(x), rej => finish([false, String(rej)]));
+    });
   });
 }
 
