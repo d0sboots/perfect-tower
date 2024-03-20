@@ -321,6 +321,8 @@ function lexer(line, vars)
 						node.func = FUNCTION.click;
 					elseif dynamicFunc[node.func.name] then
 						if node.func.short == "if" then
+							local arg1 = resolveType(node.args[1]);
+							assert(arg1 == "bool", tokenError(node, node.args[1], string.format("bad argument #1 to %s (bool expected, got %s)", node.func.short, arg1)));
 							local arg2 = resolveType(node.args[2]);
 							local arg3 = resolveType(node.args[3]);
 							local func = FUNCTION["ternary." .. arg2];
