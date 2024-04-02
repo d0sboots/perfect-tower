@@ -568,7 +568,9 @@ function import(input)
   local name = read"s1"
 
   for i = 1, 3 do
-    for j = 1, read"i4" do
+    local sz = read"I4"
+    assert(sz >= 0, string.format("Bad import: Section %d had negative count %d", i, sz))
+    for j = 1, sz do
       ins(parse())
 
       if i == 3 then
@@ -578,6 +580,8 @@ function import(input)
 
     ins""
   end
+
+  assert(pos - 1 == #data, string.format("Bad import: Extra characters after parsing from %d-%d (%s)", pos - 1, #data, string.sub(data, pos)))
 
   table.insert(ret, 1, "")
 

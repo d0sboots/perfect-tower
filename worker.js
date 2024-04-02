@@ -127,7 +127,6 @@ async function importData(importCode) {
       for (let {value, done} = await reader.read(); !done; {value, done} = await reader.read()) {
         textStr += decoder.decode(value, {stream: true});
       }
-      console.log("Text: " + textStr);
       const parsedJson = JSON.parse(textStr);
       const len = parsedJson?.scripts?.length ?? 0;
       for (let i = 0; i < len; ++i) {
