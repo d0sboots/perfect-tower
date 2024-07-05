@@ -1,5 +1,9 @@
 DEBUG = not fengari
 package.path = "scripts/?.lua"
+js = nil
+if fengari then
+  js = require "js"
+end
 
 local line_number
 local compile_file
@@ -34,6 +38,10 @@ do
         status, ret = pcall(compile, pair.name, pair.text, arg2)
         if not status then
           assert = assert_old
+          if js then
+            -- Fengari has bugs where it can return a native JS exception object
+            ret = js.tostring(ret)
+          end
           return false, pair.name .. "\n" .. ret
         end
         exported[i] = ret
