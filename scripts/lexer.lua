@@ -118,6 +118,7 @@ end
 
 local function consumeTokensWorker(node)
 	if #node.tokens == 0 then
+		assert(node.func, tokenError(node, "invalid empty parenthesis"));
 		return;
 	elseif #node.tokens == 1 then
 		table.insert(node.args, resolveID(node.tokens[1]));
@@ -353,7 +354,7 @@ function lexer(line, vars)
 					func = assert(FUNCTION[func], tokenError(last, "trying to call a non-function: " .. func));
 				end
 				
-				node = newNode(last and last.pos or token.pos, node, func);
+				node = newNode(func and last.pos or token.pos, node, func);
 			elseif token.type == "next" then
 				assert(node.func, tokenError(token, "unexpected symbol: " .. token.value));
 				consumeTokens(node);
