@@ -202,6 +202,7 @@ double screen.width.d() Generic #width.d#
 double screen.height.d() Generic #height.d#
 double option.ui.size() Generic #ui.size#
 
+int time.frame() Generic #time.frame#
 double timestamp.now() Generic
 double timestamp.utcnow() Generic
 double time.delta() Generic #time.delta#
