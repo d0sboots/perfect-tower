@@ -43,7 +43,7 @@
         </div>
     </dialog>
 
-    <div id="loadingDiv" style="display: none;">
+    <div id="loadingDiv" style="visibility: hidden;">
         <template id="template-nav-item">
             <li class="nav-item"><a class="nav-link" data-toggle="tab" onclick="scriptSelect(this.parentElement)">New Script</a></li>
         </template>
@@ -58,7 +58,7 @@
 
             <div class="editor-info">
                 <div>
-                  <span class="infotext">Editor: 1.81 ─ Game: v0.48.0</span>
+                  <span class="infotext">Editor: 1.82 ─ Game: v0.48.0</span>
                   <br/>
                   <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
                   <a id="compression" class="infotext warning" target="_blank" style="display:none" href="old_browser.html">
@@ -106,7 +106,7 @@
         const output = document.getElementById("output");
 
         window.onerror = function(msg, url, line) {
-            loadingDiv.style.display = "none";
+            loadingDiv.style.visibility = "hidden";
             loadingText.style.display = "inline";
             loadingText.textContent = "Something went wrong. :( \n\n" + line + ": " + msg;
         }
@@ -591,7 +591,7 @@
             }
 
             loadingText.style.display = "none";
-            loadingDiv.style.display = "block";
+            loadingDiv.style.visibility = "visible";
         }
 
         output.placeholder = `; Here's a tutorial, and a quick script to showcase it.
