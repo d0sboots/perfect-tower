@@ -137,7 +137,9 @@ name, you can create an array-like construct:
 lis("my_array" . idx, value)
 ```
 (As shorthand, `local.int.set` can be shortened to `lis`, and the same scheme
-for the other get/set functions.
+for the other get/set functions. Note that the expanded form for
+`lvs`/`lvg`/`gvs`/`gvg` is `<local/global>.vec2.<set/get>`, due to game
+internal quirks.
 
 All variables are "initialized" to 0/false/"". In other words, if you try to
 read from a variable that hasn't been set yet, you will get
