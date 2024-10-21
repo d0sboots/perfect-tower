@@ -7,6 +7,11 @@ const interop = fengari.interop;
 
 fengari.load("require('main')")();
 
+const UNCOMPRESSED_FORMAT = "uncompressed";
+const OLD_FORMAT = "old";
+const MODERN_FORMAT = "modern";
+
+const PRIMITIVES = new Set(["string", "number", "boolean"]);
 function pushValue(val) {
   if (Array.isArray(val)) {
     lua.lua_createtable(L, val.length, 0);
@@ -14,8 +19,14 @@ function pushValue(val) {
       pushValue(val[i]);
       lua.lua_rawseti(L, -2, i + 1);
     }
-  } else {
+  } else if (val == null || PRIMITIVES.has(typeof val)) {
     interop.push(L, val);
+  } else {
+    lua.lua_newtable(L);
+    for (const [k, v] of Object.entries(val)) {
+      pushValue(val[k]);
+      lua.lua_setfield(L, -2, k);
+    }
   }
 }
 
@@ -149,7 +160,7 @@ async function doCompile(data_orig) {
   const data = [data_orig[0], data_orig[1]];
   data.scripts = data_orig.scripts;
   const isExport = data[0] === "workspace";
-  const compress = data_orig[2].compress;
+  const format = data_orig[2].format;
   data[0] = "compile";
   const results = runLua(data);
   if (!results[0]) {
@@ -175,8 +186,8 @@ async function doCompile(data_orig) {
       actions = act > actions ? act : actions;
       json.scripts.push(scriptData.get("code"));
     } else {
-      if (isExport && compress) {
-        continue;  // Old format can only handle scripts in bundles
+      if (isExport && format === UNCOMPRESSED_FORMAT) {
+        continue;  // Oldest format can only handle scripts in bundles
       }
       if (type === "blueprint") {
         json.blueprints.push(scriptData.get("code"));
@@ -208,7 +219,7 @@ async function doCompile(data_orig) {
     throw new Error("There are no scripts here, or they are all libraries (produce no code)");
   }
   let fullcode;
-  if (!compress) {
+  if (format === UNCOMPRESSED_FORMAT) {
     switch (isExport ? "script" : compiled.get(1).get("type")) {
       case "blueprint":
         fullcode = json.blueprint[0];
@@ -252,7 +263,7 @@ async function doCompile(data_orig) {
     if (Object.hasOwn(json, "style")) header1 += `${json.style.length} tower design, `;
     if (Object.hasOwn(json, "windows")) header1 += `${json.style.length} window(s), `;
     header1 += `${fullcode.length}b`;
-    if (compress) header1 += " (compressed)";
+    if (format !== UNCOMPRESSED_FORMAT) header1 += " (compressed)";
     header1 += "\n";
   }
   const name = isExport ? data_orig[2].name : compiled.get(1).get("name");
