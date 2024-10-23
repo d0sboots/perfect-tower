@@ -196,6 +196,7 @@ end
 -- (the content of the imported file on success, an error message on failure).
 function compile(name, input, options, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
+  local budget = 0
   local env = clone_global()
   local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
   local ret = {}
@@ -293,6 +294,10 @@ function compile(name, input, options, importFunc)
           local name = line:match("^:%a+ +(.+)")
           assert(name, "name directive: :name script_name")
           compile_file = name
+        elseif token == "budget" then
+          local cost = line:match("^:%a+ +([0-9]+)")
+          assert(cost, "budget directive: :budget <non-negative integer>")
+          budget = cost
         else
           assert(false, "Unrecognized directive :" .. token)
         end
@@ -471,7 +476,7 @@ function compile(name, input, options, importFunc)
     ret = base64.encode(table.concat(ret))
   else
     ret[1] = [[{"budget":]]
-    ret[#ret+1] = tostring(0)
+    ret[#ret+1] = tostring(budget)
     for num, pair in ipairs({
       {name="actions", tbl=actions},
       {name="conditions", tbl=conditions},

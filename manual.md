@@ -200,6 +200,12 @@ expression. This is an unfortunate limitation that I hope to lift someday.
 You've already seen the most important directives: `:local`, `:global` and
 `:const`. All directives start with colon:
 
+`:budget <value>` sets the budget limit for the script. 0 means the old
+one-line-per-frame execution style, 1 acts like the old "atomic functions,"
+and higher indicates how many expensive functions can be run before
+execution moves on to the next script (if any). The budget is also limited by
+upgrades in the HQ.
+
 `:name <name>` sets the export name for the current script. By default, the
 name comes from whatever it is called in the left sidebar, but this can be
 changed. In particular, macros can be used to give everything a uniform
