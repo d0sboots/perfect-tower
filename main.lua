@@ -35,7 +35,7 @@ do
       local exported = {}
       for i = 1, #arg1 do
         local pair = arg1[i]
-        status, ret = pcall(compile, pair.name, pair.text, arg2)
+        status, ret = pcall(compile, pair.name, pair.text, arg2, arg3)
         if not status then
           assert = assert_old
           if js then
@@ -194,7 +194,7 @@ end
 
 -- importFunc takes a string (filename) and returns a pair of (status, string)
 -- (the content of the imported file on success, an error message on failure).
-function compile(name, input, importFunc)
+function compile(name, input, options, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
   local env = clone_global()
   local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
@@ -352,7 +352,15 @@ function compile(name, input, importFunc)
   end
 
   local function ins(frmt, val)
-    table.insert(ret, string.pack(frmt, val))
+    ret[#ret+1] = string.pack(frmt, val)
+  end
+
+  local function prefix_code(size)
+    while size >= 0x80 do
+      ret[#ret+1] = string.pack("B", 0x80 + (size & 0x7F))
+      size = size >> 7
+    end
+    ret[#ret+1] = string.pack("B", size)
   end
 
   local function encode(node)
@@ -364,7 +372,8 @@ function compile(name, input, importFunc)
         return
       end
 
-      ins("s1", node.func.name)
+      prefix_code(#node.func.name)
+      ret[#ret+1] = node.func.name;
 
       for _, arg in ipairs (node.args) do
         encode(arg)
@@ -385,16 +394,8 @@ function compile(name, input, importFunc)
         end
       elseif node.type == "string" then
         ins("b", 4)
-        local bytes = {}
-        local len = #node.value
-
-        while len > 0 or #bytes == 0 do
-          table.insert(bytes, string.pack("B", (len >= 0x80 and 0x80 or 0x00) + (len & 0x7F)))
-          len = len >> 7
-        end
-
-        table.insert(ret, table.concat(bytes))
-        table.insert(ret, node.value)
+        prefix_code(#node.value);
+        ret[#ret+1] = node.value
       elseif node.type == "vector" then
         ins("b", 5)
         ins("f", node.x)
@@ -417,21 +418,86 @@ function compile(name, input, importFunc)
     end
   end
 
-  ins("s1", compile_file)
+  local json_escape_table = {["\\"]=[[\\]], ['"']=[[\"]]}
+  for i = 0, 31 do
+    json_escape_table[string.char(i)] = string.format([[\u%04x]], i)
+  end
+  json_escape_table["\b"] = [[\b]]
+  json_escape_table["\f"] = [[\f]]
+  json_escape_table["\n"] = [[\n]]
+  json_escape_table["\r"] = [[\r]]
+  json_escape_table["\t"] = [[\t]]
 
-  for _, tbl in ipairs {impulses, conditions, actions} do
-    ins("i4", #tbl)
+  local line_encode_table = {}
+  for k, v in pairs(json_escape_table) do
+    line_encode_table[k] = v
+  end
+  for i = 0x80, 0xff do
+    line_encode_table[string.char(i)] = utf8.char(i)
+  end
 
-    for _, line in ipairs (tbl) do
-      encode(line)
+  local gsub = string.gsub
+  local function json_encode(node)
+    local current_pos = #ret
+    encode(node)
+    for i = current_pos+1, #ret do
+      -- Need to JSON-escape control characters, backslash and double-quote,
+      -- and also UTF-8 encode high-byte chars
+      ret[i] = gsub(ret[i], '[\0-\x1f\\"\x80-\xff]', line_encode_table)
     end
   end
 
-  ret = base64.encode(table.concat(ret))
-  local package_name, script_name = compile_file:match("(.*):([^:]*)")
+  local function json_escape(str)
+    ret[#ret+1] = gsub(str, '[\0-\x1f\\"]', json_escape_table)
+  end
+
+  local package_name, script_name = compile_file:match("([^:]*):(.*)")
   if not script_name then
     script_name = compile_file
   end
+
+  if options.format ~= "v2" then
+    prefix_code(#compile_file)
+    ret[#ret+1] = compile_file
+
+    for _, tbl in ipairs {impulses, conditions, actions} do
+      ins("i4", #tbl)
+
+      for _, line in ipairs (tbl) do
+        encode(line)
+      end
+    end
+
+    ret = base64.encode(table.concat(ret))
+  else
+    ret[1] = [[{"budget":]]
+    ret[#ret+1] = tostring(0)
+    for num, pair in ipairs({
+      {name="actions", tbl=actions},
+      {name="conditions", tbl=conditions},
+      {name="impulses", tbl=impulses}
+    }) do
+      ret[#ret+1] = num == 1 and [[,"]] or [[],"]]
+      ret[#ret+1] = pair.name
+      ret[#ret+1] = [[":[]]
+      for num, line in ipairs(pair.tbl) do
+        if num ~= 1 then
+          ret[#ret+1] = [[,]]
+        end
+        ret[#ret+1] = [["]]
+        json_encode(line)
+        ret[#ret+1] = [["]]
+      end
+    end
+    ret[#ret+1] = [[],"name":"]]
+    json_escape(script_name)
+    ret[#ret+1] = [[","package":"]]
+    json_escape(package_name or "")
+    ret[#ret+1] = [["}]]
+
+    ret = table.concat(ret)
+  end
+
   package_name = package_name and package_name:sub(1, 24) .. ":" or ""
   script_name = script_name:sub(1, 24)
   return {

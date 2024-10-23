@@ -7,9 +7,9 @@ const interop = fengari.interop;
 
 fengari.load("require('main')")();
 
-const UNCOMPRESSED_FORMAT = "uncompressed";
-const OLD_FORMAT = "old";
-const MODERN_FORMAT = "modern";
+const UNCOMPRESSED_FORMAT = "v0";
+const OLD_FORMAT = "v1";
+const MODERN_FORMAT = "v2";
 
 const PRIMITIVES = new Set(["string", "number", "boolean"]);
 function pushValue(val) {
@@ -157,7 +157,7 @@ async function importData(importCode) {
 }
 
 async function doCompile(data_orig) {
-  const data = [data_orig[0], data_orig[1]];
+  const data = [...data_orig];
   data.scripts = data_orig.scripts;
   const isExport = data[0] === "workspace";
   const format = data_orig[2].format;
@@ -238,7 +238,22 @@ async function doCompile(data_orig) {
     if (typeof CompressionStream === "undefined") {
       throw new Error("Browser compatibility error: CompressionStream not supported, can't compress new export format!");
     }
-    const uArr = new TextEncoder().encode(JSON.stringify(json));
+    let jsoned;
+    if (format == MODERN_FORMAT) {
+      // Scripts is already encoded, we have to prevent double-encoding
+      const saved = new Array(json.scripts.length);
+      for (let i = 0; i < json.scripts.length; ++i) {
+        saved[i] = json.scripts[i];
+        // Using a special character so that it's basically impossible for it
+        // to appear as part of the rest of the JSON (in a a name).
+        json.scripts[i] = `\f${i}\f`;
+      }
+      jsoned = JSON.stringify(json);
+      jsoned = jsoned.replaceAll(/"\\f[0-9]+\\f"/g, k => saved[k.slice(3, -3) | 0]);
+    } else {
+      jsoned = JSON.stringify(json);
+    }
+    const uArr = new TextEncoder().encode(jsoned);
     const stream = new CompressionStream("deflate-raw");
     // Errors are thrown by both sides of the stream, so we swallow them on the writer side.
     const writer = stream.writable.getWriter();
