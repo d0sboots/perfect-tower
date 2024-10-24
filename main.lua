@@ -196,7 +196,7 @@ end
 -- (the content of the imported file on success, an error message on failure).
 function compile(name, input, options, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
-  local budget = 0
+  local budget = nil
   local env = clone_global()
   local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
   local ret = {}
@@ -251,7 +251,7 @@ function compile(name, input, options, importFunc)
         assert(not macros[name], "macro already exists: " .. name)
         macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len}
       elseif line:match"^:" then
-        local token = line:match("^:(%a*)")
+        local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
         if token == "const" then
           local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$")
           assert(type, "constant definition: const [int/double/string/bool] name value")
@@ -294,9 +294,15 @@ function compile(name, input, options, importFunc)
           local name = line:match("^:%a+ +(.+)")
           assert(name, "name directive: :name script_name")
           compile_file = name
-        elseif token == "budget" then
-          local cost = line:match("^:%a+ +([0-9]+)")
-          assert(cost, "budget directive: :budget <non-negative integer>")
+        elseif token == "budget_cap" then
+          local cost = line:match("^:budget_cap +(.+)")
+          if cost and cost ~= "none" then
+            cost = cost:match("^([0-9]+)$")
+            if cost then
+              assert(cost < 2147483648, "budget_cap must fit in an integer (< 2^31), got " .. cost)
+            end
+          end
+          assert(cost, "budget_cap directive: :budget_cap [none/<non-negative integer>]")
           budget = cost
         else
           assert(false, "Unrecognized directive :" .. token)
@@ -475,14 +481,12 @@ function compile(name, input, options, importFunc)
 
     ret = base64.encode(table.concat(ret))
   else
-    ret[1] = [[{"budget":]]
-    ret[#ret+1] = tostring(budget)
     for num, pair in ipairs({
       {name="actions", tbl=actions},
       {name="conditions", tbl=conditions},
       {name="impulses", tbl=impulses}
     }) do
-      ret[#ret+1] = num == 1 and [[,"]] or [[],"]]
+      ret[#ret+1] = num == 1 and [[{"]] or [[],"]]
       ret[#ret+1] = pair.name
       ret[#ret+1] = [[":[]]
       for num, line in ipairs(pair.tbl) do
@@ -498,7 +502,13 @@ function compile(name, input, options, importFunc)
     json_escape(script_name)
     ret[#ret+1] = [[","package":"]]
     json_escape(package_name or "")
-    ret[#ret+1] = [["}]]
+    ret[#ret+1] = [["]]
+    if budget then
+      ret[#ret+1] = [[,"budget":]]
+      -- No quotes because budget is a number in the JSON
+      ret[#ret+1] = budget == "none" and "2147483647" or string.format("%d", budget)
+    end
+    ret[#ret+1] = [[}]]
 
     ret = table.concat(ret)
   end
