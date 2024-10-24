@@ -297,7 +297,7 @@ function compile(name, input, options, importFunc)
         elseif token == "budget_cap" then
           local cost = line:match("^:budget_cap +(.+)")
           if cost and cost ~= "none" then
-            cost = cost:match("^([0-9]+)$")
+            cost = math.tointeger(cost:match("^([0-9]+)$"))
             if cost then
               assert(cost < 2147483648, "budget_cap must fit in an integer (< 2^31), got " .. cost)
             end
@@ -494,7 +494,11 @@ function compile(name, input, options, importFunc)
           ret[#ret+1] = [[,]]
         end
         ret[#ret+1] = [["]]
-        json_encode(line)
+        if pair.name == "impulses" then
+          ret[#ret+1] = line.func.name  -- Impulses are no-arg functions with straight ASCII names
+        else
+          json_encode(line)
+        end
         ret[#ret+1] = [["]]
       end
     end
