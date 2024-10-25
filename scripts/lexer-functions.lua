@@ -161,6 +161,7 @@ double double.acos(double) Number
 double double.atan(double) Number
 double double.atan2(vector) Number #atan2#
 
+bool not(bool) Generic
 void if(bool, void, void) {Generic type if(bool, true, false)}
 int ternary.int(bool, int, int)
 double ternary.double(bool, double, double)
@@ -196,6 +197,7 @@ void generic.click(vector) Generic
 void generic.slider(vector:where, double:value[0-1]) Generic
 void generic.scrollrect(vector:where, double:horizontal[scroll], double:vertical[scroll]) Generic #scrollbar#
 
+int generic.budget() Generic
 int screen.width() Generic
 int screen.height() Generic
 double screen.width.d() Generic #width.d#
@@ -245,6 +247,7 @@ void tower.exit() Tower
 
 bool game.isBossFight() Game
 bool game.isTowerTesting() Game
+bool game.pause.get() Game #pause.get#
 int game.enemies.count() Game #enemies#
 int game.module.active.index(string:moduleId) Game #active.index#
 int game.module.active.count() Game #active.count#
@@ -263,6 +266,7 @@ string game.module.active.id(int:index) Game #active.id#
 void game.disable.era(string:element[elementAll]) Game #disable.era#
 void game.upgrade.era(string:divider[eraDivider], int:numTimes) Game #upgrade.era#
 void game.module.secure(string:moduleId) Game #disable.inf#
+void game.pause.set(bool:paused) Game #pause.set#
 
 bool software.enabled(string:name[software]) Game #software.enabled#
 string game.softwareid.find(string:name) Game #software.find#
