@@ -9,6 +9,11 @@ local line_number
 local compile_file
 local _cache = {}
 
+-- Defined here to pick up compile_file and line_number
+function error_lexer(msg, _)
+  error(string.format("%s:%s: %s", compile_file, line_number, msg), 0)
+end
+
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer", "stdlib"} do
   if DEBUG then
     dofile(package.path:gsub("?", lib))
@@ -22,7 +27,7 @@ do
 
   local function assert_lexer(test, msg)
     if not test then
-      error(string.format("%s:%s: %s", compile_file, line_number, msg), 0)
+      error_lexer(msg)
     end
 
     return test

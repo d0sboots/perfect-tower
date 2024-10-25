@@ -18,15 +18,22 @@ local function tokenError(...)
 		markers = markers .. string.rep(" ", v - (repl == 0 and 1 or 2) - #markers) .. "^";
 	end
 
-	return string.format("%s\n\n%s\n%s", msg, str, markers);
+	return error_lexer(string.format("%s\n\n%s\n%s", msg, str, markers))
 end
 
 local function newNode(pos, parent, func)
+	local node_func
+	if type(func) == "string" then
+		node_func = FUNCTION[func]
+		if not node_func then error_lexer("trying to call a non-function: " .. tostring(func)) end
+	else
+		node_func = func
+	end
 	return {
 		pos = pos,
 		parent = parent,
 		tokens = {},
-		func = type(func) == "string" and assert(FUNCTION[func], "trying to call a non-function: " .. tostring(func)) or func;
+		func = node_func,
 		args = {},
 	};
 end
@@ -47,7 +54,12 @@ local function nextToken(str, pos, prev)
 				ret.pos = pos;
 				ret.len = #match;
 				ret.type = token.name;
-				ret.value = ret.type ~= "number" and match or assert(tonumber(match), tokenError(pos, "invalid number: " .. match));
+				if ret.type ~= "number" then
+					ret.value = match
+				else
+					ret.value = tonumber(match)
+					if not ret.value then tokenError(pos, "invalid number: " .. match) end
+				end
 				ret.op = OPERATOR[match];
 
 				if ret.type == "identifier" and (ret.value == "true" or ret.value == "false") then
@@ -57,20 +69,23 @@ local function nextToken(str, pos, prev)
 					ret.value = ret.value:sub(2,-2);
 				end
 
-				assert(ret.type ~= "operator" or ret.op, tokenError(pos, "invalid operator: " .. match));
-				assert(#token == 0 or not prev or token[prev.type], tokenError(pos, "unexpected symbol: " .. (ret.type == "eof" and "<eof>" or match)));
+				if ret.type == "operator" and not ret.op then tokenError(pos, "invalid operator: " .. match) end
+				if #token ~= 0 and prev and not token[prev.type] then
+					tokenError(pos, "unexpected symbol: " .. (ret.type == "eof" and "<eof>" or match))
+				end
 
 				return ret;
 			end
 		end
 	end
 	
-	assert(false, tokenError(pos, "unexpected symbol: " .. str:sub(pos,pos)));
+	tokenError(pos, "unexpected symbol: " .. str:sub(pos,pos))
 end
 
 local function resolveID(token)
 	if token.type == "identifier" and not token.func then
-		token.var = assert(variables[token.value], tokenError(token, "undefined variable: " .. token.value));
+		token.var = variables[token.value]
+		if not token.var then tokenError(token, "undefined variable: " .. token.value) end
 
 		if token.var.scope == "constant" then
 			token.type = token.var.type;
@@ -113,20 +128,22 @@ end
 
 local function typecheck(left, op, right)
 	local typeLeft, typeRight = resolveType(left), resolveType(right);
-	assert(typeLeft == typeRight, tokenError(left, op, right, string.format("trying to %s different types: %s and %s", op.op.name, typeLeft, typeRight)));
+	if typeLeft ~= typeRight then
+		tokenError(left, op, right, string.format("trying to %s different types: %s and %s", op.op.name, typeLeft, typeRight))
+	end
 end
 
 local function consumeTokensWorker(node)
 	if #node.tokens == 0 then
-		assert(node.func, tokenError(node, "invalid empty parenthesis"));
+		if not node.func then tokenError(node, "invalid empty parenthesis") end
 		return;
 	elseif #node.tokens == 1 then
-		table.insert(node.args, resolveID(node.tokens[1]));
+		node.args[#node.args+1] = resolveID(node.tokens[1])
 		node.tokens = {};
 		return;
 	end
 
-	assert(#node.tokens % 2 == 1, "BUG REPORT: invalid expression");
+	if #node.tokens % 2 ~= 1 then error_lexer("BUG REPORT: invalid expression") end
 
 	for k, token in ipairs (node.tokens) do
 		node.tokens[k] = resolveID(token);
@@ -144,11 +161,11 @@ local function consumeTokensWorker(node)
 				
 				if type == "op_set" then
 					if not left.args then
-						assert(false, "You can't assign values to constants: " .. left.var.name);
+						tokenError(left, "You can't assign values to constants");
 					end
 					local var = left.args[1].var;
 					local ttype = var.type == "vector" and "vec2" or var.type
-					assert(not var.label, "you can't assign values to labels");
+					if var.label then tokenError(left, "You can't assign values to labels") end
 					local new = newNode(left.pos, node, string.format("%s.%s.set", var.scope, ttype));
 
 					if op.value ~= "=" then
@@ -233,9 +250,15 @@ local function consumeTokensWorker(node)
 						else
 							if type == "op_mod" then
 								local types = {int = 1, double = 1, vector = 1};
-								assert(types[typeLeft], tokenError(left, "arithmetic cannot be performed on a " .. typeLeft));
-								assert(types[typeRight], tokenError(right, "arithmetic cannot be performed on a " .. typeRight));
-								assert(op.value ~= "%" or typeLeft ~= "vector", tokenError(op, "vector doesn't support modulus"));
+								if not types[typeLeft] then
+									tokenError(left, "arithmetic cannot be performed on a " .. typeLeft)
+								end
+								if not types[typeRight] then
+									tokenError(right, "arithmetic cannot be performed on a " .. typeRight)
+								end
+								if op.value == "%" and typeLeft == "vector" then
+									tokenError(op, "vector doesn't support modulus")
+								end
 							end
 							
 							typecheck(left, op, right);
@@ -259,8 +282,8 @@ local function consumeTokensWorker(node)
 		end
 	end
 
-	assert(#node.tokens == 1, "invalid expression");
-	table.insert(node.args, node.tokens[1]);
+	if #node.tokens ~= 1 then error_lexer("invalid expression") end
+	node.args[#node.args+1] = node.tokens[1]
 	node.tokens = {};
 end
 
@@ -272,14 +295,20 @@ local function consumeTokens(node)
 	if last and node.func then
 		local type = resolveType(last);
 		local expected = node.func.args[arg];
-		assert(expected, tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, arg)));
+		if not expected then
+			tokenError(node, last, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, arg))
+		end
 
 		if not dynamicFunc[node.func.name] then
-			assert(type == expected.type or (type == "string" and expected.type:match"^op"), tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type)));
+			if type ~= expected.type and (type ~= "string" or not expected.type:match"^op") then
+				tokenError(node, last, string.format("bad argument #%s to %s (%s expected, got %s)", arg, node.func.short, expected.type, type))
+			end
 
 			if expected.valid and (last.type == "number" or last.type == "string") then
 				local status, err = expected.valid(last.value);
-				assert(status, tokenError(node, last, string.format("bad argument #%s to %s\n\n%s", arg, node.func.short, err)));
+				if not status then
+					tokenError(node, last, string.format("bad argument #%s to %s\n\n%s", arg, node.func.short, err))
+				end
 			end
 		end
 	end
@@ -291,7 +320,8 @@ function lexer(line, vars)
 	local pos = 1;
 
 	node = newNode();
-	line = string.format("\1%s\2", assert(line, "no input"));
+	if not line then error_lexer("no input") end
+	line = string.format("\1%s\2", line);
 	
 	current_line = line;
 	variables = vars;
@@ -305,7 +335,7 @@ function lexer(line, vars)
 			-- print (token.type, token.value);
 
 			if token.type == "close" then
-				assert(node.parent, "unmatched parenthesis");
+				if not node.parent then tokenError(token, "unmatched parenthesis") end
 				consumeTokens(node);
 				
 				if node.args and #node.args == 1 and not node.func then
@@ -315,7 +345,9 @@ function lexer(line, vars)
 				end
 				
 				if node.func then
-					assert(#node.args == #node.func.args, tokenError(node, token, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, #node.args)));
+					if #node.args ~= #node.func.args then
+						tokenError(node, token, string.format("function %s expects %s arguments, got %s", node.func.short, #node.func.args, #node.args))
+					end
 
 					if node.func.name == "clickrel" then
 						for k, arg in ipairs (node.args) do
@@ -331,20 +363,30 @@ function lexer(line, vars)
 					elseif dynamicFunc[node.func.name] then
 						if node.func.short == "if" then
 							local arg1 = resolveType(node.args[1]);
-							assert(arg1 == "bool", tokenError(node, node.args[1], string.format("bad argument #1 to %s (bool expected, got %s)", node.func.short, arg1)));
+							if arg1 ~= "bool" then
+								tokenError(node, node.args[1], string.format("bad argument #1 to %s (bool expected, got %s)", node.func.short, arg1))
+							end
 							local arg2 = resolveType(node.args[2]);
 							local arg3 = resolveType(node.args[3]);
 							local func = FUNCTION["ternary." .. arg2];
-							assert(func, tokenError(node, node.args[2], string.format("bad argument #2 to %s (int, double, string or vector expected, got %s", node.func.short, arg2)));
-							assert(arg3 == arg2, tokenError(node, node.args[3], string.format("bad argument #3 to %s (%s expected, got %s)", node.func.short, arg2, arg3)));
+							if not func then
+								tokenError(node, node.args[2], string.format("bad argument #2 to %s (int, double, string or vector expected, got %s", node.func.short, arg2))
+							end
+							if arg3 ~= arg2 then
+								tokenError(node, node.args[3], string.format("bad argument #3 to %s (%s expected, got %s)", node.func.short, arg2, arg3))
+							end
 							node.func = func;
 						else
 							local arg = resolveType(node.args[1]);
-							assert(arg == "int" or arg == "double", tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg)));
+							if arg ~= "int" and arg ~= "double" then
+								tokenError(node, node.args[1], string.format("bad argument #1 to %s (int or double expected, got %s)", node.func.short, arg))
+							end
 
 							for i = 2, #node.args do
 								local type = resolveType(node.args[i]);
-								assert(type == arg, tokenError(node, node.args[i], string.format("bad argument #%s to %s (%s expected, got %s)", i, node.func.short, arg, type)));
+								if type ~= arg then
+									tokenError(node, node.args[i], string.format("bad argument #%s to %s (%s expected, got %s)", i, node.func.short, arg, type))
+								end
 							end
 
 							local name = string.format("%s.%s", arg, node.func.name);
@@ -359,12 +401,15 @@ function lexer(line, vars)
 				local func = last and last.type == "identifier" and last.value or table.insert(node.tokens, last);
 				
 				if func then
-					func = assert(FUNCTION[func], tokenError(last, "trying to call a non-function: " .. func));
+					if not FUNCTION[func] then
+						tokenError(last, "trying to call a non-function: " .. func)
+					end
+					func = FUNCTION[func]
 				end
 				
 				node = newNode(func and last.pos or token.pos, node, func);
 			elseif token.type == "next" then
-				assert(node.func, tokenError(token, "unexpected symbol: " .. token.value));
+				if not node.func then tokenError(token, "unexpected symbol: " .. token.value) end
 				consumeTokens(node);
 			elseif token.type == "eof" then
 				consumeTokens(node);
@@ -373,7 +418,9 @@ function lexer(line, vars)
 				local arg = node.func and node.func.args[#node.args + 1];
 
 				if token.type == "operator" and token.op.type == "op_set" then
-					assert(not node.parent and #node.tokens == 2 and node.tokens[1].type == "identifier", tokenError(token, "unexpected symbol: " .. token.value));
+					if node.parent or #node.tokens ~= 2 or node.tokens[1].type ~= "identifier" then
+						tokenError(token, "unexpected symbol: " .. token.value);
+					end
 				end
 			end
 			
@@ -381,13 +428,15 @@ function lexer(line, vars)
 		end
 	end
 
-	assert(not node.parent, "unmatched parenthesis");
+	if node.parent then error_lexer("unmatched parenthesis") end
 
 	node = node.args[1];
 
 	if node then
 		local ret = node.func and node.func.ret;
-		assert(ret == "impulse" or ret == "bool" or ret == "void", "lines must return impulse, bool or nothing");
+		if ret ~= "impulse" and ret ~= "bool" and ret ~= "void" then
+			error_lexer("lines must return impulse, bool or nothing")
+		end
 
 		return node, debug;
 	end
