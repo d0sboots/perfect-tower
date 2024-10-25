@@ -37,7 +37,7 @@ local function nextToken(str, pos, prev)
 	
 	for _, token in ipairs (TOKEN) do
 		if token.pattern then
-			local match = str:sub(pos):match(token.pattern);
+			local match = str:match(token.pattern, pos);
 
 			if match then
 				if token.alias then
@@ -133,14 +133,14 @@ local function consumeTokensWorker(node)
 	end
 	
 	for i = 1, OPERATOR.__max do
-		local j = 1;
+		local j, k = 1, 1;
 		
 		while j+2 <= #node.tokens do
 			local left, op, right = node.tokens[j+0], node.tokens[j+1], node.tokens[j+2];
 			local type = op.op.type;
 
 			if op.op.order == i then
-				table.remove(node.tokens, j); table.remove(node.tokens, j); table.remove(node.tokens, j);
+				j = j + 2
 				
 				if type == "op_set" then
 					if not left.args then
@@ -170,7 +170,7 @@ local function consumeTokensWorker(node)
 					
 					typecheck(left.args[1], op, right);
 					new.args = {left.args[1], right};
-					table.insert(node.tokens, j, new);
+					node.tokens[j] = new;
 				else
 					local const = false;
 					
@@ -199,7 +199,7 @@ local function consumeTokensWorker(node)
 								left.value = -left.value;
 							end
 							left.type = op.value == "." and "string" or "number";
-							table.insert(node.tokens, j, left);
+							node.tokens[j] = left;
 						end
 					end
 					
@@ -222,13 +222,13 @@ local function consumeTokensWorker(node)
 							typecheck(left, op, right);
 
 							if left.type == "string" and left.value == "" then
-								table.insert(node.tokens, j, right);
+								node.tokens[j] = right;
 							elseif right.type == "string" and right.value == "" then
-								table.insert(node.tokens, j, left);
+								node.tokens[j] = left;
 							else
 								local new = newNode(left.pos, node, "concat");
 								new.args = {left, right};
-								table.insert(node.tokens, j, new);
+								node.tokens[j] = new;
 							end
 						else
 							if type == "op_mod" then
@@ -241,13 +241,21 @@ local function consumeTokensWorker(node)
 							typecheck(left, op, right);
 							local new = newNode(left.pos, node, (type == "op_mod" and "arithmetic." or "comparison.") .. resolveTypeOp(left));
 							new.args = {left, op, right};
-							table.insert(node.tokens, j, new);
+							node.tokens[j] = new;
 						end
 					end
 				end
 			else
-				j = j + 2;
+				node.tokens[k] = node.tokens[j]
+				node.tokens[k+1] = node.tokens[j+1]
+				j = j + 2
+				k = k + 2
 			end
+		end
+		node.tokens[k] = node.tokens[j]
+		while k < j do
+			k = k + 1
+			node.tokens[k] = nil
 		end
 	end
 
