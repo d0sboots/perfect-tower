@@ -548,7 +548,11 @@ function import(input)
   end
 
   local function stripParens(text)
-    return tostring(text):gsub("^%b()", function(a) return a:sub(2,-2) end)
+    text = tostring(text)
+    if text:byte() == 40 and text:byte(-1) == 41 then  -- "(" + ")"
+      text = text:sub(2, -2)
+    end
+    return text
   end
 
   local function parse()
@@ -558,15 +562,15 @@ function import(input)
       local type = read"b"
 
       if type == 1 then
-        return string.format("%s", read"b" == 1 and "true" or "false")
+        return read"b" == 1 and "true" or "false"
       elseif type == 2 then
-        return string.format("%s", read"i4")
+        return tostring(read"i4")
       elseif type == 3 then
         local val = read"d"
         if val == 1/0 then return "(1./0.)" end
         if val == -1/0 then return "(-1./0.)" end
         if val ~= val then return "(0./0.)" end
-        return string.format("%s", val)
+        return tostring(val)
       elseif type == 4 then
         local pos, len = 0, 0
 
@@ -579,10 +583,10 @@ function import(input)
         local str = read("c" .. len)
         local sq, dq = str:match"'", str:match'"'
 
-        if sq and not dq then
-          return string.format('"%s"', str)
+        if not dq then
+          return '"' .. str .. '"'
         elseif dq and not sq then
-          return string.format("'%s'", str)
+          return "'" .. str .. "'"
         end
 
         str = string.format('"%s"', str:gsub('"', [[" . '"' . "]])):gsub('"" %.', ""):gsub('%. ""', "")
@@ -598,11 +602,11 @@ function import(input)
       local dynamicOperator = false
 
       for i, arg in ipairs (func.args) do
-        table.insert(args, parse())
+        args[#args+1] = parse()
 
         if arg.type:match"^op_" then
           dynamicOperator = true
-          if args[i]:match'^".*"$' then
+          if args[i]:byte() == 34 then  -- '"'
             local transformed = args[i]:sub(2, -2)
             :gsub("^=$", "==")
             :gsub("mod", "%%")
@@ -619,7 +623,7 @@ function import(input)
 
       local scope, type, func_name = func.name:match"(%a+)%.(%w+)%.(%a+)"
 
-      if (scope == "global" or scope == "local") and args[1]:match'^"' then
+      if (scope == "global" or scope == "local") and args[1]:byte() == 34 then
         local var = args[1]:sub(2,-2)
 
         if var == var:match(TOKEN.identifier.pattern) then
@@ -633,7 +637,7 @@ function import(input)
 
           return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var
         end
-      elseif not dynamicOperator and (func.name:match"^arithmetic" or func.name:match"^comparison") then
+      elseif not dynamicOperator and (func.name:sub(1,10) == "arithmetic" or func.name:sub(1,10) == "comparison") then
         return string.format("(%s)", table.concat(args, " "))
       elseif func.name == "concat" then
         return string.format("(%s . %s)", table.unpack(args))
@@ -658,9 +662,7 @@ function import(input)
 
   local function ins(val)
     local text = stripParens(val)
-    table.insert(ret, text)
-
-    return val
+    ret[#ret+1] = text
   end
 
   local name = read"s1"
@@ -670,10 +672,6 @@ function import(input)
     assert(sz >= 0, string.format("Bad import: Section %d had negative count %d", i, sz))
     for j = 1, sz do
       ins(parse())
-
-      if i == 3 then
-        ins(table.remove(ret))
-      end
     end
 
     ins""
