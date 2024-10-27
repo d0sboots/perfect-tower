@@ -197,6 +197,26 @@ local function is_empty(line)
   return line:find("^%s*$") or line:find("^%s*;.*$")
 end
 
+local json_escape_table = {["\\"]=[[\\]], ['"']=[[\"]]}
+for i = 0, 31 do
+  json_escape_table[string.char(i)] = string.format([[\u%04x]], i)
+end
+json_escape_table["\b"] = [[\b]]
+json_escape_table["\f"] = [[\f]]
+json_escape_table["\n"] = [[\n]]
+json_escape_table["\r"] = [[\r]]
+json_escape_table["\t"] = [[\t]]
+
+local line_encode_table = {}
+local utf_decode_table = {}
+for k, v in pairs(json_escape_table) do
+  line_encode_table[k] = v
+end
+for i = 0x80, 0xff do
+  line_encode_table[string.char(i)] = utf8.char(i)
+  utf_decode_table[utf8.char(i)] = string.char(i)
+end
+
 -- importFunc takes a string (filename) and returns a pair of (status, string)
 -- (the content of the imported file on success, an error message on failure).
 function compile(name, input, options, importFunc)
@@ -434,24 +454,6 @@ function compile(name, input, options, importFunc)
     end
   end
 
-  local json_escape_table = {["\\"]=[[\\]], ['"']=[[\"]]}
-  for i = 0, 31 do
-    json_escape_table[string.char(i)] = string.format([[\u%04x]], i)
-  end
-  json_escape_table["\b"] = [[\b]]
-  json_escape_table["\f"] = [[\f]]
-  json_escape_table["\n"] = [[\n]]
-  json_escape_table["\r"] = [[\r]]
-  json_escape_table["\t"] = [[\t]]
-
-  local line_encode_table = {}
-  for k, v in pairs(json_escape_table) do
-    line_encode_table[k] = v
-  end
-  for i = 0x80, 0xff do
-    line_encode_table[string.char(i)] = utf8.char(i)
-  end
-
   local gsub = string.gsub
   local function json_encode(node)
     local current_pos = #ret
@@ -535,10 +537,11 @@ function compile(name, input, options, importFunc)
 end
 
 function import(input)
-  local data = base64.decode(input)
+  local data
   local pos = 1
 
   local variables = {}
+  local num_vars = 0
   local ret = {}
 
   local function read(frmt)
@@ -632,7 +635,8 @@ function import(input)
           end
           if not variables[var] then
             local key = string.format(":%s %s %s", scope, type, var)
-            variables[key] = true
+            variables[var] = key
+            num_vars = num_vars + 1
           end
 
           return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var
@@ -665,26 +669,81 @@ function import(input)
     ret[#ret+1] = text
   end
 
-  local name = read"s1"
+  local function oldFormat()
+    data = base64.decode(input)
+    local name = read"s1"
 
-  for i = 1, 3 do
-    local sz = read"I4"
-    assert(sz >= 0, string.format("Bad import: Section %d had negative count %d", i, sz))
-    for j = 1, sz do
-      ins(parse())
+    for i = 1, 3 do
+      local sz = read"I4"
+      assert(sz >= 0, string.format("Bad import: Section %d had negative count %d", i, sz))
+      for j = 1, sz do
+        ins(parse())
+      end
+
+      ins""
     end
 
+    assert(pos - 1 == #data, string.format("Bad import: Extra characters after parsing from %d-%d (%s)", pos - 1, #data, string.sub(data, pos)))
+
+    table.insert(ret, 1, "")
+
+    for _, var in pairs (variables) do
+      table.insert(ret, 1, var)
+    end
+
+    return name
+  end
+
+  local function modernFormat()
+    local script_name = input.name
+    local package_name = input.package
+    -- Split packages make our life harder. We need to prefix the script with ":" if it contains a
+    -- ":" but otherwise has no package. Note that if the *package* contains a ":", this will be
+    -- lost in translation.
+    local name = (package_name and package_name ~= "") and
+      (package_name .. ":" .. script_name) or
+      (script_name:find(":", 1, true) and ":" or "") .. script_name
+
+    ret[1] = ":name " .. name
+    if input.budget then
+      ret[2] = ":budget_cap " .. string.format("%d", input.budget)
+    end
     ins""
+    local variable_slot = #ret
+
+    for i, tbl in ipairs({input.impulses, input.conditions, input.actions}) do
+      for _, line in ipairs(tbl) do
+        if i == 1 then
+          ins(line .. "()")  -- Impulses are straight ASCII
+        else
+          -- High-bit chars are UTF8-encoded, have to undo that
+          data = line:gsub("[\xC2\xC3].", utf_decode_table)
+          pos = 1
+          ins(parse())
+          if pos - 1 ~= #data then
+            error(string.format("Bad import: Extra characters after parsing from %d-%d (%s)", pos - 1, #data, string.sub(data, pos)))
+          end
+        end
+      end
+
+      ins""
+    end
+
+    local shift_amount = num_vars + 1
+    for i = #ret, variable_slot, -1 do
+      ret[i + shift_amount] = ret[i]
+    end
+    ret[variable_slot] = ""
+
+    for _, var in pairs (variables) do
+      variable_slot = variable_slot + 1
+      ret[variable_slot] = var
+    end
+
+    return name
   end
 
-  assert(pos - 1 == #data, string.format("Bad import: Extra characters after parsing from %d-%d (%s)", pos - 1, #data, string.sub(data, pos)))
-
-  table.insert(ret, 1, "")
-
-  for var in pairs (variables) do
-    table.insert(ret, 1, var)
-  end
-
+  local name = type(input) == "string" and oldFormat() or modernFormat()
   table.remove(ret)
   ret = table.concat(ret, "\n"):gsub("\n\n+", "\n\n"):gsub("^\n", ""):gsub("\n$", "")
   return {name, ret}
