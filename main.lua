@@ -841,6 +841,51 @@ function unittest()
     craft("producer.constructionFirm", 1, 1.)
   ]], "Dmxvd2VyY2FzZV90ZXN0AAAAAAAAAAACAAAAD3NvZnR3YXJlLnRvZ2dsZQhjb25zdGFudAQZc29mdHdhcmUuY3JpdGljYWxXYXZlanVtcAhjb25zdGFudAEBDWZhY3RvcnkuY3JhZnQIY29uc3RhbnQEGXByb2R1Y2VyLmNvbnN0cnVjdGlvbkZpcm0IY29uc3RhbnQCAQAAAAhjb25zdGFudAMAAAAAAADwPw=="},
   }
+  local new_import_tests = {
+    default_default = {{actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
+    default_0 = {{budget=0, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
+    default_1 = {{budget=1, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+:budget_cap 1
+:use_budget default
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":1}]]},
+    false_default = {{useBudget=false, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
+    false_0 = {{useBudget=false, budget=0, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
+    false_1 = {{useBudget=false, budget=1, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+:budget_cap 1
+:use_budget false
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":1,"useBudget":false}]]},
+    true_default = {{useBudget=true, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+:use_budget true
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","useBudget":true}]]},
+    true_0 = {{useBudget=true, budget=0, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+:budget_cap 0
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":0,"useBudget":true}]]},
+    true_1 = {{useBudget=true, budget=1, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+:budget_cap 1
+]], [[
+{"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":1,"useBudget":true}]]},
+  }
 
   local status, ret
 
@@ -852,22 +897,31 @@ function unittest()
     return false, (name .. " not found")
   end
   for k, v in pairs(compile_tests) do
-    status, ret = pcall(compile, k, v[1], importFunc)
+    status, ret = pcall(compile, k, v[1], {format="v0"}, importFunc)
     assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number, ret))
     assert(ret.code == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret.code))
+  end
+  for k, v in pairs(new_import_tests) do
+    status, ret = pcall(import, v[1])
+    assert(status, string.format("Failed to import unit test %s\n\n%s", k, ret))
+    assert(ret[2] == v[2], string.format("Unit test %s import failure! Expected:\n%s\nActual:\n%s", k, v[2], ret[2]))
+
+    status, ret = pcall(compile, ret[1], ret[2], {format="v2"}, importFunc)
+    assert(status, string.format("Failed to compile unit test %s\n\n%s", k, ret))
+    assert(ret.code == v[3], string.format("Unit test %s compile failure! Expected:\n%s\nActual:\n%s", k, v[3], ret.code))
   end
   for k, v in ipairs (import_tests) do
     status, ret = pcall(import, v)
     assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret))
 
-    status, ret = pcall(compile, ret[1], ret[2], importFunc)
+    status, ret = pcall(compile, ret[1], ret[2], {format="v0"}, importFunc)
     assert(status, string.format("Failed to compile unit test #%s\n\n%s", k, ret))
 
     v = ret.code
     status, ret = pcall(import, v)
     assert(status, string.format("Failed to re-import unit test #%s\n\n%s", k, ret))
 
-    status, ret = pcall(compile, ret[1], ret[2], nil)
+    status, ret = pcall(compile, ret[1], ret[2], {format="v0"}, nil)
     assert(status, string.format("Failed to re-compile unit test #%s\n\n%s", k, ret))
     assert(ret.code == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret.code, base64.decode(v), base64.decode(ret.code)))
   end
