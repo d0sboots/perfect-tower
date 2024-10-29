@@ -201,14 +201,23 @@ You've already seen the most important directives: `:local`, `:global` and
 `:const`. All directives start with colon:
 
 `:budget_cap <value>` sets the budget cap for the script. The special value
-"none" means no cap, i.e. actions will execute as fast as they can, limited
-only by upgrades in the HQ. 0 means the old one-line-per-frame execution style,
-1 acts like the old "atomic functions," and higher indicates how many expensive
-functions can be run before execution moves on to the next script (if any).
+"max" means to set a very large value, i.e. actions will execute as fast as
+they can, limited only by upgrades in the HQ. 0 means the old one-line-per-frame
+execution style, 1 acts like the old "atomic functions," and higher indicates
+how many expensive functions can be run before execution moves on to the next
+script (if any).
 
 If this directive is *not* set, then (for compatibility reasons) no budget will
 be set in the exported script, which means a default of 0 (the old
 one-line-per-frame behavior).
+
+`:use_budget [true/false/default]` sets the "use budget" checkbox. You usually
+don't need this directive, since setting a :budget_cap will automatically
+enable this, and if you leave off :budget_cap then this will also be ommitted,
+giving the default behavior of unset. You can use this to be explicit, or to
+unset the checkbox while still setting a value with :budget_cap. `:use_budget
+default` means to explicitly *not* set a value for the checkbox, and is mostly
+useful for testing the editor.
 
 `:name <name>` sets the export name for the current script. By default, the
 name comes from whatever it is called in the left sidebar, but this can be

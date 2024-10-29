@@ -221,7 +221,7 @@ end
 -- (the content of the imported file on success, an error message on failure).
 function compile(name, input, options, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
-  local budget = nil
+  local budget, use_budget
   local env = clone_global()
   local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
   local ret = {}
@@ -321,14 +321,18 @@ function compile(name, input, options, importFunc)
           compile_file = name
         elseif token == "budget_cap" then
           local cost = line:match("^:budget_cap +(.+)")
-          if cost and cost ~= "none" then
+          if cost and cost ~= "max" then
             cost = math.tointeger(cost:match("^([0-9]+)$"))
             if cost then
               assert(cost < 2147483648, "budget_cap must fit in an integer (< 2^31), got " .. cost)
             end
           end
-          assert(cost, "budget_cap directive: :budget_cap [none/<non-negative integer>]")
+          assert(cost, "budget_cap directive: :budget_cap [max/<non-negative integer>]")
           budget = cost
+        elseif token == "use_budget" then
+          use_budget = line:match("^:use_budget +(.+)")
+          assert(use_budget == "true" or use_budget == "false" or use_budget == "default",
+            "use_budget directive: :use_budget [true/false/default]")
         else
           assert(false, "Unrecognized directive :" .. token)
         end
@@ -517,7 +521,12 @@ function compile(name, input, options, importFunc)
     if budget then
       ret[#ret+1] = [[,"budget":]]
       -- No quotes because budget is a number in the JSON
-      ret[#ret+1] = budget == "none" and "2147483647" or string.format("%d", budget)
+      ret[#ret+1] = budget == "max" and "999999999" or string.format("%d", budget)
+    end
+    if use_budget ~= "default" and (use_budget or budget) then
+      ret[#ret+1] = [[,"useBudget":]]
+      -- No quotes because useBudget is a boolean in the JSON
+      ret[#ret+1] = use_budget or "true"
     end
     ret[#ret+1] = [[}]]
 
@@ -705,8 +714,23 @@ function import(input)
       (script_name:find(":", 1, true) and ":" or "") .. script_name
 
     ret[1] = ":name " .. name
-    if input.budget then
-      ret[2] = ":budget_cap " .. string.format("%d", input.budget)
+    -- This complicated set of conditions supports the following goals:
+    -- If useBudget is false or missing *and* budget is 0 or missing, don't include any directives.
+    --   (This is the default/compatibility case for old scripts.)
+    --   The export will only match the import if both directives were missing, but this is deemed
+    --   acceptable, since we don't want to clutter scripts up with irrelevant junk for this common case.
+    --   The default values are false/0, so functionally it comes out the same.
+    -- If useBudget is true, we must include something. Generally it is the budget cap, but in the special case
+    --   of a missing budget, we set :use_budget instead so the export matches the import.
+    -- If budget is positive, we set the directives so the export will match the import.
+    if input.budget and (input.budget > 0 or input.useBudget) then
+      ret[#ret+1] = ":budget_cap " .. string.format("%d", input.budget)
+    end
+    if not input.useBudget and input.budget and input.budget > 0 then
+      ret[#ret+1] = ":use_budget " .. (input.useBudget == nil and "default" or "false")
+    end
+    if input.useBudget and input.budget == nil then
+      ret[#ret+1] = ":use_budget true"
     end
     ins""
     local variable_slot = #ret
