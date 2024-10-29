@@ -768,8 +768,7 @@ function import(input)
   end
 
   local name = type(input) == "string" and oldFormat() or modernFormat()
-  table.remove(ret)
-  ret = table.concat(ret, "\n"):gsub("\n\n+", "\n\n"):gsub("^\n", ""):gsub("\n$", "")
+  ret = table.concat(ret, "\n"):gsub("\n\n+", "\n\n"):gsub("^\n+", ""):gsub("\n+$", "")
   return {name, ret}
 end
 
@@ -843,48 +842,46 @@ function unittest()
   }
   local new_import_tests = {
     default_default = {{actions={}, conditions={}, impulses={}, name="test", package=""}, [[
-:name test
-]], [[
+:name test]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
     default_0 = {{budget=0, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
-:name test
-]], [[
+:name test]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
     default_1 = {{budget=1, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
 :name test
 :budget_cap 1
-:use_budget default
-]], [[
+:use_budget default]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":1}]]},
     false_default = {{useBudget=false, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
-:name test
-]], [[
+:name test]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
     false_0 = {{useBudget=false, budget=0, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
-:name test
-]], [[
+:name test]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":""}]]},
     false_1 = {{useBudget=false, budget=1, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
 :name test
 :budget_cap 1
-:use_budget false
-]], [[
+:use_budget false]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":1,"useBudget":false}]]},
     true_default = {{useBudget=true, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
 :name test
-:use_budget true
-]], [[
+:use_budget true]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","useBudget":true}]]},
     true_0 = {{useBudget=true, budget=0, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
 :name test
-:budget_cap 0
-]], [[
+:budget_cap 0]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":0,"useBudget":true}]]},
     true_1 = {{useBudget=true, budget=1, actions={}, conditions={}, impulses={}, name="test", package=""}, [[
 :name test
-:budget_cap 1
-]], [[
+:budget_cap 1]], [[
 {"actions":[],"conditions":[],"impulses":[],"name":"test","package":"","budget":1,"useBudget":true}]]},
+    high_bytes = {{actions={"\x11global.double.set\bconstant\x04\x03foo\bconstant\x03ÍÌÌÌÌÌô?"}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+
+:global double foo
+
+foo = 1.3]], [[
+{"actions":["\u0011global.double.set\bconstant\u0004\u0003foo\bconstant\u0003ÍÌÌÌÌÌô?"],"conditions":[],"impulses":[],"name":"test","package":""}]]},
   }
 
   local status, ret
