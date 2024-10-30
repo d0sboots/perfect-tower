@@ -35,10 +35,10 @@
             <fieldset style="display: flex; justify-content: space-between;">
                 <legend style="font: revert; margin: revert; padding: revert;">Export format type:</legend>
                 <label><input id="v2_format" type="radio" name="exportFormat" checked onchange="settingsChange()">
-                    Modern
+                    Experimental
                 </label>
                 <label><input id="v1_format" type="radio" name="exportFormat" onchange="settingsChange()">
-                    Old
+                    Current
                 </label>
                 <label><input id="v0_format" type="radio" name="exportFormat" onchange="settingsChange()">
                     Oldest (uncompressed)
@@ -165,7 +165,7 @@
         let scripts = [];
         let histories = [];
         let scriptCounter = 0;
-        let exportFormat = "v2";
+        let exportFormat = "v1";
 
         function compileScript() {
             runLua("compile",
