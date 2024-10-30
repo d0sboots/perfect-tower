@@ -107,8 +107,11 @@ local function parseMacro(text, macros, depth, env)
       local lua_text = arg_body:sub(2,-2)
       local chunk, err = load(lua_text, lua_text, "t", env)
       assert(chunk, err)
-      local result = chunk() or ""
-      return tostring(result)
+      local status, result = pcall(chunk)
+      if status then
+        return tostring(result or "")
+      end
+      error_lexer(result)
     end
     local args = {}
     local arg_count = 0
