@@ -191,6 +191,7 @@ void generic.stop(string:script) Generic
 void generic.wait(double:seconds) Generic
 void generic.waitwhile(bool) Generic
 void generic.waituntil(bool) Generic
+void generic.waitframe() Generic
 void generic.goto(int) Generic
 void generic.gotoif(int, bool) Generic
 void generic.click(vector) Generic
