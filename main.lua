@@ -322,12 +322,13 @@ function compile(name, input, options, importFunc)
         elseif token == "budget_cap" then
           local cost = line:match("^:budget_cap +(.+)")
           if cost and cost ~= "max" then
-            cost = math.tointeger(cost:match("^([0-9]+)$"))
+            cost = tonumber(cost)
             if cost then
-              assert(cost < 2147483648, "budget_cap must fit in an integer (< 2^31), got " .. cost)
+              assert(-2147483648 <= cost and cost < 2147483648,
+                "budget_cap must fit in an integer (-2^31 <= cost < 2^31), got " .. cost)
             end
           end
-          assert(cost, "budget_cap directive: :budget_cap [max/<non-negative integer>]")
+          assert(cost, "budget_cap directive: :budget_cap [max/<integer>]")
           budget = cost
         elseif token == "use_budget" then
           use_budget = line:match("^:use_budget +(.+)")
@@ -521,7 +522,7 @@ function compile(name, input, options, importFunc)
     if budget then
       ret[#ret+1] = [[,"budget":]]
       -- No quotes because budget is a number in the JSON
-      ret[#ret+1] = budget == "max" and "999999999" or string.format("%d", budget)
+      ret[#ret+1] = budget == "max" and "-1" or string.format("%d", budget)
     end
     if use_budget ~= "default" and (use_budget or budget) then
       ret[#ret+1] = [[,"useBudget":]]
@@ -723,10 +724,10 @@ function import(input)
     -- If useBudget is true, we must include something. Generally it is the budget cap, but in the special case
     --   of a missing budget, we set :use_budget instead so the export matches the import.
     -- If budget is positive, we set the directives so the export will match the import.
-    if input.budget and (input.budget > 0 or input.useBudget) then
-      ret[#ret+1] = ":budget_cap " .. string.format("%d", input.budget)
+    if input.budget and (input.budget ~= 0 or input.useBudget) then
+      ret[#ret+1] = ":budget_cap " .. (input.budget == -1 and "max" or string.format("%d", input.budget))
     end
-    if not input.useBudget and input.budget and input.budget > 0 then
+    if not input.useBudget and input.budget and input.budget ~= 0 then
       ret[#ret+1] = ":use_budget " .. (input.useBudget == nil and "default" or "false")
     end
     if input.useBudget and input.budget == nil then

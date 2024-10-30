@@ -201,11 +201,10 @@ You've already seen the most important directives: `:local`, `:global` and
 `:const`. All directives start with colon:
 
 `:budget_cap <value>` sets the budget cap for the script. The special value
-"max" means to set a very large value, i.e. actions will execute as fast as
-they can, limited only by upgrades in the HQ. 0 means the old one-line-per-frame
-execution style, 1 acts like the old "atomic functions," and higher indicates
-how many expensive functions can be run before execution moves on to the next
-script (if any).
+"max" means -1, which the game interprets as limited only by upgrades in the HQ.
+0 means the old one-line-per-frame execution style, 1 acts like the old
+"atomic functions," and higher indicate a cost budget that is used before
+execution moves on to the next script (if any). Most expensive functions cost 100.
 
 If this directive is *not* set, then (for compatibility reasons) no budget will
 be set in the exported script, which means a default of 0 (the old
