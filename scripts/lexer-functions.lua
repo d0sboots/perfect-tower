@@ -26,6 +26,7 @@ local strings = {
 	marketItem = {"eodArmor", "thornsArmor", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "bookSpells"},
 	entityType = {"Chest", "Bomb", "Rock", "Door", "Enemy", "Elite", "Mimic"},
 	spell = {"identifyRoom", "manaArmor"},
+	currency = {"gameTokens", "town.resources", "gems", "gems.exotic", "powerplant.resources", "mine.resources", "factory.resources", "headquarters.resources", "arcade.resources", "laboratory.resources", "shipyard.resources", "tradingpost.resources", "workshop.resources", "museum.resources", "constructionFirm.resources", "statueofcubos.resources", "halloween.pumpkins", "halloween.souls", "halloween.blood", "christmas.cookies", "christmas.presents", "christmas.reindeers.trained", "christmas.reindeers.milk", "christmas.reindeers.raw", "christmas.milk", "christmas.trees", "christmas.wrappings", "christmas.toys", "time.offline"},
 };
 
 for _, tbl in pairs (strings) do
@@ -85,6 +86,7 @@ VALIDATOR = {
 	marketItem = function(value) return stringValid("marketItem", value, "Market Items"); end,
 	entityType = function(value) return stringValid("entityType", value, "Adventure Entity Types"); end,
 	spell = function(value) return stringValid("spell", value, "Spells"); end,
+	currency = function(value) return stringValid("currency", value, "Resource Types"); end,
 };
 
 local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
@@ -252,6 +254,7 @@ bool game.pause.get() Game #pause.get#
 int game.enemies.count() Game #enemies#
 int game.module.active.index(string:moduleId) Game #active.index#
 int game.module.active.count() Game #active.count#
+double game.resource(string:currency[currency]) Game
 double game.wave() Game
 double game.era() Game
 double game.infinity() Game
@@ -268,6 +271,8 @@ void game.disable.era(string:element[elementAll]) Game #disable.era#
 void game.upgrade.era(string:divider[eraDivider], int:numTimes) Game #upgrade.era#
 void game.module.secure(string:moduleId) Game #disable.inf#
 void game.pause.set(bool:paused) Game #pause.set#
+void game.pause() Game
+void game.unpause() Game
 
 bool software.enabled(string:name[software]) Game #software.enabled#
 string game.softwareid.find(string:name) Game #software.find#
