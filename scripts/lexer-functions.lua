@@ -132,7 +132,7 @@ void <scope>.<typev>.set(string:variable, <typefull>) {Primitive void [g/l][b/i/
 void global.unset(string:variable) #gu# {Primitive void gu(string:variable)   ;global.unset}
 void local.unset(string:variable) #lu# {Primitive void lu(string:variable)   ;local.unset}
 bool comparison.<typeext>(<typeext>, op_comp, <typeext>) {Primitive bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison}
-<typefull> arithmetic.<numv>(<typefull>, op_mod, <typefull>) {Primitive type a.[d/s/v](type:lhs, op_mod, type:rhs)   ;arithmetic}
+<typefull> arithmetic.<numv>(<typefull>, op_mod, <typefull>) {Primitive type a.[i/d/v](type:lhs, op_mod, type:rhs)   ;arithmetic}
 
 bool string.contains(string:str, string:substr) String
 int string.length(string) String #len#
