@@ -282,8 +282,8 @@ function compile(name, input, options, importFunc)
         local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
         if token == "const" then
           local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$")
-          assert(type, "constant definition: const [int/double/string/bool] name value")
-          assert(type == "int" or type == "double" or type == "string" or type == "bool", "constant types are 'int', 'double', 'string' and 'bool'")
+          assert(type, "constant definition: const [int/fouble/string/bool/vector] name value")
+          assert(({bool=true, int=true, double=true, string=true, vector=true})[type], "constant types are 'int', 'double', 'string', 'bool', and 'vector'")
           if (type == "int" or type == "double") then
             assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value)
             value = tonumber(value)
@@ -298,6 +298,14 @@ function compile(name, input, options, importFunc)
             value = value:match"^%b''$" or value:match'^%b""$'
             assert(value, "strings must be enclosed in either single quotes or double quotes")
             value = value:sub(2,-2)
+          elseif type == "vector" then
+            local matches = table.pack(value:match"^vec%((.+),(.+)%)$")
+            assert(matches.n > 1, "vector constants must use vec(x, y) syntax")
+            local x = tonumber(matches[1])
+            assert(x, "Can't convert '" .. matches[1] .. "' to a number")
+            local y = tonumber(matches[2])
+            assert(y, "Can't convert '" .. matches[2] .. "' to a number")
+            value = {x = x, y = y}
           end
           assert(not variables[name], "variable/label/constant already exists: " .. name)
           variables[name] = {name = name, scope = "constant", type = type, value = value}
@@ -313,7 +321,7 @@ function compile(name, input, options, importFunc)
           line_number = saved_lineno
         elseif token == "global" or token == "local" then
           local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) +(%a+) +" .. TOKEN.identifier.patternAnywhere .."$")
-          assert(scope, "variable definition: [global/local/const] [bool/int/double/string/vector] name")
+          assert(scope, "variable definition: [global/local] [bool/int/double/string/vector] name")
 
           assert(({bool=true, int=true, double=true, string=true, vector=true})[type], "variable types are 'bool', 'int', 'double', 'string', and 'vector'")
           assert(not variables[name], "variable/label already exists: " .. name)
@@ -442,8 +450,8 @@ function compile(name, input, options, importFunc)
         ret[#ret+1] = node.value
       elseif node.type == "vector" then
         ins("b", 5)
-        ins("f", node.x)
-        ins("f", node.y)
+        ins("f", node.value.x)
+        ins("f", node.value.y)
       elseif node.type == "operator" then
         ins("b", 4)
 
@@ -810,6 +818,7 @@ function unittest()
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0CGNvbnN0YW50AwAAAAAAAPD/",
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0CGNvbnN0YW50AwAAAAAAAPj/",
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0EWFyaXRobWV0aWMuZG91YmxlCGNvbnN0YW50AwAAAAAAAAAACGNvbnN0YW50BAR0ZXN0CGNvbnN0YW50AwAAAAAAAAAA",
+"BHRlc3QAAAAAAAAAAAEAAAAObG9jYWwudmVjMi5zZXQIY29uc3RhbnQEA2Jhcghjb25zdGFudAUAAIBAAACAPw==",
   }
   local compile_tests = {macro_test = {[[
     ; Basic test of macros and macro functions
@@ -886,6 +895,13 @@ function unittest()
 
 foo = 1.3]], [[
 {"actions":["\u0011global.double.set\bconstant\u0004\u0003foo\bconstant\u0003ÍÌÌÌÌÌô?"],"conditions":[],"impulses":[],"name":"test","package":""}]]},
+    constant_vector = {{actions={"\x0elocal.vec2.set\bconstant\x04\x03bar\bconstant\x05\0\0\x80?\0\0\0@"}, conditions={}, impulses={}, name="test", package=""}, [[
+:name test
+
+:local vector bar
+
+bar = vec(1.0, 2.0)]], [[
+{"actions":["\u000elocal.vec2.set\bconstant\u0004\u0003bar\bconstant\u0005\u0000\u0000?\u0000\u0000\u0000@"],"conditions":[],"impulses":[],"name":"test","package":""}]]},
   }
 
   local status, ret

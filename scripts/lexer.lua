@@ -360,6 +360,18 @@ function lexer(line, vars)
 						new.args = node.args;
 						node.args = {new};
 						node.func = FUNCTION.click;
+
+					elseif node.func.short == "vec" then
+						-- Represent as a constant if both values are constant
+						local x = node.args[1]
+						local y = node.args[2]
+						if not x.func and x.type == "number" and not y.func and y.type == "number" then
+							assert(x.value, "x.value")
+							assert(y.value, "y.value")
+							node.value = {x = x.value, y = y.value}
+							node.type = "vector"
+							node.func = nil
+						end
 					elseif dynamicFunc[node.func.name] then
 						if node.func.short == "if" then
 							local arg1 = resolveType(node.args[1]);
