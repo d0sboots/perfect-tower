@@ -282,7 +282,7 @@ function compile(name, input, options, importFunc)
         local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
         if token == "const" then
           local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$")
-          assert(type, "constant definition: const [int/fouble/string/bool/vector] name value")
+          assert(type, "constant definition: const [int/double/string/bool/vector] name value")
           assert(({bool=true, int=true, double=true, string=true, vector=true})[type], "constant types are 'int', 'double', 'string', 'bool', and 'vector'")
           if (type == "int" or type == "double") then
             assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value)
