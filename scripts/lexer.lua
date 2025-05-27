@@ -382,7 +382,7 @@ function lexer(line, vars)
 							local arg3 = resolveType(node.args[3]);
 							local func = FUNCTION["ternary." .. arg2];
 							if not func then
-								tokenError(node, node.args[2], string.format("bad argument #2 to %s (int, double, string or vector expected, got %s", node.func.short, arg2))
+								tokenError(node, node.args[2], string.format("bad argument #2 to %s (int, double, string or vector expected, got %s)", node.func.short, arg2))
 							end
 							if arg3 ~= arg2 then
 								tokenError(node, node.args[3], string.format("bad argument #3 to %s (%s expected, got %s)", node.func.short, arg2, arg3))
