@@ -5,17 +5,8 @@ local strings = {
 	window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
 	software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds","software.eratunneling", "software.wavebreach", "software.wavefloor", "software.erafloor", "software.erahorizon", "software.waverestart", "software.infinityhorizon"},
 
-	comp_bool = {"==", "!=", "&&", "||"},
-	comp_int = {"==", "!=", ">", ">=", "<", "<="},
-	comp_double = {"==", "!=", ">", ">=", "<", "<="},
-	comp_string = {"==", "!="},
-
-	arith_int = {"+", "-", "*", "/", "mod", "pow", "log"},
-	arith_double = {"+", "-", "*", "/", "mod", "pow", "log"},
-	arith_vec2 = {"+", "-", "*", "/"},
-
 -- item list only needs to include uncraftable items not used to produce
-	item = {"plate.rubber", "plate.rainbow", "essence.void", "circuit", "wire", "screw", "pipe", "ring", "block.dense", "plate.dense", "plate.circuit", "pumpkin.plate", "pumpkin.carved", "pumpkin.anti"},
+	item = {"plate.rubber", "plate.rainbow", "essence.void", "circuit", "wire", "screw", "pipe", "ring", "block.dense", "plate.dense", "plate.circuit", "pumpkin.plate", "pumpkin.carved", "pumpkin.anti"};
 	craft = {"chip.basic", "chip.advanced", "chip.hitech", "chip.nano", "chip.quantum", "chip", "hammer", "sapling.rubber", "sapling.void", "dust.rainbow", "cable.insulated", "plate", "motor", "pump", "block", "plate.stack", "lump", "producer.town", "producer.statueofcubos", "producer.workshop", "producer.shipyard", "producer.laboratory", "producer.constructionFirm", "producer.mine", "producer.powerplant", "producer.arcade", "producer.headquarters", "producer.tradingpost", "producer.museum", "producer.factory", "producer.exoticgems", "producer.gems", "booster.acceleration", "booster.machines", "booster.production.regular", "booster.resource.drops", "booster.trees", "pumpkin.stack", "pumpkin.producer", "machine.oven", "machine.assembler", "machine.refinery", "machine.crusher", "machine.cutter", "machine.presser", "machine.mixer", "machine.transportbelt", "machine.shaper", "machine.boiler"},
 	produce = {"rubber", "dust.rainbow", "ingot.rainbow", "cable", "ore", "dust", "ingot", "plate", "block", "plate.stack", "rod", "lump", "pumpkin", "pumpkin.stack"},
 	machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
@@ -67,15 +58,6 @@ VALIDATOR = {
 	window = function(value) return stringValid("window", value, "Windows"); end,
 	software = function(value) return stringValid("software", value, "Software"); end,
 
-	comp_bool   = function(value) return stringValid("comp_bool", value, "Boolean comparison"); end,
-	comp_int    = function(value) return stringValid("comp_int", value, "Int comparison"); end,
-	comp_double = function(value) return stringValid("comp_double", value, "Double comparison"); end,
-	comp_string = function(value) return stringValid("comp_string", value, "String comparison"); end,
-
-	arith_int    = function(value) return stringValid("arith_int", value, "Int arithmetic"); end,
-	arith_double = function(value) return stringValid("arith_double", value, "Double arithmetic"); end,
-	arith_vec2   = function(value) return stringValid("arith_vec2", value, "Vector arithmetic"); end,
-
 	sellx = function(value) return rangeValid(value, 0, 18); end,
 	selly = function(value) return rangeValid(value, 0, 12); end,
 
@@ -107,7 +89,7 @@ VALIDATOR = {
 	currency = function(value) return stringValid("currency", value, "Resource Types"); end,
 };
 
-local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1};
+local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
 
 local functions = [[
 impulse wakeup() Impulse
@@ -149,8 +131,8 @@ void <scope>.<typev>.set(string:variable, <typefull>) {Primitive void [g/l][b/i/
 <typefull> <scope>.<typev>.get(string:variable) {Primitive type [g/l][b/i/d/s/v]g(string:variable)   ;get}
 void global.unset(string:variable) #gu# {Primitive void gu(string:variable)   ;global.unset}
 void local.unset(string:variable) #lu# {Primitive void lu(string:variable)   ;local.unset}
-bool comparison.<typeext>(<typeext>, string[comp_<typeext>], <typeext>) {Primitive bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison}
-<typefull> arithmetic.<numv>(<typefull>, string[arith_<numv>], <typefull>) {Primitive type a.[i/d/v](type:lhs, op_mod, type:rhs)   ;arithmetic}
+bool comparison.<typeext>(<typeext>, op_comp, <typeext>) {Primitive bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison}
+<typefull> arithmetic.<numv>(<typefull>, op_mod, <typefull>) {Primitive type a.[i/d/v](type:lhs, op_mod, type:rhs)   ;arithmetic}
 
 bool string.contains(string:str, string:substr) String
 int string.length(string) String #len#
