@@ -681,9 +681,9 @@
 ;   copy-pasted code, and macro-functions are good for
 ;   more complicated code-generation needs.
 
-; Operators, and their precedence:
-;   ^ //            exponent, logarithm (*not* floor-division!)
-;   * / %           multiply, divide, modulo
+; Operators, and their precedence (internal names in quotes):
+;   ^ //            exponent "pow", logarithm "log" (*not* floor-division!)
+;   * / %           multiply, divide, modulo "mod"
 ;   + -             add, subtract
 ;   .               string concatenation. Automatically
                       converts int/double to string. Usually
