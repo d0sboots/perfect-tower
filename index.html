@@ -67,7 +67,7 @@
 
             <div class="editor-info">
                 <div>
-                  <span class="infotext">Editor: 1.86 ─ Game: v0.51.0</span>
+                  <span class="infotext">Editor: 1.87 ─ Game: v0.51.0</span>
                   <br/>
                   <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
                   <a id="compression" class="infotext warning" target="_blank" style="display:none" href="old_browser.html">
@@ -303,6 +303,9 @@
             let swap = scripts[id1];
             scripts.splice(id1, 1);
             scripts.splice(id2, 0, swap);
+            swap = histories[id1];
+            histories.splice(id1, 1);
+            histories.splice(id2, 0, swap);
             scriptSave();
         }
 
@@ -369,6 +372,7 @@
 
             const tabs = document.getElementById("scripts-tab");
             scripts.splice(activeTab.id, 1);
+            histories.splice(activeTab.id, 1);
             tabs.removeChild(activeTab);
             activeTab = false;
             scriptSelect(false);
