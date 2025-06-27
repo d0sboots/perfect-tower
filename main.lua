@@ -285,8 +285,11 @@ function compile(name, input, options, importFunc)
           assert(type, "constant definition: const [int/double/string/bool/vector] name value")
           assert(({bool=true, int=true, double=true, string=true, vector=true})[type], "constant types are 'int', 'double', 'string', 'bool', and 'vector'")
           if (type == "int" or type == "double") then
-            assert((value:match"^%d+$" and type == "int") or (value:match"^%d+%.%d*$" and type == "double"), "bad argument, " .. type .. " expected, got " .. value)
-            value = tonumber(value)
+            local x = tonumber(value)
+            assert(x, "Can't convert '" .. value .. "' to a number")
+            local vtype = math.type(x) == "integer" and "int" or "double"
+            assert(vtype == type, "bad argument, " .. type .. " expected, got " .. vtype .. " " .. value)
+            value = x
           elseif (type == "bool") then
             assert(value:match"^true$" or value:match"^false$", "bool values are 'true' or 'false'")
             if value:match"^true$" then
