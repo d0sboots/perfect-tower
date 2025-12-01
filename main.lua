@@ -464,6 +464,12 @@ function compile(name, input, options, importFunc)
           node.value = "pow"
         elseif node.value == "//" then
           node.value = "log"
+        elseif node.value == "%&" then
+          node.value = "and"
+        elseif node.value == "%^" then
+          node.value = "xor"
+        elseif node.value == "%|" then
+          node.value = "or"
         end
 
         ins("s1", node.value)
@@ -639,6 +645,9 @@ function import(input)
             :gsub("mod", "%%")
             :gsub("pow", "^")
             :gsub("log", "//")
+            :gsub("and", "%%&")
+            :gsub("xor", "%%^")
+            :gsub("or",  "%%|")
 
             if OPERATOR[transformed] then
               args[i] = transformed

@@ -67,7 +67,7 @@
 
             <div class="editor-info">
                 <div>
-                  <span class="infotext">Editor: 1.88 ─ Game: v0.51.0</span>
+                  <span class="infotext">Editor: 1.89 ─ Game: v1.0.0</span>
                   <br/>
                   <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
                   <a id="compression" class="infotext warning" target="_blank" style="display:none" href="old_browser.html">
@@ -689,6 +689,11 @@
 ;   ^ //            exponent "pow", logarithm "log" (*not* floor-division!)
 ;   * / %           multiply, divide, modulo "mod"
 ;   + -             add, subtract
+
+;   %&              bitwise-and "and"
+;   %^              bitwise-xor "xor"
+;   %|              bitwise-or "or"
+
 ;   .               string concatenation. Automatically
                       converts int/double to string. Usually
                       requires space to parse correctly.
@@ -696,8 +701,8 @@
 ;   && &            and
 ;   || |            or
 ;   =               assignment. Can be prefixed with other
-                      operators, e.g. '+=', '*='. Must come
-                      2nd on a line, after a variable name!
+;                     operators, e.g. '+=', '*='. Must come
+;                     2nd on a line, after a variable name!
 
 ; Tips: Don't forget to consult the drop-down dialog for
 ;   the full list of all available functions.

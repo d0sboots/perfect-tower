@@ -14,6 +14,12 @@ local operators = [[
 + add
 - subtract
 
+%& and
+
+%^ xor
+
+%| or
+
 . concatenate
 
 == compare

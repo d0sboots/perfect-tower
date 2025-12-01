@@ -110,6 +110,7 @@ impulse open.museum() Impulse
 impulse open.powerplant() Impulse
 impulse open.shipyard() Impulse
 impulse open.statueofcubos() Impulse
+impulse open.towertesting() Impulse
 impulse open.tradingpost() Impulse
 impulse open.workshop() Impulse
 impulse close.arcade() Impulse
@@ -122,6 +123,7 @@ impulse close.museum() Impulse
 impulse close.powerplant() Impulse
 impulse close.shipyard() Impulse
 impulse close.statueofcubos() Impulse
+impulse close.towertesting() Impulse
 impulse close.tradingpost() Impulse
 impulse close.workshop() Impulse
 impulse game.newround() Impulse
@@ -260,6 +262,8 @@ double game.era() Game
 double game.infinity() Game
 double game.waveAcceleration() Game
 double game.fixedWavesPerInterval() Game
+double game.time() Game #game.time#
+double game.realtime() Game #game.realtime#
 double player.xp() Game
 double highscore.wave(string:region[region], string:difficulty[difficulty]) Game #highscore.wave#
 double highscore.era(string:region[region], string:difficulty[difficulty]) Game #highscore.era#
@@ -274,9 +278,14 @@ void game.pause.set(bool:paused) Game #pause.set#
 void game.pause() Game
 void game.unpause() Game
 
-bool software.enabled(string:name[software]) Game #software.enabled#
-string game.softwareid.find(string:name) Game #software.find#
-void software.toggle(string:name[software], bool:on) Game #software.toggle#
+bool software.enabled(string:name[software]) Software #software.enabled#
+int software.loadout.count() Software #loadout.count#
+int software.loadout.index.get(string:loadoutName) Software #loadout.index#
+string software.loadout.name.get(int:index) Software #loadout.name#
+string game.softwareid.find(string:name) Software #software.find#
+void software.toggle(string:name[software], bool:on) Software #software.toggle#
+void software.loadout.applyByName(string:loadoutName) Software #loadout.applyByName#
+void software.loadout.applyByIndex(int:index) Software #loadout.applyByIndex#
 
 bool worker.paused(string:name) Worker #worker.paused#
 int worker.group.get(int:index) Worker #worker.group#
@@ -333,6 +342,7 @@ bool arcade.adventure.isCompleted(vector:position) Arcade #adventure.isCompleted
 string arcade.adventure.entityType(vector:position) Arcade #adventure.entityType#
 
 bool factory.machine.active(string:machine[machine]) Factory
+int factory.machine.tier(string:machine[machine]) Factory #machine.tier#
 double factory.items.count(string:item[item], int:tier[tier]) Factory
 double factory.machine.item.count(string:machine[machine]) Factory #machine.item.count#
 string factory.machine.item(string:machine[machine]) Factory #machine.item#
@@ -493,7 +503,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Macros"} do
+for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Software", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Macros"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do

@@ -201,13 +201,21 @@ local function consumeTokensWorker(node)
 							end
 						end
 
-						local status, ret = pcall(load(
-							op.value == "."
-							and string.format('return %q .. %q', left.value, right.value)
-							or op.value == "//"
-							and string.format("return math.log(%s, %s)", left.value, right.value)
-							or string.format("return %s %s %s", left.value, op.value, right.value)
-						));
+						local expr;
+						if op.value == "." then
+							expr = string.format('return %q .. %q', left.value, right.value)
+						elseif op.value == "//" then
+							expr = string.format("return math.log(%s, %s)", left.value, right.value)
+						elseif op.value == "%&" then
+							expr = string.format("return %s & %s", left.value, right.value)
+						elseif op.value == "%^" then
+							expr = string.format("return %s ~ %s", left.value, right.value)
+						elseif op.value == "%|" then
+							expr = string.format("return %s | %s", left.value, right.value)
+						else
+							expr = string.format("return %s %s %s", left.value, op.value, right.value)
+						end
+						local status, ret = pcall(load(expr));
 						
 						if status then
 							const = true;
