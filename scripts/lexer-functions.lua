@@ -384,6 +384,15 @@ int tradingpost.offerCount() Trading Post
 void tradingpost.refresh() Trading Post
 void tradingpost.trade(int:offer, double:pct[0-1]) Trading Post
 
+int shipyard.order.current() Shipyard #order.current#
+double shipyard.seamiles() Shipyard
+double shipyard.shipments() Shipyard
+double shipyard.shipment.countdown() Shipyard #shipment.countdown#
+double shipyard.weather.bonus() Shipyard #weather.bonus#
+void shipyard.order.start(int:index) Shipyard #order.start#
+void shipyard.order.collect() Shipyard #order.collect#
+void shipyard.order.cancel() Shipyard #order.cancel#
+
 void bogus() Macros {Macros any {lua(lua_code)}}
 void bogus() Macros {Macros int {len(any_characters)}}
 void bogus() Macros {Macros vector {pos.relative(double:x_pos[0-1], double:y_pos[0-1], double:x_anchor[0-1], double:y_anchor[0-1])}}
@@ -503,7 +512,7 @@ end
 
 local functionList = {};
 
-for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Software", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Primitive", "Number", "String", "Conversion", "Vector", "Macros"} do
+for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Software", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Shipyard", "Primitive", "Number", "String", "Conversion", "Vector", "Macros"} do
 	table.insert(functionList, string.format('<optgroup label="%s">', category));
 
 	for _, func in ipairs (FUNCTION_LIST[category]) do
