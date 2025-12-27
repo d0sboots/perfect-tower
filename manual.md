@@ -60,11 +60,13 @@ to know the translations, because the game functions can be more general.
 
 * The arithmetic operators `+`, `-`, `*`, `/`, `%`, `^` and `//`. `%` is
   modulus, `^` is exponent and `//` is log-with-base (*not* floor-division)!
-  These all work for both ints and doubles. Note that the game does not have
-  unary negation, so the editor does not either: You can specify negative
-  constants, or subtract from 0 in the extreme case. These translate to
-  `arithmetic.int()` or `arithmetic.double()`, with the middle argument being
-  (correspondingly) "+", "-", "*", "/", "mod", "pow" and "log".
+  These all work for both ints and doubles. Additionally there are `%&`, `%^`
+  and `%|` which are bitwise-and, xor and or, defined only for ints.
+  Note that the game does not have unary negation, so the editor does not
+  either: You can specify negative constants, or subtract from 0 in the
+  extreme case. These translate to `arithmetic.int()` or
+  `arithmetic.double()`, with the middle argument being
+  (correspondingly) "+", "-", "*", "/", "mod", "pow", "log", "and", "xor" and "or".
 * `.` is used for string concatenation, which is the `concat()` function. It
   also automatically coerces int and double arguments to strings using `i2s()`
   and `d2s()`.
@@ -84,6 +86,9 @@ the same precedence, and are grouped left-to-right):
 * `^` `//`
 * `*` `/` `%`
 * `+` `-`
+* `%&`
+* `%^`
+* `%|`
 * `.`
 * `==` `!=` `<` `<=` `>` `>=`
 * `&&`
@@ -226,9 +231,11 @@ package.
 Scripts use the syntax "package:script_name" in their names to separate the
 package from the script part. Scripts without a package will appear "loose,"
 at the top of the scripts list, while packaged scripts appear together in
-their own groups. It's important to remember that you must use the full
+their own groups. It used to be important to use the full
 "package:script_name" value to refer to scripts when using things like
-`execute()` and `stop()`.
+`execute()` and `stop()`; this was eventually changed in-game so that leaving
+off the package will try matching inside the current package before matching
+against loose scripts.
 
 `:import <script>` imports a script by its sidebar name. It doesn't matter
 what workspace the scripts are in, and if there are multiple scripts with the
@@ -245,3 +252,36 @@ import scripts won't be included in the export.
 
 The language includes a powerful macro system to make writing complicated or
 repetitive code easier.
+
+A simple macro is defined using `#macroname substitution text` and invoked
+with `{macroname}`. The simple form will perform simple text substitution,
+replacing the `{macroname}` invocation with `substitution text`.
+
+You can define a macro with arguments via `#macroname(arg1, arg2) substitution {arg1} {arg2} text`.
+They are invoked with `{macroname(param1,param2)}`. All occurences of the
+`{arg1}` and `{arg2}` tags in the definition will be replaced appropriately,
+and then the whole result substituted in.
+
+Note that although you can use optional space between the arguments in the
+macro definition, any space in the *invocation* will become part of the
+parameter(s) that are substituted. Often this does not matter, but it's worth
+knowing.
+
+Macros can contain other macros, both in their definitions and invocations.
+This is legal:
+```
+#concat(a, b) {a}{b}
+{co{concat(nc,at)}(foo,bar)}
+```
+Yielding "foobar".
+
+Because macro processing runs before other processing, it can also be used to
+define variables, constants, or set other compiler directives.
+
+There are a handful of "special" macros that are hardcoded and predefined:
+* `{}` returns `{}`
+* `{[}` returns `{`
+* `{]}` returns `}`. These two are used to escape the macro characters.
+* `{len(...)}` returns the length in characters of whatever is contained within.
+* `{lua(...)}` evaluates a lua expression and returns the stringified result.
+  This can be used for arbitrarily-complicated metaprogramming.

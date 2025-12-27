@@ -91,6 +91,12 @@ local function parseMacro(text, macros, depth, env)
     if #macro == 2 then
       return
     end
+    if macro == "{[}" then
+      return "{"
+    end
+    if macro == "{]}" then
+      return "}"
+    end
     macro = parseMacro(macro:sub(2,-2), macros, depth + 1, env)
     local arg_body = ""
     local name = macro:match("^([^%(]+)$")
@@ -614,6 +620,8 @@ function import(input)
         until byte & 0x80 == 0
 
         local str = read("c" .. len)
+        -- This must be a single gsub so that we don't re-match substituted curlies
+        str = str:gsub("[{}]", {["{"] = "{[}", ["}"] = "{]}"})
         local sq, dq = str:match"'", str:match'"'
 
         if not dq then
@@ -831,6 +839,7 @@ function unittest()
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0CGNvbnN0YW50AwAAAAAAAPj/",
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy53YWl0EWFyaXRobWV0aWMuZG91YmxlCGNvbnN0YW50AwAAAAAAAAAACGNvbnN0YW50BAR0ZXN0CGNvbnN0YW50AwAAAAAAAAAA",
 "BHRlc3QAAAAAAAAAAAEAAAAObG9jYWwudmVjMi5zZXQIY29uc3RhbnQEA2Jhcghjb25zdGFudAUAAIBAAACAPw==",
+"BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BAN7YX0=",
   }
   local compile_tests = {macro_test = {[[
     ; Basic test of macros and macro functions

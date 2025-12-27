@@ -67,7 +67,7 @@
 
             <div class="editor-info">
                 <div>
-                  <span class="infotext">Editor: 1.90 ─ Game: v1.0.0</span>
+                  <span class="infotext">Editor: 1.91 ─ Game: v1.0.10</span>
                   <br/>
                   <span id="warning" class="infotext warning">Cannot access Local Storage. Scripts will not save!</span>
                   <a id="compression" class="infotext warning" target="_blank" style="display:none" href="old_browser.html">
@@ -677,10 +677,15 @@
 ;     {co{concat(nc,at)}("hi, there")} would result in
 ;   "hi there" by applying the function twice.
 
-;   There are two builtin macro-functions: {len()} returns
+;   There are a few builtin macro-functions: {len()} returns
 ;   the length of its argument (including any whitespace),
 ;   and {lua()} evaluates its argument as a Lua chunk
 ;   (don't forget to return a value!).
+;   The "macros" {[} and {]} return a single "{" and
+;   "}" respectively, and are used for escaping curly-braces.
+;   {} (the empty macro) will result in "{}", which is sometimes
+;   useful.
+
 ;   Macros are useful when dealing with large amounts of
 ;   copy-pasted code, and macro-functions are good for
 ;   more complicated code-generation needs.
