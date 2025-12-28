@@ -101,10 +101,9 @@ local function parseMacro(text, macros, depth, env)
     local arg_body = ""
     local name = macro:match("^([^%(]+)$")
     if not name then
-      name, arg_body = macro:match("^([^%(]+)(%b())")
+      name, arg_body = macro:match("^([^%(]+)(%(.*%))$")
     end
     assert(name, "invalid macro call: " .. macro)
-    assert(#name + #arg_body == #macro, "trailing junk after macro call: " .. macro)
     if name == "len" then
       assert(arg_body ~= "", "len is a macro function")
       return tostring(#arg_body - 2)
@@ -133,7 +132,7 @@ local function parseMacro(text, macros, depth, env)
         nesting = nesting + 1
       elseif char == ")" and i ~= #arg_body then
         nesting = nesting - 1
-        assert(nesting >= 0, "unbalanced parenthesis inside macro call: " .. macro)
+        assert(nesting >= 0, "trailing junk after macro call: " .. macro)
       end
     end
     assert(nesting == 0, "unclosed parenthesis inside macro call: " .. macro)
@@ -873,6 +872,10 @@ function unittest()
     software.toggle("software.criticalWavejump", true)
     craft("producer.constructionFirm", 1, 1.)
   ]], "Dmxvd2VyY2FzZV90ZXN0AAAAAAAAAAACAAAAD3NvZnR3YXJlLnRvZ2dsZQhjb25zdGFudAQZc29mdHdhcmUuY3JpdGljYWxXYXZlanVtcAhjb25zdGFudAEBDWZhY3RvcnkuY3JhZnQIY29uc3RhbnQEGXByb2R1Y2VyLmNvbnN0cnVjdGlvbkZpcm0IY29uc3RhbnQCAQAAAAhjb25zdGFudAMAAAAAAADwPw=="},
+  parens_test = {[[
+    goto({len( ( )}{len( ) )})
+    waitframe({lua(return ")")}
+  ]], "C3BhcmVuc190ZXN0AAAAAAAAAAACAAAADGdlbmVyaWMuZ290bwhjb25zdGFudAIhAAAAEWdlbmVyaWMud2FpdGZyYW1l"},
   }
   local new_import_tests = {
     default_default = {{actions={}, conditions={}, impulses={}, name="test", package=""}, [[
