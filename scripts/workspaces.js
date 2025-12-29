@@ -7,7 +7,10 @@ let movingScript = false;
 const workspaceList = document.getElementById("workspaceList");
 const moveButton = document.getElementById("move-script");
 
-function workspaceLoad() {
+function workspaceLoad(origValue = null) {
+    // If unspecified, use the current value
+    origValue ??= workspaceList.value;
+
     // Load saved workspaces that do not exist yet
     scripts.forEach((element) => {
         if (!workspaces.includes(element[2])) {
@@ -23,7 +26,12 @@ function workspaceLoad() {
     });
 
     // Change view
-    workspaceChange("All");
+    workspaceList.value = origValue;
+    if (workspaceList.value === "") {
+        // In case the value isn't in the list anymore
+        workspaceList.value = "All";
+    }
+    workspaceChange(workspaceList.value);
 }
 
 function createWorkspaceElement(workspaceName) {

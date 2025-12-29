@@ -84,7 +84,7 @@
                     <div style="flex-grow:1"></div>
                     <div>
                         Workspace:
-                        <select id="workspaceList" class="workspaceList" oninput="workspaceChange(this.value)"></select>
+                        <select id="workspaceList" class="workspaceList" oninput="workspaceListChange(this)"></select>
                     </div>
                 </div>
                 <div>
@@ -557,12 +557,13 @@
             dialog.close();
         }
 
-        const SETTINGS_NAMES = new Set(["autoSpace", "tabWidth"]);
+        const SETTINGS_NAMES = new Set(["autoSpace", "tabWidth", "workspaceList"]);
         const SETTINGS_RADIOS = new Map([["exportFormat", "_format"]]);
 
         function settingsLoad() {
+            let settingsVal = {};
             if (storageEnabled) {
-                const settingsVal = JSON.parse(localStorage.getItem("settings") ?? "{}");
+                settingsVal = JSON.parse(localStorage.getItem("settings") ?? "{}");
                 for (const [ele, value] of Object.entries(settingsVal)) {
                     const suffix = SETTINGS_RADIOS.get(ele);
                     if (suffix != null) {
@@ -580,7 +581,7 @@
                     }
                 }
             }
-            settingsChange();
+            return settingsVal;
         }
 
         function settingsChange() {
@@ -605,12 +606,19 @@
             exportFormat = settingsVal.exportFormat;
         }
 
+        function workspaceListChange(ele) {
+            settingsChange();
+            workspaceChange(ele.value);
+        }
+
         function doneLoading() {
             storageEnabled = storageAvailable();
-            settingsLoad();
+            const settings = settingsLoad();
             updateWarn(true);
             scriptLoad();
-            workspaceLoad();
+            workspaceLoad(settings.workspaceList);
+            // Re-write settings values *after* we have populated the workspaces
+            settingsChange();
 
             if (typeof CompressionStream === "undefined") {
               document.getElementById("compression").style.display = "inline";
