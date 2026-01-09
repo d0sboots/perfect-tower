@@ -5,13 +5,19 @@ if fengari then
   js = require "js"
 end
 
-local line_number
+local line_number_start, line_number_end
 local compile_file
 local _cache = {}
 
 -- Defined here to pick up compile_file and line_number
 function error_lexer(msg, _)
-  error(string.format("%s:%s: %s", compile_file, line_number, msg), 0)
+  local err_msg
+  if line_number_start == line_number_end then
+    err_msg = string.format("%s:%s: %s", compile_file, line_number_start, msg)
+  else
+    err_msg = string.format("%s:%s-%s: %s", compile_file, line_number_start, line_number_end, msg)
+  end
+  error(err_msg, 0)
 end
 
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer", "stdlib"} do
@@ -239,25 +245,49 @@ function compile(name, input, options, importFunc)
       return {}
     end
     imported[filename] = true
-    line_number = 0
+    line_number_end = 0
     compile_file = filename
 
     local lines = {}
     local labelCache = {}
-    local lineCache = {}
+    local input_pos = 1
+    local output_buffer = ""
+    local output_pos = 1
 
-    for real_line in input:gmatch"[^\n]*" do
-      line_number = line_number + 1
-      if real_line:sub(-1) == "\\" then
-        lineCache[#lineCache+1] = real_line:sub(1, -2)
-        goto continue
+    -- Handles macro transforming and line-buffering the result
+    local function get_line()
+      if output_pos > #output_buffer then
+        if input_pos > #input then
+          return nil
+        end
+        line_number_start = line_number_end + 1
+        local line_concat = {}
+        repeat
+          line_number_end = line_number_end + 1
+          local nend = input:find("\n", input_pos, true) or #input + 1
+          local backslash = input:sub(nend - 1, nend - 1) == "\\"
+          line_concat[#line_concat+1] = input:sub(input_pos, nend - (backslash and 2 or 1))
+          input_pos = nend + 1
+        until not backslash or input_pos > #input
+        local line = table.concat(line_concat)
+        if not line:find("^%s*#") then
+          line = parseMacro(line, macros, 1, env)
+        end
+        output_buffer = line
+        output_pos = 1
       end
-      lineCache[#lineCache+1] = real_line
-      line = table.concat(lineCache):gsub("^%s+", ""):gsub("%s+$", "")
-      if line:sub(1, 1) ~= "#" then
-        line = parseMacro(line, macros, 1, env)
+      local nend = output_buffer:find("\n", output_pos, true) or #output_buffer + 1
+      local result = output_buffer:sub(output_pos, nend - 1)
+      output_pos = nend + 1
+      return result
+    end
+
+    while true do
+      local real_line = get_line()
+      if not real_line then
+        break
       end
-      lineCache = {}
+      line = real_line:gsub("^%s+", ""):gsub("%s+$", "")
 
       if line:match"^#" then
         local macro_args = ""
@@ -322,11 +352,10 @@ function compile(name, input, options, importFunc)
           assert(import_name, "import directive: :import file")
           local status, import_result = importFunc(import_name)
           assert(status, "Import failed: " .. import_result)
-          local saved_lineno, saved_compile_file = line_number, compile_file
+          local saved = {line_number_start, line_number_end, compile_file}
           import(import_name, import_result, true)
           -- These got stomped by the import, re-set them
-          compile_file = saved_compile_file
-          line_number = saved_lineno
+          line_number_start, line_number_end, compile_file = table.unpack(saved)
         elseif token == "global" or token == "local" then
           local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) +(%a+) +" .. TOKEN.identifier.patternAnywhere .."$")
           assert(scope, "variable definition: [global/local] [bool/int/double/string/vector] name")
@@ -354,7 +383,7 @@ function compile(name, input, options, importFunc)
           assert(use_budget == "true" or use_budget == "false" or use_budget == "default",
             "use_budget directive: :use_budget [true/false/default]")
         else
-          assert(false, "Unrecognized directive :" .. token)
+          assert(false, "Unrecognized directive :" .. (token or line:sub(2)))
         end
       else
         line = line
@@ -369,11 +398,10 @@ function compile(name, input, options, importFunc)
         if not is_empty(line) then
           assert(not isImport,
           "Imported files can't produce output, they must only contain variable and macro declarations")
-          table.insert(lines, {text = line, num = line_number, label = labelCache})
+          table.insert(lines, {text = line, num_start = line_number_start, num_end = line_number_end, label = labelCache})
           labelCache = {}
         end
       end
-      ::continue::
     end
     -- anything left in the label cache points to the end of the script
     for _, label in ipairs (labelCache) do
@@ -387,7 +415,8 @@ function compile(name, input, options, importFunc)
   local lines = import(name, input, false)
 
   for _, line in ipairs (lines) do
-    line_number = line.num
+    line_number_start = line.num_start
+    line_number_end = line.num_end
     local node = cache(line.text, variables)
 
     if node and node.func then
@@ -939,7 +968,7 @@ bar = vec(1.0, 2.0)]], [[
   end
   for k, v in pairs(compile_tests) do
     status, ret = pcall(compile, k, v[1], {format="v0"}, importFunc)
-    assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number, ret))
+    assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number_end, ret))
     assert(ret.code == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret.code))
   end
   for k, v in pairs(new_import_tests) do
