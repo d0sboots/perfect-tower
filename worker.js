@@ -313,12 +313,17 @@ function deferCompile() {
   });
 }
 
+// Prepare this so we're ready immediately when the main thread asks
+const ready_result = [true, fengari.load('return FUNCTION_LIST')()];
+
 onmessage = function(e) {
   // Set a callback to do the actual work. This gives us breathing room to
   // process all pending messages first, before getting in to heavy
   // processing. It also means things will be processed in the order they are
   // recieved. (Compiles won't appear later and screw things up.)
-  if (e.data[0] === "import") {
+  if (e.data[0] === "ready") {
+    postMessage({args: e.data, results: ready_result});
+  } else if (e.data[0] === "import") {
     // Importing uses promises, and therefore is JS native.
     importData(e.data[1])
       .then(x => postMessage({args: e.data, results: [true, x]}))
@@ -341,5 +346,3 @@ onmessage = function(e) {
   }
 }
 
-// Signal that we're done loading.
-postMessage({args: ['ready'], results: [true, fengari.load('return FUNCTION_LIST')()]});
