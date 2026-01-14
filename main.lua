@@ -20,6 +20,20 @@ function error_lexer(msg, _)
   error(err_msg, 0)
 end
 
+function assert_parser(test, line, msg, ...)
+  if test then
+    return test
+  end
+
+  local markers = {}
+  local prev = 0
+  for i, v in ipairs({...}) do
+    markers[i] = string.rep(" ", v - 1 - prev) .. "^";
+    prev = v
+  end
+  error_lexer(string.format("%s\n\n%s\n%s", msg, line, table.concat(markers)))
+end
+
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer", "stdlib"} do
   if DEBUG then
     dofile(package.path:gsub("?", lib))
@@ -73,6 +87,19 @@ do
   end
 end
 
+-- We need our own version of this, because we don't want errors to have extra
+-- info attached to them. We optimize for only returning one result.
+local function coroutine_wrap(fun)
+  local co = coroutine.create(fun)
+  local resume = coroutine.resume
+  return function(...)
+     local status, res = resume(co, ...)
+     if not status then
+       error(res, 0) end
+     return res
+  end
+end
+
 local function cache(line, variables)
   local key = {}
 
@@ -91,65 +118,152 @@ local function cache(line, variables)
   return _cache[key]
 end
 
-local function parseMacro(text, macros, depth, env)
-  assert(depth < 100, "macro expansion depth reached " .. depth ..  ", probable infinite loop in: " .. text)
-  return text:gsub("%b{}", function(macro)
-    if #macro == 2 then
-      return
+-- Returns the pair (macroLine, pos) containing the new line and parsing position.
+-- The line is typically the same, but may have been advanced.
+local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get_input_line, env)
+  assert_parser(depth < 100, macroLine, "macro expansion depth reached " .. depth ..  ", probable infinite loop in:")
+  local result = {}
+  local npos
+  local macroName
+
+  local function handleOpenBrace(pattern)
+    while true do
+      npos = macroLine:find(pattern, pos)
+      result[#result+1] = macroLine:sub(pos, (npos or 0) - 1)
+      if not npos or macroLine:sub(npos, npos) ~= "{" then
+        return end
+      pos = npos + 1
+      macroLine, pos = parseMacro(macroLine, pos, macros, arg_macros, result, depth + 1, get_input_line, env)
     end
-    if macro == "{[}" then
-      return "{"
+  end
+
+  local function evalMacro(macro_obj, ...)
+    local args = {...}
+    if #macro_obj.args ~= #args then
+      assert_parser(
+        false,
+        macroLine,
+        string.format("macro call {%s} has wrong number of args, expected %s but got %s", macroName, #macro_obj.args, #args),
+        npos)
     end
-    if macro == "{]}" then
-      return "}"
-    end
-    macro = parseMacro(macro:sub(2,-2), macros, depth + 1, env)
-    local arg_body = ""
-    local name = macro:match("^([^%(]+)$")
-    if not name then
-      name, arg_body = macro:match("^([^%(]+)(%(.*%))$")
-    end
-    assert(name, "invalid macro call: " .. macro)
-    if name == "len" then
-      assert(arg_body ~= "", "len is a macro function")
-      return tostring(#arg_body - 2)
-    elseif name == "lua" then
-      assert(arg_body ~= "", "lua is a macro function")
-      local lua_text = arg_body:sub(2,-2)
-      local chunk, err = load(lua_text, lua_text, "t", env)
-      assert(chunk, err)
-      local status, result = pcall(chunk)
-      if status then
-        return tostring(result or "")
+    if macro_obj.raw then
+      output[#output+1] = macro_obj.raw
+    elseif macro_obj.func then
+      output[#output+1] = macro_obj.func(...)
+    else
+      local tmp_args = {}
+      for i = 1, #args do
+        tmp_args[macro_obj.args[i]] = {raw=args[i], args={}}
       end
-      error_lexer(result)
+      local posm = 1
+      local text = macro_obj.text
+      while posm <= #text do
+        local nposm = text:find("{", posm, true)
+        output[#output+1] = text:sub(posm, (nposm or 0) - 1)
+        if not nposm then
+          break end
+        text, posm = parseMacro(text, nposm + 1, macros, tmp_args, output, depth + 1, get_input_line, env)
+      end
     end
-    local args = {}
-    local arg_count = 0
-    local arg_begin = 2
-    local nesting = 0
-    for i = 2, #arg_body do
-      local char = arg_body:sub(i, i)
-      if nesting == 0 and (char == "," or i == #arg_body) then
-        args["{#"..arg_count.."#}"] = arg_body:sub(arg_begin, i-1)
-        arg_count = arg_count + 1
-        arg_begin = i + 1
-      elseif char == "(" then
+  end
+
+  handleOpenBrace("[{(}]")
+  if not npos then
+    -- End of line. Unterminated macro is just returned as a literal text,
+    -- which is copied to the output buffer. We have to add the { that
+    -- *wasn't* included as part of our parsed text.
+    local off = #output + 1
+    output[off] = "{"
+    for i = 1, #result do
+      output[off + i] = result[i]
+    end
+    return macroLine, #macroLine + 1
+  end
+  pos = npos + 1
+  local pChar = macroLine:sub(npos, npos)
+  -- pChar is "}" or "(", either way we have the complete macro name.
+  macroName = table.concat(result)
+  result = {}
+  local macro_obj = arg_macros[macroName] or macros[macroName]
+  assert_parser(macro_obj, macroLine, "macro does not exist: {" .. macroName .. "}", npos)
+  if pChar == "}" then
+    evalMacro(macro_obj)
+    return macroLine, pos
+  end
+  -- pChar is "(", we are parsing paramaters
+  local args = {}
+  local nesting = 1
+  while true do
+    -- The rawarg parsing mode does not count matching parens and always has
+    -- only a single arg. The same code handles both modes, we simply don't go
+    -- down the branches to handle parens by never matching those characters.
+    handleOpenBrace(macro_obj.rawarg and "[{}]" or "[{(,)}]")
+    if not npos then
+      -- End of line. Get more input, since non-simple macros can span lines.
+      if #result > 1 or result[1] ~= "" then
+        -- If a new param (open paren or comma) is immediately followed by
+        -- newline, handleOpenBrace will add a single empty string to result.
+        -- In this case, we want to swallow the initial newline.
+        result[#result+1] = "\n"
+      end
+      local nextline = get_input_line()
+      assert_parser(nextline, macroLine, "unexpected EOF getting args for {" .. macroName .. "}", #macroLine + 1)
+      macroLine = nextline
+      pos = 1
+    else
+      pos = npos + 1
+      local pChar = macroLine:sub(npos, npos)
+      if pChar == "}" then
+        if not macro_obj.rawarg and nesting > 0 then
+          assert_parser(
+            false,
+            macroLine,
+            string.format("%s unclosed parenthesis inside macro {%s}", nesting, macroName),
+            npos)
+        end
+        -- The empty macroName here implies the {(} macro, or at least the
+        -- beginning of it. It doesn't close in the usual way.
+        if macroName == "" then
+          local arg = table.concat(result)
+          assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", npos)
+          evalMacro(macros["("])
+        else
+          assert_parser(macroLine:sub(npos - 1, npos - 1) == ")", macroLine, "trailing junk after macro call {" .. macroName .. "}", npos)
+          if macro_obj.rawarg then
+            result[#result] = result[#result]:sub(1, -2)  -- Trim the closing paren off, which got added in rawarg mode
+          end
+          local arg = table.concat(result)
+          args[#args+1] = arg
+          evalMacro(macro_obj, table.unpack(args))
+        end
+        return macroLine, pos
+      elseif pChar == "(" then
+        assert_parser(nesting > 0, macroLine, "tried to re-open macro args calling {" .. macroName .. "}", npos)
         nesting = nesting + 1
-      elseif char == ")" and i ~= #arg_body then
+        result[#result+1] = "("
+      elseif pChar == "," then
+        if nesting == 1 then
+          args[#args+1] = table.concat(result)
+          result = {}
+        else
+          result[#result+1] = ","
+        end
+      elseif pChar == ")" then
+        assert_parser(nesting > 0, macroLine, "extra closing parens calling {" .. macroName .. "}", npos)
         nesting = nesting - 1
-        assert(nesting >= 0, "trailing junk after macro call: " .. macro)
+        if nesting > 0 then
+          result[#result+1] = ")"
+        end
+        -- We don't add the last paren to args here. Instead, we let the "}"
+        -- code handle that, allowing both the rawarg and regular code to
+        -- follow the same path for adding the final arg. This means that any
+        -- text that comes *after* this paren will get added to the last arg,
+        -- but that's an error we check for so it won't hurt us.
+      else
+        assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" .. macroName .. "}", npos)
       end
     end
-    assert(nesting == 0, "unclosed parenthesis inside macro call: " .. macro)
-    local macro_obj = macros[name]
-    assert(macro_obj, "macro does not exist: " .. name)
-    local unexpanded, arg_len = macro_obj.text, macro_obj.arg_len
-    assert(arg_len == arg_count,
-    "macro call has wrong number of args, expected " .. arg_len ..
-    " but got " .. arg_count .. ": " .. macro)
-    return parseMacro(unexpanded:gsub("{#[0-9]+#}", args), macros, depth + 1, env)
-  end)
+  end
 end
 
 -- Whitelist of functions and tables that are allowed in the lua() macro. We
@@ -237,7 +351,32 @@ function compile(name, input, options, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
   local budget, use_budget
   local env = clone_global()
-  local macros, imported = {len = '__builtin__', lua = '__builtin__'}, {}
+  local macros = {
+    -- This entry is also used for {(} since that looks like an argument-macro
+    -- with no name, depending on how it is parsed. An expression like {{(}}
+    -- will parse one way for the inner macro and another (using the later
+    -- entry) for the outer macro, since the substituted paren doesn't act
+    -- like a delimiter and instead forms part of the name of a simple macro.
+    [""] = {args = {}, raw = "{}", rawarg = true},
+    ["["] = {args = {}, raw = "{"},
+    ["]"] = {args = {}, raw = "}"},
+    ["("] = {args = {}, raw = "("},
+    [")"] = {args = {}, raw = ")"},
+    [","] = {args = {}, raw = ","},
+    len = {args = {"#"}, rawarg = true, func = function(arg_body)
+      return tostring(#arg_body)
+    end},
+    lua = {args = {"#"}, rawarg = true, func = function(lua_text)
+      local chunk, err = load(lua_text, lua_text, "t", env)
+      assert(chunk, err)
+      local status, result = pcall(chunk)
+      if status then
+        return tostring(result or "")
+      end
+      error_lexer(result)
+    end},
+  }
+  local imported = {}
   local ret = {}
 
   local function import(filename, input, isImport)
@@ -250,37 +389,74 @@ function compile(name, input, options, importFunc)
 
     local lines = {}
     local labelCache = {}
-    local input_pos = 1
-    local output_buffer = ""
-    local output_pos = 1
+    local input_it = input:gmatch("[^\n]*")
+    local line_it = function() end
+    local output_it = function() end
 
-    -- Handles macro transforming and line-buffering the result
-    local function get_line()
-      if output_pos > #output_buffer then
-        if input_pos > #input then
-          return nil
+    -- Handles stripping backslashes and tracking line-numbers
+    local function get_input_line()
+      local line_concat = {}
+      repeat
+        local inp = input_it()
+        if not inp then
+          if #line_concat == 0 then return end
+          break
         end
-        line_number_start = line_number_end + 1
-        local line_concat = {}
-        repeat
-          line_number_end = line_number_end + 1
-          local nend = input:find("\n", input_pos, true) or #input + 1
-          local backslash = input:sub(nend - 1, nend - 1) == "\\"
-          line_concat[#line_concat+1] = input:sub(input_pos, nend - (backslash and 2 or 1))
-          input_pos = nend + 1
-        until not backslash or input_pos > #input
-        local line = table.concat(line_concat)
-        if not line:find("^%s*#") then
-          line = parseMacro(line, macros, 1, env)
-        end
-        output_buffer = line
-        output_pos = 1
-      end
-      local nend = output_buffer:find("\n", output_pos, true) or #output_buffer + 1
-      local result = output_buffer:sub(output_pos, nend - 1)
-      output_pos = nend + 1
-      return result
+        line_number_end = line_number_end + 1
+        local backslash = inp:sub(-1) == "\\"
+        line_concat[#line_concat+1] = backslash and inp:sub(1, -2) or inp
+      until not backslash
+      return table.concat(line_concat)
     end
+
+    -- Handles incremental macro expansion and line-buffering the result
+    local get_line = coroutine_wrap(function()
+      while true do
+        line_number_start = line_number_end + 1
+        local line = get_input_line()
+        if not line then
+          return end
+        if line:find("^%s*#") then
+          -- Macro def, don't parse macros
+          coroutine.yield(line)
+        else
+          local output = {}
+          local pos = 1
+          while pos <= #line do
+            local npos = line:find("{", pos, true)
+            output[#output+1] = line:sub(pos, (npos or 0) - 1)
+            if not npos then
+              break end
+            local first = #output + 1
+            line, pos = parseMacro(line, npos + 1, macros, {}, output, 1, get_input_line, env)
+            -- The whole reason we need this as a coroutine:
+            -- If when parsing a macro we generate a newline, yield the
+            -- results up to the next layer. This is so that if we have a
+            -- macro definition inside a macro call, a subsequent macro
+            -- call on the same line will still work, i.e. macro calls are
+            -- only affected by ordering, not which line they are on.
+            --
+            -- Yes, this is a rediculous edge case, but I like being thorough.
+            --
+            -- Because the output_it layer expects full lines, we need to
+            -- keep the last partial output inside our output array.
+            for i = first, #output do
+              if output[i]:find("\n", 1, true) then
+                local output_it = table.concat(output):gmatch("[^\n]*")
+                local prev = output_it()
+                for current in output_it do
+                  coroutine.yield(prev)
+                  prev = current
+                end
+                output = {prev}
+                break
+              end
+            end
+          end
+          coroutine.yield(table.concat(output))
+        end
+      end
+    end)
 
     while true do
       local real_line = get_line()
@@ -291,13 +467,12 @@ function compile(name, input, options, importFunc)
 
       if line:match"^#" then
         local macro_args = ""
-        local name, macro = line:sub(2):match(TOKEN.identifier.pattern .. " (.+)$")
+        local name, macro = line:match(TOKEN.identifier.pattern .. "%s(.+)$", 2)
         if not name then
-          name, macro_args, macro = line:sub(2):match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%)) (.+)$")
+          name, macro_args, macro = line:match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%))%s(.+)$", 2)
         end
         assert(name, "macro definition: #name <text> or #name(args...) <text>")
         local args = {}
-        local arg_len = 0
         local arg_begin = 2
         while arg_begin <= #macro_args do
           local pos = macro_args:find(",", arg_begin, true)
@@ -307,12 +482,11 @@ function compile(name, input, options, importFunc)
           local arg_string = macro_args:sub(arg_begin, pos - 1)
           local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$")
           assert(arg, "bad macro function argument name: " .. arg_string)
-          args["{" .. arg .. "}"] = "{#" .. arg_len .. "#}"
-          arg_len = arg_len + 1
+          args[#args+1] = arg
           arg_begin = pos + 1
         end
         assert(not macros[name], "macro already exists: " .. name)
-        macros[name] = {text = macro:gsub("{[^{}]+}", args), arg_len = arg_len}
+        macros[name] = {args = args, text = macro}
       elseif line:match"^:" then
         local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
         if token == "const" then
@@ -456,7 +630,7 @@ function compile(name, input, options, importFunc)
     if node.func then
       if node.func.name == "label" then
         local var = node.args[1].value
-        assert(variables[var], "why are you calling the label function manually?")
+        assert(variables[var] and variables[var].label, "why are you calling the label function manually?")
         encode{type = "number", value = variables[var].label}
         return
       end
@@ -905,6 +1079,14 @@ function unittest()
     goto({len( ( )}{len( ) )})
     waitframe({lua(return ")")}
   ]], "C3BhcmVuc190ZXN0AAAAAAAAAAACAAAADGdlbmVyaWMuZ290bwhjb25zdGFudAIhAAAAEWdlbmVyaWMud2FpdGZyYW1l"},
+  multiline_test = {[=[
+ {lua(return [[ #concat(a, b) {[}a{]}{[}b{]} 
+ got]] 
+)}{concat(
+o {{concat(
+,)}(}3,
+4{{)}{concat(,
+)}} )}]=], "Dm11bHRpbGluZV90ZXN0AAAAAAAAAAABAAAADGdlbmVyaWMuZ290bwhjb25zdGFudAIiAAAA"},
   }
   local new_import_tests = {
     default_default = {{actions={}, conditions={}, impulses={}, name="test", package=""}, [[
