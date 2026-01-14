@@ -1,95 +1,95 @@
-FUNCTION_LIST = {};
-FUNCTION = {};
+FUNCTION_LIST = {}
+FUNCTION = {}
 
 local strings = {
-	window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
-	software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds","software.eratunneling", "software.wavebreach", "software.wavefloor", "software.erafloor", "software.erahorizon", "software.waverestart", "software.infinityhorizon"},
+  window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
+  software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds","software.eratunneling", "software.wavebreach", "software.wavefloor", "software.erafloor", "software.erahorizon", "software.waverestart", "software.infinityhorizon"},
 
 -- item list only needs to include uncraftable items not used to produce
-	item = {"plate.rubber", "plate.rainbow", "essence.void", "circuit", "wire", "screw", "pipe", "ring", "block.dense", "plate.dense", "plate.circuit", "pumpkin.plate", "pumpkin.carved", "pumpkin.anti"};
-	craft = {"chip.basic", "chip.advanced", "chip.hitech", "chip.nano", "chip.quantum", "chip", "hammer", "sapling.rubber", "sapling.void", "dust.rainbow", "cable.insulated", "plate", "motor", "pump", "block", "plate.stack", "lump", "producer.town", "producer.statueofcubos", "producer.workshop", "producer.shipyard", "producer.laboratory", "producer.constructionFirm", "producer.mine", "producer.powerplant", "producer.arcade", "producer.headquarters", "producer.tradingpost", "producer.museum", "producer.factory", "producer.exoticgems", "producer.gems", "booster.acceleration", "booster.machines", "booster.production.regular", "booster.resource.drops", "booster.trees", "pumpkin.stack", "pumpkin.producer", "machine.oven", "machine.assembler", "machine.refinery", "machine.crusher", "machine.cutter", "machine.presser", "machine.mixer", "machine.transportbelt", "machine.shaper", "machine.boiler"},
-	produce = {"rubber", "dust.rainbow", "ingot.rainbow", "cable", "ore", "dust", "ingot", "plate", "block", "plate.stack", "rod", "lump", "pumpkin", "pumpkin.stack"},
-	machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
+  item = {"plate.rubber", "plate.rainbow", "essence.void", "circuit", "wire", "screw", "pipe", "ring", "block.dense", "plate.dense", "plate.circuit", "pumpkin.plate", "pumpkin.carved", "pumpkin.anti"},
+  craft = {"chip.basic", "chip.advanced", "chip.hitech", "chip.nano", "chip.quantum", "chip", "hammer", "sapling.rubber", "sapling.void", "dust.rainbow", "cable.insulated", "plate", "motor", "pump", "block", "plate.stack", "lump", "producer.town", "producer.statueofcubos", "producer.workshop", "producer.shipyard", "producer.laboratory", "producer.constructionFirm", "producer.mine", "producer.powerplant", "producer.arcade", "producer.headquarters", "producer.tradingpost", "producer.museum", "producer.factory", "producer.exoticgems", "producer.gems", "booster.acceleration", "booster.machines", "booster.production.regular", "booster.resource.drops", "booster.trees", "pumpkin.stack", "pumpkin.producer", "machine.oven", "machine.assembler", "machine.refinery", "machine.crusher", "machine.cutter", "machine.presser", "machine.mixer", "machine.transportbelt", "machine.shaper", "machine.boiler"},
+  produce = {"rubber", "dust.rainbow", "ingot.rainbow", "cable", "ore", "dust", "ingot", "plate", "block", "plate.stack", "rod", "lump", "pumpkin", "pumpkin.stack"},
+  machine = {"oven", "assembler", "refinery", "crusher", "cutter", "presser", "mixer", "shaper", "boiler"},
 
-	inventory = {"inventory", "loadout", "combinator", "cuboscube"},
-	elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
-	elementAll = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal", "neutral"},
+  inventory = {"inventory", "loadout", "combinator", "cuboscube"},
+  elementMarket = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal"},
+  elementAll = {"fire", "water", "earth", "air", "nature", "light", "darkness", "electricity", "universal", "neutral"},
 
-	workerTask = {"shipyard.shipping", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "task.museum.buycombine", "task.museum.buyoffshore", "task.workshop.era.research", "task.workshop.era.experiment", "task.workshop.era.essence", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.darkness.search", "task.laboratory.gems.spin", "task.laboratory.gems.stack", "task.laboratory.exotic.gift", "task.construct", "task.construct.gems", "task.construct.exotics", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.tradingpost.trading", "factory.oreManagement", "factory.upTiering", "factory.downTiering", "factory.refiningManagement", "factory.dissolveManagement", "factory.treeHarvesting"},
+  workerTask = {"shipyard.shipping", "task.powerplant.replace", "task.powerplant.restart", "task.dyson.construct", "task.towertesting.upgrade", "task.towertesting.upgradeEra", "task.arcade.playLuckyWheel", "task.arcade.playJumble", "task.museum.buycombine", "task.museum.buyoffshore", "task.workshop.era.research", "task.workshop.era.experiment", "task.workshop.era.essence", "task.laboratory.prestige", "task.laboratory.nature.water", "task.laboratory.neutral.expand", "task.laboratory.water.freeze", "task.laboratory.darkness.search", "task.laboratory.gems.spin", "task.laboratory.gems.stack", "task.laboratory.exotic.gift", "task.construct", "task.construct.gems", "task.construct.exotics", "task.mine.drill", "task.mine", "task.mine.asteroid", "task.claim.asteroid", "task.scan.asteroid", "task.tradingpost.trading", "factory.oreManagement", "factory.upTiering", "factory.downTiering", "factory.refiningManagement", "factory.dissolveManagement", "factory.treeHarvesting"},
 
-	region = {"forest", "desert", "winter", "underground", "volcano", "highmountain", "jungle", "metallicruins", "beach", "ocean", "neutral", "darkrealm", "heaven", "universe", "chaos"},
-	difficulty = {"easy", "medium", "hard", "insane", "nightmare", "impossible"},
+  region = {"forest", "desert", "winter", "underground", "volcano", "highmountain", "jungle", "metallicruins", "beach", "ocean", "neutral", "darkrealm", "heaven", "universe", "chaos"},
+  difficulty = {"easy", "medium", "hard", "insane", "nightmare", "impossible"},
 
-	eraDivider = {"damage", "health"},
+  eraDivider = {"damage", "health"},
 
-	keyItem = {"map", "emeraldMap", "compass", "ultraKey", "lantern", "eodArmor", "thornsArmor", "bootsHaste", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "market", "bookSpells", "bag", "masterSword", "masterArmor"},
-	marketItem = {"eodArmor", "thornsArmor", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "bookSpells"},
-	entityType = {"Chest", "Bomb", "Rock", "Door", "Enemy", "Elite", "Mimic"},
-	spell = {"identifyRoom", "manaArmor"},
-	currency = {"gameTokens", "town.resources", "gems", "gems.exotic", "powerplant.resources", "mine.resources", "factory.resources", "headquarters.resources", "arcade.resources", "laboratory.resources", "shipyard.resources", "tradingpost.resources", "workshop.resources", "museum.resources", "constructionFirm.resources", "statueofcubos.resources", "halloween.pumpkins", "halloween.souls", "halloween.blood", "christmas.cookies", "christmas.presents", "christmas.reindeers.trained", "christmas.reindeers.milk", "christmas.reindeers.raw", "christmas.milk", "christmas.trees", "christmas.wrappings", "christmas.toys", "christmas.candy", "time.offline", "crates"},
-};
+  keyItem = {"map", "emeraldMap", "compass", "ultraKey", "lantern", "eodArmor", "thornsArmor", "bootsHaste", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "market", "bookSpells", "bag", "masterSword", "masterArmor"},
+  marketItem = {"eodArmor", "thornsArmor", "bootsPhasing", "leechSword", "impaler", "manaReaver", "hammer", "holyBomb", "bookSpells"},
+  entityType = {"Chest", "Bomb", "Rock", "Door", "Enemy", "Elite", "Mimic"},
+  spell = {"identifyRoom", "manaArmor"},
+  currency = {"gameTokens", "town.resources", "gems", "gems.exotic", "powerplant.resources", "mine.resources", "factory.resources", "headquarters.resources", "arcade.resources", "laboratory.resources", "shipyard.resources", "tradingpost.resources", "workshop.resources", "museum.resources", "constructionFirm.resources", "statueofcubos.resources", "halloween.pumpkins", "halloween.souls", "halloween.blood", "christmas.cookies", "christmas.presents", "christmas.reindeers.trained", "christmas.reindeers.milk", "christmas.reindeers.raw", "christmas.milk", "christmas.trees", "christmas.wrappings", "christmas.toys", "christmas.candy", "time.offline", "crates"},
+}
 
 for _, tbl in pairs (strings) do
-	for _, val in ipairs (tbl) do
-		if not tbl[val] then
-			tbl[val] = true;
-		end
+  for _, val in ipairs (tbl) do
+    if not tbl[val] then
+      tbl[val] = true
+    end
 
-		if tbl == strings.craft or tbl == strings.produce then
-			if not strings.item[val] then
-				strings.item[val] = true;
-				table.insert(strings.item, val);
-			end
-		end
-	end
+    if tbl == strings.craft or tbl == strings.produce then
+      if not strings.item[val] then
+        strings.item[val] = true
+        table.insert(strings.item, val)
+      end
+    end
+  end
 end
 
 local function stringValid(tbl, str, prefix)
-	return strings[tbl][str], string.format("%s: %s", prefix, table.concat(strings[tbl], ", "));
+  return strings[tbl][str], string.format("%s: %s", prefix, table.concat(strings[tbl], ", "))
 end
 local function rangeValid(value, min, max)
-	return (value >= min and value <= max), string.format("Range: %s - %s", min, max);
+  return (value >= min and value <= max), string.format("Range: %s - %s", min, max)
 end
 
 VALIDATOR = {
-	["0-1"] = function(value) return rangeValid(value, 0.0, 1.0); end,
-	scroll = function(value) local a, b = rangeValid(value, 0.0, 1.0); return value < 0.0 or a, b .. " (negative to ignore)"; end,
+  ["0-1"] = function(value) return rangeValid(value, 0.0, 1.0); end,
+  scroll = function(value) local a, b = rangeValid(value, 0.0, 1.0); return value < 0.0 or a, b .. " (negative to ignore)"; end,
 
-	window = function(value) return stringValid("window", value, "Windows"); end,
-	software = function(value) return stringValid("software", value, "Software"); end,
+  window = function(value) return stringValid("window", value, "Windows"); end,
+  software = function(value) return stringValid("software", value, "Software"); end,
 
-	sellx = function(value) return rangeValid(value, 0, 18); end,
-	selly = function(value) return rangeValid(value, 0, 12); end,
+  sellx = function(value) return rangeValid(value, 0, 18); end,
+  selly = function(value) return rangeValid(value, 0, 12); end,
 
-	dig = function(value) return rangeValid(value, 0, 3); end,
-	minetab = function(value) return rangeValid(value, 1, 12); end,
+  dig = function(value) return rangeValid(value, 0, 3); end,
+  minetab = function(value) return rangeValid(value, 1, 12); end,
 
-	tier = function(value) return rangeValid(value, 1, 10); end,
-	item = function(value) return stringValid("item", value, "Items"); end,
-	craft = function(value) return stringValid("craft", value, "Items"); end,
-	produce = function(value) return stringValid("produce", value, "Items"); end,
-	machine = function(value) return stringValid("machine", value, "Machines"); end,
+  tier = function(value) return rangeValid(value, 1, 10); end,
+  item = function(value) return stringValid("item", value, "Items"); end,
+  craft = function(value) return stringValid("craft", value, "Items"); end,
+  produce = function(value) return stringValid("produce", value, "Items"); end,
+  machine = function(value) return stringValid("machine", value, "Machines"); end,
 
-	inv = function(value) return stringValid("inventory", value, "Inventories"); end,
-	elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
-	elementAll = function(value) return stringValid("elementAll", value, "Elements"); end,
+  inv = function(value) return stringValid("inventory", value, "Inventories"); end,
+  elementMarket = function(value) return stringValid("elementMarket", value, "Elements"); end,
+  elementAll = function(value) return stringValid("elementAll", value, "Elements"); end,
 
-	workerGroup = function(value) return rangeValid(value, 0, 5); end,
-	workerTask = function(value) return stringValid("workerTask", value, "Tasks"); end,
+  workerGroup = function(value) return rangeValid(value, 0, 5); end,
+  workerTask = function(value) return stringValid("workerTask", value, "Tasks"); end,
 
-	region = function(value) return stringValid("region", value, "Regions"); end,
-	difficulty = function(value) return stringValid("difficulty", value, "Difficulties"); end,
+  region = function(value) return stringValid("region", value, "Regions"); end,
+  difficulty = function(value) return stringValid("difficulty", value, "Difficulties"); end,
 
-	eraDivider = function(value) return stringValid("eraDivider", value, "Era dividers"); end,
+  eraDivider = function(value) return stringValid("eraDivider", value, "Era dividers"); end,
 
-	keyItem = function(value) return stringValid("keyItem", value, "Key Items/Relics"); end,
-	marketItem = function(value) return stringValid("marketItem", value, "Market Items"); end,
-	entityType = function(value) return stringValid("entityType", value, "Adventure Entity Types"); end,
-	spell = function(value) return stringValid("spell", value, "Spells"); end,
-	currency = function(value) return stringValid("currency", value, "Resource Types"); end,
-};
+  keyItem = function(value) return stringValid("keyItem", value, "Key Items/Relics"); end,
+  marketItem = function(value) return stringValid("marketItem", value, "Market Items"); end,
+  entityType = function(value) return stringValid("entityType", value, "Adventure Entity Types"); end,
+  spell = function(value) return stringValid("spell", value, "Spells"); end,
+  currency = function(value) return stringValid("currency", value, "Resource Types"); end,
+}
 
-local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2};
+local primitives = {void=1, impulse=1, bool=1, int=1, double=1, string=1, vector=1, op_set=2, op_comp=2, op_mod=2}
 
 local functions = [[
 impulse wakeup() Impulse
@@ -400,126 +400,126 @@ void bogus() Macros {Macros void {click.relative(double:x_pos[0-1], double:y_pos
 ]]
 
 local function addList(category, display)
-	if category and category ~= "" then
-		FUNCTION_LIST[category] = FUNCTION_LIST[category] or {};
-		table.insert(FUNCTION_LIST[category], display);
-	end
+  if category and category ~= "" then
+    FUNCTION_LIST[category] = FUNCTION_LIST[category] or {}
+    table.insert(FUNCTION_LIST[category], display)
+  end
 end
 
 local function parseFunction(line)
-	local short;
-	
-	line = line:gsub("%b##", function(a)
-		short = a:sub(2, -2);
-		return "";
-	end):gsub("(%a+)%.(%w+)%.(%a+)", function(a,b,c)
-		if a == "global" or a == "local" then
-			short = a:sub(1,1) .. b:sub(1,1) .. c:sub(1,1);
-		end
-	end):gsub("(%a+)%.(%a+)", function(a,b)
-		if a == "arithmetic" or a == "comparison" then
-			short = a:sub(1,1) .. "." .. b:sub(1,1);
-		end
-	end):gsub("%b{}", function(a)
-		a = a:sub(2, -2);
-		addList(a:match"(%a+) (.+)");
-		return "";
-	end):gsub("^%s+", ""):gsub("%s+$", "");
+  local short
 
-	local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)";
-	local args, display = {}, {};
+  line = line:gsub("%b##", function(a)
+    short = a:sub(2, -2)
+    return ""
+  end):gsub("(%a+)%.(%w+)%.(%a+)", function(a,b,c)
+    if a == "global" or a == "local" then
+      short = a:sub(1,1) .. b:sub(1,1) .. c:sub(1,1)
+    end
+  end):gsub("(%a+)%.(%a+)", function(a,b)
+    if a == "arithmetic" or a == "comparison" then
+      short = a:sub(1,1) .. "." .. b:sub(1,1)
+    end
+  end):gsub("%b{}", function(a)
+    a = a:sub(2, -2)
+    addList(a:match"(%a+) (.+)")
+    return ""
+  end):gsub("^%s+", ""):gsub("%s+$", "")
 
-	if category == "Macros" then return end;
+  local ret, name, arg, category = line:match"([^ ]+) (.-)(%b()) ?(.*)"
+  local args, display = {}, {}
 
-	if line:match"%b<>" == "<char>" then
-		for char in string.gmatch("0123456789abcdefghijklmnopqrstuvwxyz", ".") do
-			local new = line:gsub("%b<>", char);
-			parseFunction(new);
-		end
+  if category == "Macros" then return end
 
-		return;
-	elseif line:match"%b<>" then
-		local done = {};
-		
-		for _, scope in ipairs {"global", "local"} do
-			for _, typefull in ipairs {"bool", "int", "double", "string", "vector"} do
-				local typev = ({bool="bool", int="int", double="double", string="string", vector="vec2"})[typefull];
-				local typeext = ({bool="bool", int="int", double="double", string="string"})[typefull];
-				local type = ({int="int", double="double", string="string"})[typefull];
-				local num = ({int="int", double="double"})[typefull];
-				local numv = ({int="int", double="double", vector="vec2"})[typefull];
+  if line:match"%b<>" == "<char>" then
+    for char in string.gmatch("0123456789abcdefghijklmnopqrstuvwxyz", ".") do
+      local new = line:gsub("%b<>", char)
+      parseFunction(new)
+    end
 
-				local tbl = {scope=scope, typefull=typefull, typev=typev, typeext=typeext, type=type, num=num, numv=numv};
-				local bad = false;
-				local new = line:gsub("%b<>", function(a)
-					local x = tbl[a:sub(2,-2)];
-					bad = bad or not x;
-					return x;
-				end);
+    return
+  elseif line:match"%b<>" then
+    local done = {}
 
-				if not bad and not done[new] then
-					done[new] = true;
-					parseFunction(new);
-				end
-			end
-		end
-		
-		return;
-	end
-	
-	assert(not FUNCTION[name], "duplicate function: " .. name);
-	assert(primitives[ret] and primitives[ret] < 2, "unknown return type: " .. ret);
-	
-	for arg in arg:sub(2,-2):gmatch"[^%s,]+" do
-		local validator;
-		local type, name = arg:gsub("%b[]", function(a)
-				a = a:sub(2,-2);
-				validator = assert(VALIDATOR[a], "unknown validator: " .. a);
-				return "";
-			end)
-			:match"([^:]+):?(.*)"
-		;
-		
-		assert(primitives[type], "unknown argument type: " .. type);
-		table.insert(args, {type = type, valid = validator});
-		table.insert(display, name == "" and type or string.format("%s: %s", type, name));
-	end
+    for _, scope in ipairs {"global", "local"} do
+      for _, typefull in ipairs {"bool", "int", "double", "string", "vector"} do
+        local typev = ({bool="bool", int="int", double="double", string="string", vector="vec2"})[typefull]
+        local typeext = ({bool="bool", int="int", double="double", string="string"})[typefull]
+        local type = ({int="int", double="double", string="string"})[typefull]
+        local num = ({int="int", double="double"})[typefull]
+        local numv = ({int="int", double="double", vector="vec2"})[typefull]
 
-	if not short and category ~= "Impulse" and category ~= "" then
-		short = name:match"%.(%a+)$" or name;
-	end
-	
-	short = short or name;
+        local tbl = {scope=scope, typefull=typefull, typev=typev, typeext=typeext, type=type, num=num, numv=numv}
+        local bad = false
+        local new = line:gsub("%b<>", function(a)
+          local x = tbl[a:sub(2,-2)]
+          bad = bad or not x
+          return x
+        end)
 
-	FUNCTION[name] = {
-		name = name,
-		short = short,
-		ret = ret,
-		args = args,
-	};
+        if not bad and not done[new] then
+          done[new] = true
+          parseFunction(new)
+        end
+      end
+    end
 
-	if short ~= name then
-		assert(not FUNCTION[short], "duplicate short function: " .. short);
-		FUNCTION[short] = FUNCTION[name];
-	end
+    return
+  end
 
-	addList(category, string.format("%s%s(%s)", ret == "void" and "" or ret .. " ", short, table.concat(display, ", ")));
+  assert(not FUNCTION[name], "duplicate function: " .. name)
+  assert(primitives[ret] and primitives[ret] < 2, "unknown return type: " .. ret)
+
+  for arg in arg:sub(2,-2):gmatch"[^%s,]+" do
+    local validator
+    local type, name = arg:gsub("%b[]", function(a)
+        a = a:sub(2,-2)
+        validator = assert(VALIDATOR[a], "unknown validator: " .. a)
+        return ""
+      end)
+      :match"([^:]+):?(.*)"
+    
+
+    assert(primitives[type], "unknown argument type: " .. type)
+    table.insert(args, {type = type, valid = validator})
+    table.insert(display, name == "" and type or string.format("%s: %s", type, name))
+  end
+
+  if not short and category ~= "Impulse" and category ~= "" then
+    short = name:match"%.(%a+)$" or name
+  end
+
+  short = short or name
+
+  FUNCTION[name] = {
+    name = name,
+    short = short,
+    ret = ret,
+    args = args,
+  }
+
+  if short ~= name then
+    assert(not FUNCTION[short], "duplicate short function: " .. short)
+    FUNCTION[short] = FUNCTION[name]
+  end
+
+  addList(category, string.format("%s%s(%s)", ret == "void" and "" or ret .. " ", short, table.concat(display, ", ")))
 end
 
-for line in functions:gsub("\r", ""):gmatch"[^\n]+" do
-	parseFunction(line);
+for line in functions:gmatch"[^\n]+" do
+  parseFunction(line)
 end
 
-local functionList = {};
+local functionList = {}
 
 for _, category in ipairs {"Impulse", "Generic", "UI", "Town", "Tower", "Game", "Software", "Worker", "Power Plant", "Mine", "Arcade", "Factory", "Museum", "Trading Post", "Shipyard", "Primitive", "Number", "String", "Conversion", "Vector", "Macros"} do
-	table.insert(functionList, string.format('<optgroup label="%s">', category));
+  table.insert(functionList, string.format('<optgroup label="%s">', category))
 
-	for _, func in ipairs (FUNCTION_LIST[category]) do
-		table.insert(functionList, string.format("<option>%s</option>", func));
-	end
+  for _, func in ipairs (FUNCTION_LIST[category]) do
+    table.insert(functionList, string.format("<option>%s</option>", func))
+  end
 
-	table.insert(functionList, "</optgroup>");
+  table.insert(functionList, "</optgroup>")
 end
 
-FUNCTION_LIST = table.concat(functionList, "");
+FUNCTION_LIST = table.concat(functionList, "")
