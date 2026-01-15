@@ -9,13 +9,18 @@ local line_number_start, line_number_end
 local compile_file
 local _cache = {}
 
+-- Aliases for lookup speed
+local find, match, sub, char, format = string.find, string.match, string.sub, string.char, string.format
+local concat = table.concat
+local co_resume, co_create, yield = coroutine.resume, coroutine.create, coroutine.yield
+
 -- Defined here to pick up compile_file and line_number
 function error_lexer(msg, _)
   local err_msg
   if line_number_start == line_number_end then
-    err_msg = string.format("%s:%s: %s", compile_file, line_number_start, msg)
+    err_msg = format("%s:%s: %s", compile_file, line_number_start, msg)
   else
-    err_msg = string.format("%s:%s-%s: %s", compile_file, line_number_start, line_number_end, msg)
+    err_msg = format("%s:%s-%s: %s", compile_file, line_number_start, line_number_end, msg)
   end
   error(err_msg, 0)
 end
@@ -31,7 +36,7 @@ function assert_parser(test, line, msg, ...)
     markers[i] = string.rep(" ", v - 1 - prev) .. "^";
     prev = v
   end
-  error_lexer(string.format("%s\n\n%s\n%s", msg, line, table.concat(markers)))
+  error_lexer(format("%s\n\n%s\n%s", msg, line, concat(markers)))
 end
 
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer", "stdlib"} do
@@ -90,10 +95,9 @@ end
 -- We need our own version of this, because we don't want errors to have extra
 -- info attached to them. We optimize for only returning one result.
 local function coroutine_wrap(fun)
-  local co = coroutine.create(fun)
-  local resume = coroutine.resume
+  local co = co_create(fun)
   return function(...)
-     local status, res = resume(co, ...)
+     local status, res = co_resume(co, ...)
      if not status then
        error(res, 0) end
      return res
@@ -103,13 +107,13 @@ end
 local function cache(line, variables)
   local key = {}
 
-  for _, v in pairs (variables) do
-    table.insert(key, string.format("%s.%s.%s.%s", v.scope, v.type, v.name, v.value))
+  for _, v in pairs(variables) do
+    key[#key+1] = format("%s.%s.%s.%s", v.scope, v.type, v.name, v.value)
   end
 
   table.sort(key)
-  table.insert(key, line)
-  key = table.concat(key, "¤")
+  key[#key+1] = line
+  key = concat(key, "¤")
 
   if not _cache[key] then
     _cache[key] = lexer(line, variables)
@@ -128,9 +132,9 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
 
   local function handleOpenBrace(pattern)
     while true do
-      npos = macroLine:find(pattern, pos)
-      result[#result+1] = macroLine:sub(pos, (npos or 0) - 1)
-      if not npos or macroLine:sub(npos, npos) ~= "{" then
+      npos = find(macroLine, pattern, pos)
+      result[#result+1] = sub(macroLine, pos, (npos or 0) - 1)
+      if not npos or sub(macroLine, npos, npos) ~= "{" then
         return end
       pos = npos + 1
       macroLine, pos = parseMacro(macroLine, pos, macros, arg_macros, result, depth + 1, get_input_line, env)
@@ -143,7 +147,7 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
       assert_parser(
         false,
         macroLine,
-        string.format("macro call {%s} has wrong number of args, expected %s but got %s", macroName, #macro_obj.args, #args),
+        format("macro call {%s} has wrong number of args, expected %s but got %s", macroName, #macro_obj.args, #args),
         npos)
     end
     if macro_obj.raw then
@@ -158,8 +162,8 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
       local posm = 1
       local text = macro_obj.text
       while posm <= #text do
-        local nposm = text:find("{", posm, true)
-        output[#output+1] = text:sub(posm, (nposm or 0) - 1)
+        local nposm = find(text, "{", posm, true)
+        output[#output+1] = sub(text, posm, (nposm or 0) - 1)
         if not nposm then
           break end
         text, posm = parseMacro(text, nposm + 1, macros, tmp_args, output, depth + 1, get_input_line, env)
@@ -180,9 +184,9 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
     return macroLine, #macroLine + 1
   end
   pos = npos + 1
-  local pChar = macroLine:sub(npos, npos)
+  local pChar = sub(macroLine, npos, npos)
   -- pChar is "}" or "(", either way we have the complete macro name.
-  macroName = table.concat(result)
+  macroName = concat(result)
   result = {}
   local macro_obj = arg_macros[macroName] or macros[macroName]
   assert_parser(macro_obj, macroLine, "macro does not exist: {" .. macroName .. "}", npos)
@@ -212,27 +216,27 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
       pos = 1
     else
       pos = npos + 1
-      local pChar = macroLine:sub(npos, npos)
+      local pChar = sub(macroLine, npos, npos)
       if pChar == "}" then
         if not macro_obj.rawarg and nesting > 0 then
           assert_parser(
             false,
             macroLine,
-            string.format("%s unclosed parenthesis inside macro {%s}", nesting, macroName),
+            format("%s unclosed parenthesis inside macro {%s}", nesting, macroName),
             npos)
         end
         -- The empty macroName here implies the {(} macro, or at least the
         -- beginning of it. It doesn't close in the usual way.
         if macroName == "" then
-          local arg = table.concat(result)
+          local arg = concat(result)
           assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", npos)
           evalMacro(macros["("])
         else
-          assert_parser(macroLine:sub(npos - 1, npos - 1) == ")", macroLine, "trailing junk after macro call {" .. macroName .. "}", npos)
+          assert_parser(sub(macroLine, npos - 1, npos - 1) == ")", macroLine, "trailing junk after macro call {" .. macroName .. "}", npos)
           if macro_obj.rawarg then
-            result[#result] = result[#result]:sub(1, -2)  -- Trim the closing paren off, which got added in rawarg mode
+            result[#result] = sub(result[#result], 1, -2)  -- Trim the closing paren off, which got added in rawarg mode
           end
-          local arg = table.concat(result)
+          local arg = concat(result)
           args[#args+1] = arg
           evalMacro(macro_obj, table.unpack(args))
         end
@@ -243,7 +247,7 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
         result[#result+1] = "("
       elseif pChar == "," then
         if nesting == 1 then
-          args[#args+1] = table.concat(result)
+          args[#args+1] = concat(result)
           result = {}
         else
           result[#result+1] = ","
@@ -322,12 +326,12 @@ local function clone_global()
 end
 
 local function is_empty(line)
-  return line:find("^%s*$") or line:find("^%s*;.*$")
+  return find(line, "^%s*$") or find(line, "^%s*;.*$")
 end
 
 local json_escape_table = {["\\"]=[[\\]], ['"']=[[\"]]}
 for i = 0, 31 do
-  json_escape_table[string.char(i)] = string.format([[\u%04x]], i)
+  json_escape_table[char(i)] = format([[\u%04x]], i)
 end
 json_escape_table["\b"] = [[\b]]
 json_escape_table["\f"] = [[\f]]
@@ -341,8 +345,8 @@ for k, v in pairs(json_escape_table) do
   line_encode_table[k] = v
 end
 for i = 0x80, 0xff do
-  line_encode_table[string.char(i)] = utf8.char(i)
-  utf_decode_table[utf8.char(i)] = string.char(i)
+  line_encode_table[char(i)] = utf8.char(i)
+  utf_decode_table[utf8.char(i)] = char(i)
 end
 
 -- importFunc takes a string (filename) and returns a pair of (status, string)
@@ -389,24 +393,29 @@ function compile(name, input, options, importFunc)
 
     local lines = {}
     local labelCache = {}
-    local input_it = input:gmatch("[^\n]*")
+    local input_it = string.gmatch(input, "[^\n]*")
     local line_it = function() end
     local output_it = function() end
 
     -- Handles stripping backslashes and tracking line-numbers
     local function get_input_line()
       local line_concat = {}
-      repeat
+      while true do
         local inp = input_it()
         if not inp then
           if #line_concat == 0 then return end
           break
         end
         line_number_end = line_number_end + 1
-        local backslash = inp:sub(-1) == "\\"
-        line_concat[#line_concat+1] = backslash and inp:sub(1, -2) or inp
-      until not backslash
-      return table.concat(line_concat)
+        local backslash = sub(inp, -1) == "\\"
+        if not backslash then
+          if #line_concat == 0 then
+            return inp end
+          line_concat[#line_concat+1] = inp
+          return concat(line_concat)
+        end
+        line_concat[#line_concat+1] = sub(inp, 1, -2)
+      end
     end
 
     -- Handles incremental macro expansion and line-buffering the result
@@ -416,15 +425,15 @@ function compile(name, input, options, importFunc)
         local line = get_input_line()
         if not line then
           return end
-        if line:find("^%s*#") then
+        if find(line, "^%s*#") then
           -- Macro def, don't parse macros
-          coroutine.yield(line)
+          yield(line)
         else
           local output = {}
           local pos = 1
           while pos <= #line do
-            local npos = line:find("{", pos, true)
-            output[#output+1] = line:sub(pos, (npos or 0) - 1)
+            local npos = find(line, "{", pos, true)
+            output[#output+1] = sub(line, pos, (npos or 0) - 1)
             if not npos then
               break end
             local first = #output + 1
@@ -441,11 +450,11 @@ function compile(name, input, options, importFunc)
             -- Because the output_it layer expects full lines, we need to
             -- keep the last partial output inside our output array.
             for i = first, #output do
-              if output[i]:find("\n", 1, true) then
-                local output_it = table.concat(output):gmatch("[^\n]*")
+              if find(output[i], "\n", 1, true) then
+                local output_it = string.gmatch(concat(output), "[^\n]*")
                 local prev = output_it()
                 for current in output_it do
-                  coroutine.yield(prev)
+                  yield(prev)
                   prev = current
                 end
                 output = {prev}
@@ -453,7 +462,7 @@ function compile(name, input, options, importFunc)
               end
             end
           end
-          coroutine.yield(table.concat(output))
+          yield(concat(output))
         end
       end
     end)
@@ -463,31 +472,31 @@ function compile(name, input, options, importFunc)
       if not real_line then
         break
       end
-      line = real_line:gsub("^%s+", ""):gsub("%s+$", "")
+      local line = match(real_line, "^%s*(.-)%s*$")
 
-      if line:match"^#" then
+      if find(line, "^#") then
         local macro_args = ""
-        local name, macro = line:match(TOKEN.identifier.pattern .. "%s(.+)$", 2)
+        local name, macro = match(line, TOKEN.identifier.pattern .. "%s(.+)$", 2)
         if not name then
-          name, macro_args, macro = line:match(TOKEN.identifier.pattern .. "(%([%w%._ ,]+%))%s(.+)$", 2)
+          name, macro_args, macro = match(line, TOKEN.identifier.pattern .. "(%([%w%._ ,]+%))%s(.+)$", 2)
         end
         assert(name, "macro definition: #name <text> or #name(args...) <text>")
         local args = {}
         local arg_begin = 2
         while arg_begin <= #macro_args do
-          local pos = macro_args:find(",", arg_begin, true)
+          local pos = find(macro_args, ",", arg_begin, true)
           if not pos then
             pos = #macro_args
           end
-          local arg_string = macro_args:sub(arg_begin, pos - 1)
-          local arg = arg_string:match("^ *" .. TOKEN.identifier.patternAnywhere .. " *$")
+          local arg_string = sub(macro_args, arg_begin, pos - 1)
+          local arg = match(arg_string, "^ *" .. TOKEN.identifier.patternAnywhere .. " *$")
           assert(arg, "bad macro function argument name: " .. arg_string)
           args[#args+1] = arg
           arg_begin = pos + 1
         end
         assert(not macros[name], "macro already exists: " .. name)
         macros[name] = {args = args, text = macro}
-      elseif line:match"^:" then
+      elseif find(line, "^:") then
         local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
         if token == "const" then
           local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$")
