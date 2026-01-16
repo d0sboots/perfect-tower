@@ -10,7 +10,7 @@ local compile_file
 local _cache = {}
 
 -- Aliases for lookup speed
-local find, match, sub, char, format = string.find, string.match, string.sub, string.char, string.format
+local find, match, sub, byte, format = string.find, string.match, string.sub, string.byte, string.format
 local concat = table.concat
 local co_resume, co_create, yield = coroutine.resume, coroutine.create, coroutine.yield
 
@@ -134,7 +134,7 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
     while true do
       npos = find(macroLine, pattern, pos)
       result[#result+1] = sub(macroLine, pos, (npos or 0) - 1)
-      if not npos or sub(macroLine, npos, npos) ~= "{" then
+      if not npos or byte(macroLine, npos) ~= 0x7b then  -- '{'
         return end
       pos = npos + 1
       macroLine, pos = parseMacro(macroLine, pos, macros, arg_macros, result, depth + 1, get_input_line, env)
@@ -184,17 +184,17 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
     return macroLine, #macroLine + 1
   end
   pos = npos + 1
-  local pChar = sub(macroLine, npos, npos)
-  -- pChar is "}" or "(", either way we have the complete macro name.
+  local b = byte(macroLine, npos)
+  -- b is "}" or "(", either way we have the complete macro name.
   macroName = concat(result)
   result = {}
   local macro_obj = arg_macros[macroName] or macros[macroName]
   assert_parser(macro_obj, macroLine, "macro does not exist: {" .. macroName .. "}", npos)
-  if pChar == "}" then
+  if b == 0x7d then  -- '}'
     evalMacro(macro_obj)
     return macroLine, pos
   end
-  -- pChar is "(", we are parsing paramaters
+  -- b is "(", we are parsing paramaters
   local args = {}
   local nesting = 1
   while true do
@@ -216,8 +216,8 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
       pos = 1
     else
       pos = npos + 1
-      local pChar = sub(macroLine, npos, npos)
-      if pChar == "}" then
+      local b = byte(macroLine, npos)
+      if b == 0x7d then  -- '}'
         if not macro_obj.rawarg and nesting > 0 then
           assert_parser(
             false,
@@ -232,7 +232,7 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
           assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", npos)
           evalMacro(macros["("])
         else
-          assert_parser(sub(macroLine, npos - 1, npos - 1) == ")", macroLine, "trailing junk after macro call {" .. macroName .. "}", npos)
+          assert_parser(byte(macroLine, npos - 1) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", npos)
           if macro_obj.rawarg then
             result[#result] = sub(result[#result], 1, -2)  -- Trim the closing paren off, which got added in rawarg mode
           end
@@ -241,18 +241,18 @@ local function parseMacro(macroLine, pos, macros, arg_macros, output, depth, get
           evalMacro(macro_obj, table.unpack(args))
         end
         return macroLine, pos
-      elseif pChar == "(" then
+      elseif b == 0x28 then
         assert_parser(nesting > 0, macroLine, "tried to re-open macro args calling {" .. macroName .. "}", npos)
         nesting = nesting + 1
         result[#result+1] = "("
-      elseif pChar == "," then
+      elseif b == 0x2c then
         if nesting == 1 then
           args[#args+1] = concat(result)
           result = {}
         else
           result[#result+1] = ","
         end
-      elseif pChar == ")" then
+      elseif b == 0x29 then
         assert_parser(nesting > 0, macroLine, "extra closing parens calling {" .. macroName .. "}", npos)
         nesting = nesting - 1
         if nesting > 0 then
@@ -331,7 +331,7 @@ end
 
 local json_escape_table = {["\\"]=[[\\]], ['"']=[[\"]]}
 for i = 0, 31 do
-  json_escape_table[char(i)] = format([[\u%04x]], i)
+  json_escape_table[string.char(i)] = format([[\u%04x]], i)
 end
 json_escape_table["\b"] = [[\b]]
 json_escape_table["\f"] = [[\f]]
@@ -345,8 +345,8 @@ for k, v in pairs(json_escape_table) do
   line_encode_table[k] = v
 end
 for i = 0x80, 0xff do
-  line_encode_table[char(i)] = utf8.char(i)
-  utf_decode_table[utf8.char(i)] = char(i)
+  line_encode_table[string.char(i)] = utf8.char(i)
+  utf_decode_table[utf8.char(i)] = string.char(i)
 end
 
 -- importFunc takes a string (filename) and returns a pair of (status, string)
@@ -407,7 +407,7 @@ function compile(name, input, options, importFunc)
           break
         end
         line_number_end = line_number_end + 1
-        local backslash = sub(inp, -1) == "\\"
+        local backslash = byte(inp, -1) == 0x5c
         if not backslash then
           if #line_concat == 0 then
             return inp end
@@ -799,7 +799,7 @@ function import(input)
 
   local function stripParens(text)
     text = tostring(text)
-    if text:byte() == 40 and text:byte(-1) == 41 then  -- "(" + ")"
+    if byte(text) == 40 and byte(text, -1) == 41 then  -- "(" + ")"
       text = text:sub(2, -2)
     end
     return text
@@ -825,10 +825,10 @@ function import(input)
         local pos, len = 0, 0
 
         repeat
-          local byte = read"B"
-          len = len + ((byte & 0x7F) << 7*pos)
+          local b = read"B"
+          len = len + ((b & 0x7F) << 7*pos)
           pos = pos + 1
-        until byte & 0x80 == 0
+        until b & 0x80 == 0
 
         local str = read("c" .. len)
         -- This must be a single gsub so that we don't re-match substituted curlies
@@ -841,8 +841,7 @@ function import(input)
           return "'" .. str .. "'"
         end
 
-        str = string.format('"%s"', str:gsub('"', [[" . '"' . "]])):gsub('"" %.', ""):gsub('%. ""', "")
-        return str
+        return '"' .. str:gsub('"', "\\x22") .. '"'
       elseif type == 5 then
         return string.format("vec(%s, %s)", read"f", read"f")
       else
@@ -858,7 +857,7 @@ function import(input)
 
         if arg.type:match"^op_" then
           dynamicOperator = true
-          if args[i]:byte() == 34 then  -- '"'
+          if byte(args[i]) == 34 then  -- '"'
             local transformed = args[i]:sub(2, -2)
             :gsub("^=$", "==")
             :gsub("mod", "%%")
@@ -878,7 +877,7 @@ function import(input)
 
       local scope, type, func_name = func.name:match"(%a+)%.(%w+)%.(%a+)"
 
-      if (scope == "global" or scope == "local") and args[1]:byte() == 34 then
+      if (scope == "global" or scope == "local") and byte(args[1]) == 34 then
         local var = args[1]:sub(2,-2)
 
         if var == var:match(TOKEN.identifier.pattern) then

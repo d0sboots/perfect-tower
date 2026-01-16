@@ -38,6 +38,19 @@ local function newNode(pos, parent, func)
 	};
 end
 
+local stringTable = {
+	["\\b"] = "\b",
+	["\\f"] = "\f",
+	["\\n"] = "\n",
+	["\\r"] = "\r",
+	["\\t"] = "\t",
+	["\\v"] = "\v",
+	["\\\\"] = "\\",
+	["\\x"] = "\0x0000",
+	["\\u"] = "\0u00",
+	["\\U"] = "\0U",
+}
+
 local function nextToken(str, pos, prev)
 	pos = pos or 1;
 	local ret = {};
@@ -66,7 +79,33 @@ local function nextToken(str, pos, prev)
 					ret.type = "bool";
 					ret.value = ret.value == "true";
 				elseif ret.type == "string" then
-					ret.value = ret.value:sub(2,-2);
+					-- We add extra padding so that escapes that rely on a set number of characters will
+					-- still trigger (and fail) if they are at end-of-string.
+					ret.value = (ret.value .. "XXXXXX"):gsub("\\.", function(v)
+							local r = stringTable[v]
+							if not r then tokenError(pos, "invalid string escape: " .. v) end
+							return r
+						end):gsub("\0[xuU]......", function(v)
+							local b = v:byte(2)
+							local num = tonumber(v:sub(3), 16)
+							if not num or num < 0 or num > 0x10ffff then
+								local chr = v:sub(2, 2)
+								local slice
+								if chr == "x" then
+									slice = v:sub(7)
+								elseif chr == "u" then
+									slice = v:sub(5)
+								elseif chr == "U" then
+									slice = v:sub(3)
+								end
+								local msg = (num and
+									"hex string escape out of range: \\" or
+									"hex string escape is not valid hex: \\") .. chr .. slice
+								tokenError(pos, msg)
+							end
+							if b == 120 then return string.char(num) end
+							return utf8.char(num)
+						end):sub(2, -8)
 				end
 
 				if ret.type == "operator" and not ret.op then tokenError(pos, "invalid operator: " .. match) end

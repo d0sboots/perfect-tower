@@ -27,8 +27,23 @@ The language has 5 types: `bool`, `int`, `double`, `vector`, and `string`.
   are the same as for C#, which is the internal implementation.
   https://learn.microsoft.com/en-us/dotnet/standard/base-types/character-encoding-introduction
   Strings can be up to 2 billion characters long, but are truncated to 65536
-  characters when stored in a variable. Strings can be delimited with either
-  `"` or `'`, but note that backslash escape sequences are currently *not* supported.
+  characters when stored in a variable. This does mean you can operate on
+  longer string tables, if you keep them as literals. Strings literals can be
+  delimited with either `"` or `'`, and support the following backslash escape sequences:
+  * `\b` - backspace (char 0x08)
+  * `\f` - formfeed  (char 0x0c)
+  * `\n` - newline   (char 0x0a)
+  * `\r` - carr. ret (char 0x0d)
+  * `\t` - tab       (char 0x09)
+  * `\v` - vert tab  (char 0x0b)
+  * `\\` - backslash (char 0x5c)
+  * `\x` - hex escape (exactly 2 hex chars follow)
+  * `\u` - unicode escape (exactly 4 hex chars follow)
+  * `\U` - long unicode escape (exactly 6 hex chars follow)
+  Note that the `\x` escape creates raw bytes, which might not form valid
+  utf-8, and the game expects utf-8. For instance, `"↑"`, `"\u2191"` and
+  `"\xe2\x86\x91"` are all the same thing. Also, for annoying technical
+  reasons there aren't short escapes for `\'` or `\"`. Use `\x27` and `\x22`.
 
 ## Language conventions
 
@@ -267,6 +282,19 @@ macro definition, any space in the *invocation* will become part of the
 parameter(s) that are substituted. Often this does not matter, but it's worth
 knowing.
 
+A *simple* macro call is limited to one line - if you write `{macroname` as
+the full line, it will go through verbatim. However, macro functions can
+continue onto multiple lines - `{macroname(` will grab successive lines until
+it finds the closing `}`. In addition, if the opening `(` or `,` that starts a
+new param is immediately followed by a newline, the newline will not become
+part of the param, as if there was a `\` present. For instance:
+```
+{macroname(
+arg1,
+arg2)}
+```
+is the same as `{macroname(arg1,arg2)}`.
+
 Macros can contain other macros, both in their definitions and invocations.
 This is legal:
 ```
@@ -281,7 +309,10 @@ define variables, constants, or set other compiler directives.
 There are a handful of "special" macros that are hardcoded and predefined:
 * `{}` returns `{}`
 * `{[}` returns `{`
-* `{]}` returns `}`. These two are used to escape the macro characters.
+* `{]}` returns `}`
+* `{(}` returns `(`
+* `{)}` returns `)`
+* `{,}` returns `,`. These 5 are used to escape macro special characters from macro processing.
 * `{len(...)}` returns the length in characters of whatever is contained within.
 * `{lua(...)}` evaluates a lua expression and returns the stringified result.
   This can be used for arbitrarily-complicated metaprogramming.
