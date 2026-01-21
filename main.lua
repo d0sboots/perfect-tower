@@ -510,16 +510,15 @@ function compile(name, input, options, importFunc)
             macros[name] = {args = args, text = macro}
           end
         until not in_macro_def
-        return result
+        return result:gsub("%s*$", "")
       end
     end)() -- IIFE for closure locals
 
     while true do
-      local real_line = get_line()
-      if not real_line then
+      local line = get_line()
+      if not line then
         break
       end
-      local line = real_line:gsub("%s*$", "")
 
       if find(line, "^:") then
         local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
