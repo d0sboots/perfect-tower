@@ -92,18 +92,6 @@ do
   end
 end
 
--- We need our own version of this, because we don't want errors to have extra
--- info attached to them. We optimize for only returning one result.
-local function coroutine_wrap(fun)
-  local co = co_create(fun)
-  return function(...)
-     local status, res = co_resume(co, ...)
-     if not status then
-       error(res, 0) end
-     return res
-  end
-end
-
 local function cache(line, variables)
   local key = {}
 
@@ -139,7 +127,10 @@ local function parseMacro(macroLine, pos, output, depth, opts)
         return pChar
       end
       pos = npos + 1
+      local orig_start = line_number_start
+      line_number_start = line_number_end
       macroLine, pos = parseMacro(macroLine, pos, result, depth + 1, opts)
+      line_number_start = orig_start
     end
   end
 
@@ -168,7 +159,10 @@ local function parseMacro(macroLine, pos, output, depth, opts)
         output[#output+1] = sub(text, posm, (nposm or 0) - 1)
         if not nposm then
           break end
+        local orig_start = line_number_start
+        line_number_start = line_number_end
         text, posm = parseMacro(text, nposm + 1, output, depth + 1, {macros=opts.macros, arg_macros=tmp_args, get_input=opts.get_input})
+        line_number_start = orig_start
       end
     end
   end
@@ -448,49 +442,75 @@ function compile(name, input, options, importFunc)
     local get_line = (function()
       local line, start, pos
       return function()
-        local _, npos, rest, chr, next_start
-        if not line then
-          line, start = get_chunk()
-          next_start = start
-          pos = 1
-        end
+        local result
         repeat
+          local _, npos, rest, chr, next_start
+          in_macro_def = false
           if not line then
-            return end
-          _, npos, rest, chr = find(line, "^[ \t\v\r\f]*(([^ \t\v\r\f]).*)", pos)
-          print("l", line, pos, npos, rest, chr, line_number_end)
-          if chr then
-            break end
-          line, next_start = get_chunk()
-          pos = 1
-        until chr
-        if chr == "#" then
-          in_macro_def = true
-        end
-        line = rest
-        pos = 1
-        local output = {}
-        repeat
-          print("h", line, pos, npos, start, next_start, line_number_end)
-          _, npos, rest = find(line, "^([^\n]*)\n", pos)
-          if not npos then
-            output[#output+1] = line
-            line, next_start = get_chunk()
-            if not line then
-              goto line_done end
-          else
-            in_macro_def = false
-            output[#output+1] = rest
-            pos = npos + 1
+            line, start = get_chunk()
+            next_start = start
+            pos = 1
           end
-        until npos
-        if pos > #line then
-          line = nil
-        end
-        ::line_done::
-        line_number_start = start
-        start = next_start
-        return #output == 1 and output[1] or concat(output)
+          repeat
+            if not line then
+              return end
+            _, npos, rest, chr = find(line, "^[ \t\v\r\f]*(([^ \t\v\r\f]).*)", pos)
+            if chr then
+              break end
+            line, next_start = get_chunk()
+            pos = 1
+          until chr
+          if chr == "#" then
+            in_macro_def = true
+          end
+          line = rest
+          pos = 1
+          local output = {}
+          repeat
+            _, npos, rest = find(line, "^([^\n]*)\n", pos)
+            if not npos then
+              output[#output+1] = line
+              line, next_start = get_chunk()
+              if not line then
+                goto line_done end
+            else
+              output[#output+1] = rest
+              pos = npos + 1
+            end
+          until npos
+          if pos > #line then
+            line = nil
+          end
+          ::line_done::
+          result = #output == 1 and output[1] or concat(output)
+          line_number_start = start
+          start = next_start
+          if in_macro_def then
+            result = result:gsub("%s*$", "")
+            local macro_args = ""
+            local name, macro = match(result, TOKEN.identifier.pattern .. "%s(.+)$", 2)
+            if not name then
+              name, macro_args, macro = match(result, TOKEN.identifier.pattern .. "%(([%w%._%s,]+)%)%s(.+)$", 2)
+            end
+            assert_parser(name, result, "macro definition: #name <text> or #name(args...) <text>", 2)
+            local args = {}
+            local arg_begin = 1
+            while arg_begin <= #macro_args do
+              local pos = find(macro_args, ",", arg_begin, true)
+              if not pos then
+                pos = #macro_args + 1
+              end
+              local arg_string = sub(macro_args, arg_begin, pos - 1)
+              local arg = match(arg_string, "^%s*" .. TOKEN.identifier.patternAnywhere .. "%s*$")
+              assert_parser(arg, result, "bad macro function argument name: " .. arg_string, #name + 2 + arg_begin)
+              args[#args+1] = arg
+              arg_begin = pos + 1
+            end
+            assert_parser(not macros[name], result, "macro already exists: " .. name, 2)
+            macros[name] = {args = args, text = macro}
+          end
+        until not in_macro_def
+        return result
       end
     end)() -- IIFE for closure locals
 
@@ -499,31 +519,9 @@ function compile(name, input, options, importFunc)
       if not real_line then
         break
       end
-      local line = match(real_line, "^(.-)%s*$")
+      local line = real_line:gsub("%s*$", "")
 
-      if find(line, "^#") then
-        local macro_args = ""
-        local name, macro = match(line, TOKEN.identifier.pattern .. "%s(.+)$", 2)
-        if not name then
-          name, macro_args, macro = match(line, TOKEN.identifier.pattern .. "(%([%w%._ ,]+%))%s(.+)$", 2)
-        end
-        assert(name, "macro definition: #name <text> or #name(args...) <text>")
-        local args = {}
-        local arg_begin = 2
-        while arg_begin <= #macro_args do
-          local pos = find(macro_args, ",", arg_begin, true)
-          if not pos then
-            pos = #macro_args
-          end
-          local arg_string = sub(macro_args, arg_begin, pos - 1)
-          local arg = match(arg_string, "^ *" .. TOKEN.identifier.patternAnywhere .. " *$")
-          assert(arg, "bad macro function argument name: " .. arg_string)
-          args[#args+1] = arg
-          arg_begin = pos + 1
-        end
-        assert(not macros[name], "macro already exists: " .. name)
-        macros[name] = {args = args, text = macro}
-      elseif find(line, "^:") then
+      if find(line, "^:") then
         local token = line:match("^:" .. TOKEN.identifier.patternAnywhere)
         if token == "const" then
           local _, type, name, value = line:sub(2):match("^(%a+) (%a+) " .. TOKEN.identifier.patternAnywhere .. " (.+)$")
