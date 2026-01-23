@@ -192,7 +192,7 @@ function workspaceExport() {
             script_list.push({name: script[0], text: script[1]})
         }
     }
-    runLua("workspace", script_list, {name: workspaceList.value, format: exportFormat});
+    runLua("workspace", script_list, {name: workspaceList.value, format: exportFormat, fastMacro: fastMacro});
 }
 
 function workspaceMoveScript() {

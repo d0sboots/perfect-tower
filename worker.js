@@ -3,8 +3,12 @@ importScripts("fengari-web.js");
 
 const L = fengari.L;
 const lua = fengari.lua;
+const luaL = fengari.lauxlib;
 const interop = fengari.interop;
 
+// We need to set these functions *before* main is loaded, so that they can be
+// used by main.
+lua.lua_register(L, native_macros.name, native_macros);
 fengari.load("require('main')")();
 
 const UNCOMPRESSED_FORMAT = "v0";
@@ -346,3 +350,407 @@ onmessage = function(e) {
   }
 }
 
+// JS Native implementation of macro parsing, for speed
+function native_macros() {
+  // This scope encloses the entirety of a compile operation, which can span
+  // multiple imports.
+  let line_number_start, line_number_end, compile_file;
+
+  function error_lexer(msg) {
+    let err_msg;
+    if (line_number_start === line_number_end) {
+      err_msg = `${compile_file}:${line_number_start}: ${msg}`;
+    } else {
+      err_msg = `${compile_file}:${line_number_start}-${line_number_end}: ${msg}`;
+    }
+    lua.lua_pushstring(L, err_msg);
+    return lua.lua_error(L);
+  }
+
+  function assert_parser(test, line, msg, ...mpos) {
+    if (test) {
+      return test;
+    }
+
+    let prev = 0;
+    const markers = [];
+    for (let i = 0; i < mpos.length; ++i) {
+      const v = mpos[i];
+      markers[i] = " ".repeat(v - 1 - prev) + "^";
+      prev = v;
+    }
+    return error_lexer(`${msg}\n\n${line}\n${markers.join("")}`);
+  }
+
+  const macros = {
+    // This entry is also used for {(} since that looks like an argument-macro
+    // with no name, depending on how it is parsed. An expression like {{(}}
+    // will parse one way for the inner macro and another (using the later
+    // entry) for the outer macro, since the substituted paren doesn't act
+    // like a delimiter and instead forms part of the name of a simple macro.
+    "":  {args: [], raw: "{}", rawarg: true},
+    "[": {args: [], raw: "{"},
+    "]": {args: [], raw: "}"},
+    "(": {args: [], raw: "("},
+    ")": {args: [], raw: ")"},
+    ",": {args: [], raw: ","},
+    len: {args: ["#"], rawarg: true, func: arg_body => String(arg_body.length)},
+    lua: {args: ["#"], rawarg: true, func: lua_text => {
+      const lua_bytes = (new TextEncoder()).encode(lua_text);
+      const decoder = new TextDecoder();
+      let result = luaL.luaL_loadbufferx(L, lua_bytes, null, lua_bytes, "t");
+      if (result !== lua.LUA_OK) {
+        const err = decoder.decode(lua.lua_tostring(L, -1));
+        lua.lua_pop(L, 1);
+        error_lexer(err);
+      }
+      // We are ultimately executing in the lua context of a call to
+      // get_line(). This has env as the first upvalue.
+      lua.lua_pushvalue(L, lua.lua_upvalueindex(1));
+      lua.lua_setupvalue(L, -2, 1);
+      result = lua.lua_pcall(L, 0, 1, 0);
+      const lua_value = lua.lua_tostring(L, -1);
+      const value = lua_value ? decoder.decode(lua_value) : "";
+      lua.lua_pop(L, 1);
+      if (result !== lua.LUA_OK) {
+        error_lexer(value);
+      }
+      return value;
+    }},
+  };
+
+  // Returns the tuple [macroLine, pos, output] containing the new line and parsing position.
+  // The line is typically the same, but may have been advanced.
+  function parseMacro(macroLine, pos, output, depth, opts) {
+    assert_parser(depth < 100, macroLine, "macro expansion depth reached " + depth + ", probable infinite loop in:");
+    let result = "";
+    let macroName;
+
+    const handleOpenBrace = (pattern) => {
+      let _, res, pChar;
+      const re = new RegExp("([" + pattern + "])", "g");
+      while (true) {
+        re.lastIndex = pos;
+        const found = re.exec(macroLine);
+        if (found) {
+          result += macroLine.slice(pos, found.index);
+          pos = re.lastIndex;
+        } else {
+          result += macroLine.slice(pos);
+          pos = macroLine.length;
+          return null;
+        }
+        if (found[1] !== "{") {
+          return found[1];
+        }
+        const orig_start = line_number_start;
+        line_number_start = line_number_end;
+        [macroLine, pos, result] = parseMacro(macroLine, pos, result, depth + 1, opts);
+        line_number_start = orig_start;
+      }
+    }
+
+    const evalMacro = (macro_obj, ...args) => {
+      if (macro_obj.args.length !== args.length) {
+        assert_parser(
+          false,
+          macroLine,
+          `macro call {${macroName}} has wrong number of args, expected ${macro_obj.args.length} but got ${args.length}`,
+          pos - 1);
+      }
+      if (macro_obj.raw != null) {
+        output += macro_obj.raw;
+      } else if (macro_obj.func != null) {
+        output += macro_obj.func(...args);
+      } else {
+        const tmp_args = [];
+        for (let i = 0; i < args.length; ++i) {
+          tmp_args[macro_obj.args[i]] = {raw: args[i], args: []};
+        }
+        let posm = 0;
+        let text = macro_obj.text;
+        while (posm <= text.length) {
+          const nposm = text.indexOf("{", posm);
+          if (nposm < 0) {
+            output += text.slice(posm);
+            break;
+          }
+          output += text.slice(posm, nposm);
+          const orig_start = line_number_start;
+          line_number_start = line_number_end;
+          [text, posm, output] = parseMacro(text, nposm + 1, output, depth + 1, {
+            macros: opts.macros,
+            arg_macros: tmp_args,
+            get_input: () => null,
+          });
+          line_number_start = orig_start;
+        }
+      }
+    }
+
+    const pChar = handleOpenBrace("{(}");
+    if (pChar == null) {
+      // End of line. Unterminated macro is just returned as a literal text,
+      // which is copied to the output buffer. We have to add the { that
+      // *wasn't* included as part of our parsed text.
+      output += "{";
+      output += result;
+      return [macroLine, macroLine.length, output];
+    }
+    // pChar is "}" or "(", either way we have the complete macro name.
+    macroName = result;
+    result = "";
+    const macro_obj = opts.arg_macros[macroName] ?? opts.macros[macroName];
+    assert_parser(opts.no_eval || macro_obj, macroLine, "macro does not exist: {" + macroName + "}", pos - 1);
+    if (pChar === "}") {
+      evalMacro(macro_obj);
+      return [macroLine, pos, output];
+    }
+    // pChar is "(", we are parsing paramaters
+    const args = [];
+    let nesting = 1;
+    while (true) {
+      // The rawarg parsing mode does not count matching parens and always has
+      // only a single arg. The same code handles both modes, we simply don't go
+      // down the branches to handle parens by never matching those characters.
+      const pChar = handleOpenBrace(macro_obj.rawarg ? "{}" : "{(,)}");
+      if (pChar == null) {
+        // End of line. Get more input, since non-simple macros can span lines.
+        if (result === "\n") {
+          // If a new param (open paren or comma) is immediately followed by
+          // newline, handleOpenBrace will only add that to result.
+          // In this case, we want to swallow the initial newline.
+          result = "";
+        }
+        const nextline = opts.get_input();
+        assert_parser(nextline != null, macroLine, "unexpected EOF getting args for {" + macroName + "}", macroLine.length);
+        macroLine = nextline;
+        pos = 0;
+      } else {
+        if (pChar === "}") {
+          if (!macro_obj.rawarg && nesting > 0) {
+            assert_parser(
+              false,
+              macroLine,
+              `${nesting} unclosed parenthesis inside macro {${macroName}}`,
+              pos - 1);
+          }
+          // The empty macroName here implies the {(} macro, or at least the
+          ///beginning of it. It doesn't close in the usual way.
+          if (macroName === "") {
+            assert_parser(result === "", macroLine, "{(} macro has extra junk in it", pos - 1);
+            evalMacro(opts.macros["("]);
+          } else {
+            assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 1);
+            if (macro_obj.rawarg) {
+              result = result.slice(0, -1);  // Trim the closing paren off, which got added in rawarg mode
+            }
+            args.push(result);
+            evalMacro(macro_obj, ...args);
+          }
+          return [macroLine, pos, output];
+        } else if (pChar === "(") {
+          assert_parser(nesting > 0, macroLine, "tried to re-open macro args calling {" + macroName + "}", pos - 1);
+          nesting += 1;
+          result += "(";
+        } else if (pChar === ",") {
+          if (nesting === 1) {
+            args.push(result);
+            result = "";
+          } else {
+            result += ",";
+          }
+        } else if (pChar === ")") {
+          assert_parser(nesting > 0, macroLine, "extra closing parens calling {" + macroName + "}", pos - 1);
+          nesting -= 1;
+          if (nesting > 0) {
+            result += ")";
+          }
+          // We don't add the last paren to args here. Instead, we let the "}"
+          // code handle that, allowing both the rawarg and regular code to
+          // follow the same path for adding the final arg. This means that any
+          // text that comes *after* this paren will get added to the last arg,
+          // but that's an error we check for so it won't hurt us.
+        } else {
+          assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" + macroName + "}", pos - 1);
+        }
+      }
+    }
+  }
+
+  function native_create_get_line() {
+    let input_it;
+    {
+      const decoder = new TextDecoder();
+      compile_file = decoder.decode(lua.lua_tostring(L, 1));
+      const input = decoder.decode(lua.lua_tostring(L, 2));
+
+      input_it = input.matchAll(/[^\n]*(\n?)/g);
+      line_number_end = 0;
+    }
+
+    // Handles stripping backslashes and tracking line-numbers
+    function get_input_line() {
+      const {done, value} = input_it.next();
+      if (done) return null;
+      line_number_end = line_number_end + 1;
+      const [inp, last] = value;
+      if (last !== "\n" || inp[inp.length-2] !== "\\") {
+        return inp;
+      }
+      return inp.slice(0, -2);
+    }
+
+    const parse_macro_opts = {
+      macros: macros,
+      arg_macros: {},
+      get_input: get_input_line,
+    };
+    let in_macro_def = false;
+
+    // Handles incremental macro expansion
+    // There is feedback between this function and the next stage, via in_macro_def.
+    // This is because this function parses macros, but the next stage handles
+    // macro definitions. It *must* be arranged this way, because macro
+    // definitions can be started from within (the expanded text of) a macro.
+    // Why? Because I like making things hard for myself.
+    // Since macros aren't parsed when defining a macro, this (earlier) stage
+    // needs feedback from the later stage to know when it is or isn't
+    // expanding macros. This function passes all the text needed to make that
+    // determination (right up to the opening "{"), and then the next part
+    // sets the flag appropriately so that parsing can proceed.
+    const get_chunk = (() => {
+      let pos, line;
+      const re = /((.)[^{]*)({|$)/gs;
+      return () => {
+        if (line == null || pos >= line.length) {
+          pos = 0;
+          line = get_input_line();
+        }
+        if (line == null) return [null, null];
+        re.lastIndex = pos;
+        const match = re.exec(line);
+        if (!match) {
+          return ["", line_number_end];
+        } else if (in_macro_def || match[2] !== "{") {
+          pos += match[1].length;
+          return [match[1], line_number_end];
+        } else {
+          let output = "";
+          const orig_start = line_number_end;
+          line_number_start = orig_start;
+          [line, pos, output] = parseMacro(line, pos + 1, output, 1, parse_macro_opts);
+          return [output, orig_start];
+        }
+      }
+    })();
+
+    const get_line = (() => {
+      let line, start, pos;
+      const re_space = /[ \t\v\r\f]*(([^ \t\v\r\f]).*)/gs;
+      const re_macro = /^#([a-zA-Z_][\w.]*)(\([\w.\s,]+\)|)\s(.+)$/s;
+      const re_arg = /^\s*([a-zA-Z_][\w.]*)\s*$/;
+      return () => {
+        let result;
+        do {
+          let match, next_start;
+          in_macro_def = false;
+          if (line == null) {
+            [line, start] = get_chunk();
+            next_start = start;
+            pos = 0;
+          }
+          while (true) {
+            if (line == null) {
+              return [null, line_number_start, line_number_end];
+            }
+            re_space.lastIndex = pos;
+            match = re_space.exec(line);
+            if (match) {
+              break;
+            }
+            [line, next_start] = get_chunk();
+            pos = 0;
+          }
+          in_macro_def = (match[2] === "#");
+          line = match[1];
+          pos = 0;
+          let output = "";
+          while (true) {
+            const npos = line.indexOf("\n", pos);
+            if (npos < 0) {
+              output += line;
+              [line, next_start] = get_chunk();
+              if (line == null) {
+                break;
+              }
+            } else {
+              output += line.slice(pos, npos);
+              pos = npos + 1;
+              break;
+            }
+          }
+          if (line && pos >= line.length) {
+            line = null;
+          }
+          result = output;
+          line_number_start = start;
+          start = next_start;
+          if (in_macro_def) {
+            result = result.replace(/\s*$/, "");
+            const match = re_macro.exec(result);
+            assert_parser(match, result, "macro definition: #name <text> or #name(args...) <text>", 1);
+            const [_, name, macro_args, macro] = match;
+            const args = [];
+            let arg_begin = 1;
+            while (arg_begin < macro_args.length - 1) {
+              let pos = macro_args.indexOf(",", arg_begin);
+              if (pos < 0) {
+                pos = macro_args.length - 1;
+              }
+              const arg_string = macro_args.slice(arg_begin, pos);
+              const match = re_arg.exec(arg_string);
+              assert_parser(match, result, "bad macro function argument name: " + arg_string, name.length + 1 + arg_begin);
+              args.push(match[1]);
+              arg_begin = pos + 1;
+            }
+            assert_parser(!macros[name], result, "macro already exists: " + name, 1);
+            macros[name] = {args: args, text: macro};
+          }
+        } while (in_macro_def);
+        return [result.replace(/\s*$/, ""), line_number_start, line_number_end];
+      }
+    })();
+
+    // Propogate the "env" upvalue.
+    // We keep this in the closure for the lua macro to use.
+    lua.lua_pushvalue(L, lua.lua_upvalueindex(1));
+    lua.lua_pushcclosure(L, () => {
+      try {
+        const [line, start, end] = get_line();
+        if (line == null) {
+          lua.lua_pushnil(L);
+        } else {
+          lua.lua_pushstring(L, (new TextEncoder()).encode(line));
+        }
+        lua.lua_pushinteger(L, start);
+        lua.lua_pushinteger(L, end);
+        return 3;
+      } catch (err) {
+        if ("status" in err) {
+          // This is a lua throw
+          throw err;
+        }
+        console.error(err);
+        lua.lua_pushstring(L, err.toString() + "\n" + err.stack);
+        return lua.lua_error(L);
+      }
+    }, 1);
+    return 1;  // Returning the closure we just made
+  } // native_create_get_line
+
+  // The env for lua_load should be the only thing on the lua stack.
+  // Stash it in this closure which we return.
+  lua.lua_pushcclosure(L, native_create_get_line, 1);
+  return 1;
+} // native_macro

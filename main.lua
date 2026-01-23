@@ -161,7 +161,11 @@ local function parseMacro(macroLine, pos, output, depth, opts)
           break end
         local orig_start = line_number_start
         line_number_start = line_number_end
-        text, posm = parseMacro(text, nposm + 1, output, depth + 1, {macros=opts.macros, arg_macros=tmp_args, get_input=opts.get_input})
+        text, posm = parseMacro(text, nposm + 1, output, depth + 1, {
+          macros=opts.macros,
+          arg_macros=tmp_args,
+          get_input=function() end,
+        })
         line_number_start = orig_start
       end
     end
@@ -349,31 +353,36 @@ function compile(name, input, options, importFunc)
   local variables, impulses, conditions, actions = {}, {}, {}, {}
   local budget, use_budget
   local env = clone_global()
-  local macros = {
-    -- This entry is also used for {(} since that looks like an argument-macro
-    -- with no name, depending on how it is parsed. An expression like {{(}}
-    -- will parse one way for the inner macro and another (using the later
-    -- entry) for the outer macro, since the substituted paren doesn't act
-    -- like a delimiter and instead forms part of the name of a simple macro.
-    [""] = {args = {}, raw = "{}", rawarg = true},
-    ["["] = {args = {}, raw = "{"},
-    ["]"] = {args = {}, raw = "}"},
-    ["("] = {args = {}, raw = "("},
-    [")"] = {args = {}, raw = ")"},
-    [","] = {args = {}, raw = ","},
-    len = {args = {"#"}, rawarg = true, func = function(arg_body)
-      return tostring(#arg_body)
-    end},
-    lua = {args = {"#"}, rawarg = true, func = function(lua_text)
-      local chunk, err = load(lua_text, lua_text, "t", env)
-      assert(chunk, err)
-      local status, result = pcall(chunk)
-      if status then
-        return tostring(result or "")
-      end
-      error_lexer(result)
-    end},
-  }
+  local macros, native_create_get_line
+  if native_macros and options.fastMacro then
+    native_create_get_line = native_macros(env)
+  else
+    macros = {
+      -- This entry is also used for {(} since that looks like an argument-macro
+      -- with no name, depending on how it is parsed. An expression like {{(}}
+      -- will parse one way for the inner macro and another (using the later
+      -- entry) for the outer macro, since the substituted paren doesn't act
+      -- like a delimiter and instead forms part of the name of a simple macro.
+      [""] = {args = {}, raw = "{}", rawarg = true},
+      ["["] = {args = {}, raw = "{"},
+      ["]"] = {args = {}, raw = "}"},
+      ["("] = {args = {}, raw = "("},
+      [")"] = {args = {}, raw = ")"},
+      [","] = {args = {}, raw = ","},
+      len = {args = {"#"}, rawarg = true, func = function(arg_body)
+        return tostring(#arg_body)
+      end},
+      lua = {args = {"#"}, rawarg = true, func = function(lua_text)
+        local chunk, err = load(lua_text, lua_text, "t", env)
+        assert(chunk, err)
+        local status, result = pcall(chunk)
+        if status then
+          return tostring(result or "")
+        end
+        error_lexer(result)
+      end},
+    }
+  end
   local imported = {}
   local ret = {}
 
@@ -387,59 +396,60 @@ function compile(name, input, options, importFunc)
 
     local lines = {}
     local labelCache = {}
-    local input_it = string.gmatch(input, "([^\n]*(\n?))")
 
-    -- Handles stripping backslashes and tracking line-numbers
-    local function get_input_line()
-      local inp, last = input_it()
-      if not inp then
-        return end
-      line_number_end = line_number_end + 1
-      if last ~= "\n" or byte(inp, -2) ~= 0x5c then
-        return inp end
-      return sub(inp, 1, -3)
-    end
+    local function create_get_line(compile_file, input)
+      local input_it = string.gmatch(input, "([^\n]*(\n?))")
 
-    local in_macro_def = false
-    local parse_macro_opts = {macros = macros, arg_macros = {}, get_input = get_input_line}
-
-    -- Handles incremental macro expansion
-    -- There is feedback between this function and the next stage, via in_macro_def.
-    -- This is because this function parses macros, but the next stage handles
-    -- macro definitions. It *must* be arranged this way, because macro
-    -- definitions can be started from within (the expanded text of) a macro.
-    -- Why? Because I like making things hard for myself.
-    -- Since macros aren't parsed when defining a macro, this (earlier) stage
-    -- needs feedback from the later stage to know when it is or isn't
-    -- expanding macros. This function passes all the text needed to make that
-    -- determination (right up to the opening "{"), and then the next part
-    -- sets the flag appropriately so that parsing can proceed.
-    local get_chunk = (function()
-      local pos, line
-      return function()
-        if not line or pos > #line then
-          pos = 1
-          line = get_input_line()
-        end
-        if not line then
+      -- Handles stripping backslashes and tracking line-numbers
+      local function get_input_line()
+        local inp, last = input_it()
+        if not inp then
           return end
-        local _, npos, str, chr = find(line, "^((.)[^{]*)%f[{\0]", pos)
-        if not str then
-          return "", line_number_end
-        elseif in_macro_def or chr ~= "{" then
-          pos = npos + 1
-          return str, line_number_end
-        else
-          local output = {}
-          local orig_start = line_number_end
-          line_number_start = orig_start
-          line, pos = parseMacro(line, pos + 1, output, 1, parse_macro_opts)
-          return concat(output), orig_start
-        end
+        line_number_end = line_number_end + 1
+        if last ~= "\n" or byte(inp, -2) ~= 0x5c then
+          return inp end
+        return sub(inp, 1, -3)
       end
-    end)() -- IIFE for closure locals
 
-    local get_line = (function()
+      local in_macro_def = false
+      local parse_macro_opts = {macros = macros, arg_macros = {}, get_input = get_input_line}
+
+      -- Handles incremental macro expansion
+      -- There is feedback between this function and the next stage, via in_macro_def.
+      -- This is because this function parses macros, but the next stage handles
+      -- macro definitions. It *must* be arranged this way, because macro
+      -- definitions can be started from within (the expanded text of) a macro.
+      -- Why? Because I like making things hard for myself.
+      -- Since macros aren't parsed when defining a macro, this (earlier) stage
+      -- needs feedback from the later stage to know when it is or isn't
+      -- expanding macros. This function passes all the text needed to make that
+      -- determination (right up to the opening "{"), and then the next part
+      -- sets the flag appropriately so that parsing can proceed.
+      local get_chunk = (function()
+        local pos, line
+        return function()
+          if not line or pos > #line then
+            pos = 1
+            line = get_input_line()
+          end
+          if not line then
+            return end
+          local _, npos, str, chr = find(line, "^((.)[^{]*)%f[{\0]", pos)
+          if not str then
+            return "", line_number_end
+          elseif in_macro_def or chr ~= "{" then
+            pos = npos + 1
+            return str, line_number_end
+          else
+            local output = {}
+            local orig_start = line_number_end
+            line_number_start = orig_start
+            line, pos = parseMacro(line, pos + 1, output, 1, parse_macro_opts)
+            return concat(output), orig_start
+          end
+        end
+      end)() -- IIFE for closure locals
+
       local line, start, pos
       return function()
         local result
@@ -453,7 +463,8 @@ function compile(name, input, options, importFunc)
           end
           repeat
             if not line then
-              return end
+              return nil, line_number_start, line_number_end
+            end
             _, npos, rest, chr = find(line, "^[ \t\v\r\f]*(([^ \t\v\r\f]).*)", pos)
             if chr then
               break end
@@ -510,12 +521,15 @@ function compile(name, input, options, importFunc)
             macros[name] = {args = args, text = macro}
           end
         until not in_macro_def
-        return result:gsub("%s*$", "")
-      end
-    end)() -- IIFE for closure locals
+        return result:gsub("%s*$", ""), line_number_start, line_number_end
+      end -- get_line
+    end -- create_get_line
+
+    local get_line = native_create_get_line and native_create_get_line(compile_file, input) or create_get_line(compile_file, input)
 
     while true do
-      local line = get_line()
+      local line
+      line, line_number_start, line_number_end = get_line()
       if not line then
         break
       end
@@ -602,7 +616,7 @@ function compile(name, input, options, importFunc)
         end)
 
         if not is_empty(line) then
-          assert(not isImport,
+          assert_parser(not isImport, line,
           "Imported files can't produce output, they must only contain variable and macro declarations")
           table.insert(lines, {text = line, num_start = line_number_start, num_end = line_number_end, label = labelCache})
           labelCache = {}
@@ -615,7 +629,7 @@ function compile(name, input, options, importFunc)
     end
 
     return lines
-  end
+  end  -- function import
 
   import("__stdlib__", STDLIB, true)
   local lines = import(name, input, false)

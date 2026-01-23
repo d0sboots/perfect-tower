@@ -54,11 +54,12 @@ let scripts = [];
 let histories = [];
 let scriptCounter = 0;
 let exportFormat = "v2";
+let fastMacro = true;
 
 function compileScript() {
     runLua("compile",
         [{name: scripts[activeTab.id][0], text: editor.getValue()}],
-        {format: exportFormat});
+        {format: exportFormat, fastMacro: fastMacro});
 }
 
 function updateWarn(status) {
@@ -446,7 +447,7 @@ function settingsClose() {
     dialog.close();
 }
 
-const SETTINGS_NAMES = new Set(["autoSpace", "tabWidth", "workspaceList"]);
+const SETTINGS_NAMES = new Set(["autoSpace", "tabWidth", "workspaceList", "fastMacro"]);
 const SETTINGS_RADIOS = new Map([["exportFormat", "_format"]]);
 
 function settingsLoad() {
@@ -493,6 +494,7 @@ function settingsChange() {
     editor.setOption("tabSize", tabWidth);
     editor.setOption("indentWithTabs", !document.getElementById("autoSpace").checked);
     exportFormat = settingsVal.exportFormat;
+    fastMacro = settingsVal.fastMacro;
 }
 
 function workspaceListChange(ele) {
