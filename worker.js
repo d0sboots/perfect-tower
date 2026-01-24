@@ -350,11 +350,39 @@ onmessage = function(e) {
   }
 }
 
+const braceRe = {
+  "{(}": /([{(}])/g,
+  "{}": /([{}])/g,
+  "{(,)}": /([{(,)}])/g,
+}
+
 // JS Native implementation of macro parsing, for speed
 function native_macros() {
   // This scope encloses the entirety of a compile operation, which can span
   // multiple imports.
   let line_number_start, line_number_end, compile_file;
+
+  // Lua represents strings as Uint8Arrays. For our purposes these are UTF-8
+  // data, but it is unnecessary to encode/decode to UTF-8 with all the
+  // expensive error-checking that implies. Instead, we encode/decode directly
+  // as one-byte-per-character, which perfectly preserves the information and
+  // also keeps the ASCII range intact. This is all we need for doing regex
+  // searches, and anything else (like UTF-8 sequences) are just opaque blobs
+  // in the string that can be copied.
+  function toluastr(str) {
+    const data = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; ++i) {
+      data[i] = str.charCodeAt(i);
+    }
+    return data;
+  }
+  function fromluastr(data) {
+    let str = "";
+    for (let i = 0; i < data.length; ++i) {
+      str += String.fromCharCode(data[i]);
+    }
+    return str;
+  }
 
   function error_lexer(msg) {
     let err_msg;
@@ -363,7 +391,7 @@ function native_macros() {
     } else {
       err_msg = `${compile_file}:${line_number_start}-${line_number_end}: ${msg}`;
     }
-    lua.lua_pushstring(L, err_msg);
+    lua.lua_pushstring(L, toluastr(err_msg));
     return lua.lua_error(L);
   }
 
@@ -376,7 +404,7 @@ function native_macros() {
     const markers = [];
     for (let i = 0; i < mpos.length; ++i) {
       const v = mpos[i];
-      markers[i] = " ".repeat(v - 1 - prev) + "^";
+      markers[i] = " ".repeat(v - prev) + "^";
       prev = v;
     }
     return error_lexer(`${msg}\n\n${line}\n${markers.join("")}`);
@@ -396,11 +424,10 @@ function native_macros() {
     ",": {args: [], raw: ","},
     len: {args: ["#"], rawarg: true, func: arg_body => String(arg_body.length)},
     lua: {args: ["#"], rawarg: true, func: lua_text => {
-      const lua_bytes = (new TextEncoder()).encode(lua_text);
-      const decoder = new TextDecoder();
+      const lua_bytes = toluastr(lua_text);
       let result = luaL.luaL_loadbufferx(L, lua_bytes, null, lua_bytes, "t");
       if (result !== lua.LUA_OK) {
-        const err = decoder.decode(lua.lua_tostring(L, -1));
+        const err = fromluastr(lua.lua_tostring(L, -1));
         lua.lua_pop(L, 1);
         error_lexer(err);
       }
@@ -410,7 +437,7 @@ function native_macros() {
       lua.lua_setupvalue(L, -2, 1);
       result = lua.lua_pcall(L, 0, 1, 0);
       const lua_value = lua.lua_tostring(L, -1);
-      const value = lua_value ? decoder.decode(lua_value) : "";
+      const value = lua_value ? fromluastr(lua_value) : "";
       lua.lua_pop(L, 1);
       if (result !== lua.LUA_OK) {
         error_lexer(value);
@@ -419,36 +446,35 @@ function native_macros() {
     }},
   };
 
+  const handleOpenBrace = (pattern, macroLine, pos, result, depth, opts) => {
+    let _, res, pChar;
+    const re = braceRe[pattern];
+    while (true) {
+      re.lastIndex = pos;
+      const found = re.exec(macroLine);
+      if (found) {
+        result += macroLine.slice(pos, found.index);
+        pos = re.lastIndex;
+      } else {
+        result += macroLine.slice(pos);
+        pos = macroLine.length;
+        return [null, macroLine, pos, result];
+      }
+      if (found[1] !== "{") {
+        return [found[1], macroLine, pos, result];
+      }
+      const orig_start = line_number_start;
+      line_number_start = line_number_end;
+      [macroLine, pos, result] = parseMacro(macroLine, pos, result, depth + 1, opts);
+      line_number_start = orig_start;
+    }
+  }
+
   // Returns the tuple [macroLine, pos, output] containing the new line and parsing position.
   // The line is typically the same, but may have been advanced.
   function parseMacro(macroLine, pos, output, depth, opts) {
     assert_parser(depth < 100, macroLine, "macro expansion depth reached " + depth + ", probable infinite loop in:");
-    let result = "";
     let macroName;
-
-    const handleOpenBrace = (pattern) => {
-      let _, res, pChar;
-      const re = new RegExp("([" + pattern + "])", "g");
-      while (true) {
-        re.lastIndex = pos;
-        const found = re.exec(macroLine);
-        if (found) {
-          result += macroLine.slice(pos, found.index);
-          pos = re.lastIndex;
-        } else {
-          result += macroLine.slice(pos);
-          pos = macroLine.length;
-          return null;
-        }
-        if (found[1] !== "{") {
-          return found[1];
-        }
-        const orig_start = line_number_start;
-        line_number_start = line_number_end;
-        [macroLine, pos, result] = parseMacro(macroLine, pos, result, depth + 1, opts);
-        line_number_start = orig_start;
-      }
-    }
 
     const evalMacro = (macro_obj, ...args) => {
       if (macro_obj.args.length !== args.length) {
@@ -488,7 +514,8 @@ function native_macros() {
       }
     }
 
-    const pChar = handleOpenBrace("{(}");
+    let pChar, result;
+    [pChar, macroLine, pos, result] = handleOpenBrace("{(}", macroLine, pos, "", depth, opts);
     if (pChar == null) {
       // End of line. Unterminated macro is just returned as a literal text,
       // which is copied to the output buffer. We have to add the { that
@@ -513,7 +540,7 @@ function native_macros() {
       // The rawarg parsing mode does not count matching parens and always has
       // only a single arg. The same code handles both modes, we simply don't go
       // down the branches to handle parens by never matching those characters.
-      const pChar = handleOpenBrace(macro_obj.rawarg ? "{}" : "{(,)}");
+      [pChar, macroLine, pos, result] = handleOpenBrace(macro_obj.rawarg ? "{}" : "{(,)}", macroLine, pos, result, depth, opts);
       if (pChar == null) {
         // End of line. Get more input, since non-simple macros can span lines.
         if (result === "\n") {
@@ -538,10 +565,10 @@ function native_macros() {
           // The empty macroName here implies the {(} macro, or at least the
           ///beginning of it. It doesn't close in the usual way.
           if (macroName === "") {
-            assert_parser(result === "", macroLine, "{(} macro has extra junk in it", pos - 1);
+            assert_parser(result === "", macroLine, "{(} macro has extra junk in it", pos - 2);
             evalMacro(opts.macros["("]);
           } else {
-            assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 1);
+            assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
             if (macro_obj.rawarg) {
               result = result.slice(0, -1);  // Trim the closing paren off, which got added in rawarg mode
             }
@@ -579,26 +606,32 @@ function native_macros() {
   }
 
   function native_create_get_line() {
-    let input_it;
+    let input_split;
+    // Locally scoped to this import, as opposed to line_number_end
+    let lineno = 0;
     {
-      const decoder = new TextDecoder();
-      compile_file = decoder.decode(lua.lua_tostring(L, 1));
-      const input = decoder.decode(lua.lua_tostring(L, 2));
+      compile_file = fromluastr(lua.lua_tostring(L, 1));
+      const input = fromluastr(lua.lua_tostring(L, 2));
 
-      input_it = input.matchAll(/[^\n]*(\n?)/g);
-      line_number_end = 0;
+      input_split = input.split("\n");
     }
 
     // Handles stripping backslashes and tracking line-numbers
     function get_input_line() {
-      const {done, value} = input_it.next();
-      if (done) return null;
-      line_number_end = line_number_end + 1;
-      const [inp, last] = value;
-      if (last !== "\n" || inp[inp.length-2] !== "\\") {
+      if (lineno >= input_split.length) {
+        return null;
+      }
+      const inp = input_split[lineno];
+      lineno++;
+      line_number_end = lineno;
+      if (lineno == input_split.length) {
+        // Last line, no possible terminator or continuation
         return inp;
       }
-      return inp.slice(0, -2);
+      if (inp[inp.length-1] !== "\\") {
+        return inp + "\n";
+      }
+      return inp.slice(0, -1);
     }
 
     const parse_macro_opts = {
@@ -621,20 +654,20 @@ function native_macros() {
     // sets the flag appropriately so that parsing can proceed.
     const get_chunk = (() => {
       let pos, line;
-      const re = /((.)[^{]*)({|$)/gs;
-      return () => {
+      return function get_chunk_inner() {
         if (line == null || pos >= line.length) {
           pos = 0;
           line = get_input_line();
         }
         if (line == null) return [null, null];
-        re.lastIndex = pos;
-        const match = re.exec(line);
-        if (!match) {
-          return ["", line_number_end];
-        } else if (in_macro_def || match[2] !== "{") {
-          pos += match[1].length;
-          return [match[1], line_number_end];
+        let npos = line.indexOf("{", pos + 1);
+        if (npos < 0) {
+          npos = line.length;
+        }
+        if (in_macro_def || line[pos] !== "{") {
+          const ret = [line.slice(pos, npos), line_number_end];
+          pos = npos;
+          return ret;
         } else {
           let output = "";
           const orig_start = line_number_end;
@@ -650,7 +683,7 @@ function native_macros() {
       const re_space = /[ \t\v\r\f]*(([^ \t\v\r\f]).*)/gs;
       const re_macro = /^#([a-zA-Z_][\w.]*)(\([\w.\s,]+\)|)\s(.+)$/s;
       const re_arg = /^\s*([a-zA-Z_][\w.]*)\s*$/;
-      return () => {
+      return function get_line_inner() {
         let result;
         do {
           let match, next_start;
@@ -711,6 +744,9 @@ function native_macros() {
               const arg_string = macro_args.slice(arg_begin, pos);
               const match = re_arg.exec(arg_string);
               assert_parser(match, result, "bad macro function argument name: " + arg_string, name.length + 1 + arg_begin);
+              if (args.includes(match[1])) {
+                assert_parser(false, result, "duplicate function argument name: " + match[1], name.length + 1 + arg_begin)
+              }
               args.push(match[1]);
               arg_begin = pos + 1;
             }
@@ -731,7 +767,7 @@ function native_macros() {
         if (line == null) {
           lua.lua_pushnil(L);
         } else {
-          lua.lua_pushstring(L, (new TextEncoder()).encode(line));
+          lua.lua_pushstring(L, toluastr(line));
         }
         lua.lua_pushinteger(L, start);
         lua.lua_pushinteger(L, end);
@@ -742,15 +778,21 @@ function native_macros() {
           throw err;
         }
         console.error(err);
-        lua.lua_pushstring(L, err.toString() + "\n" + err.stack);
+        lua.lua_pushstring(L, toluastr(err.toString() + "\n" + err.stack));
         return lua.lua_error(L);
       }
     }, 1);
     return 1;  // Returning the closure we just made
   } // native_create_get_line
 
+  function set_native_compile_file() {
+    compile_file = fromluastr(lua.lua_tostring(L, 1));
+    return 0;
+  }
+
   // The env for lua_load should be the only thing on the lua stack.
   // Stash it in this closure which we return.
   lua.lua_pushcclosure(L, native_create_get_line, 1);
-  return 1;
+  lua.lua_pushcfunction(L, set_native_compile_file);
+  return 2;
 } // native_macro

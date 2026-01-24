@@ -227,10 +227,10 @@ local function parseMacro(macroLine, pos, output, depth, opts)
         -- beginning of it. It doesn't close in the usual way.
         if macroName == "" then
           local arg = concat(result)
-          assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", npos)
+          assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", npos - 1)
           evalMacro(opts.macros["("])
         else
-          assert_parser(byte(macroLine, npos - 1) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", npos)
+          assert_parser(byte(macroLine, npos - 1) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", npos - 1)
           if macro_obj.rawarg then
             result[#result] = sub(result[#result], 1, -2)  -- Trim the closing paren off, which got added in rawarg mode
           end
@@ -354,8 +354,9 @@ function compile(name, input, options, importFunc)
   local budget, use_budget
   local env = clone_global()
   local macros, native_create_get_line
+  local set_native_compile_file = function() end
   if native_macros and options.fastMacro then
-    native_create_get_line = native_macros(env)
+    native_create_get_line, set_native_compile_file = native_macros(env)
   else
     macros = {
       -- This entry is also used for {(} since that looks like an argument-macro
@@ -436,7 +437,8 @@ function compile(name, input, options, importFunc)
             return end
           local _, npos, str, chr = find(line, "^((.)[^{]*)%f[{\0]", pos)
           if not str then
-            return "", line_number_end
+            pos = pos + #line
+            return line, line_number_end
           elseif in_macro_def or chr ~= "{" then
             pos = npos + 1
             return str, line_number_end
@@ -514,6 +516,11 @@ function compile(name, input, options, importFunc)
               local arg_string = sub(macro_args, arg_begin, pos - 1)
               local arg = match(arg_string, "^%s*" .. TOKEN.identifier.patternAnywhere .. "%s*$")
               assert_parser(arg, result, "bad macro function argument name: " .. arg_string, #name + 2 + arg_begin)
+              for i=1, #args do
+                if arg == args[i] then
+                  assert_parser(false, result, "duplicate function argument name: " .. arg, #name + 2 + arg_begin)
+                end
+              end
               args[#args+1] = arg
               arg_begin = pos + 1
             end
@@ -577,6 +584,7 @@ function compile(name, input, options, importFunc)
           import(import_name, import_result, true)
           -- These got stomped by the import, re-set them
           line_number_start, line_number_end, compile_file = table.unpack(saved)
+          set_native_compile_file(compile_file)
         elseif token == "global" or token == "local" then
           local scope, type, name = line:sub(2):gsub(" *;.*", ""):match("^(%a+) +(%a+) +" .. TOKEN.identifier.patternAnywhere .."$")
           assert(scope, "variable definition: [global/local] [bool/int/double/string/vector] name")
@@ -588,6 +596,7 @@ function compile(name, input, options, importFunc)
           local name = line:match("^:%a+ +(.+)")
           assert(name, "name directive: :name script_name")
           compile_file = name
+          set_native_compile_file(name)
         elseif token == "budget_cap" then
           local cost = line:match("^:budget_cap +(.+)")
           if cost and cost ~= "max" then
@@ -1125,7 +1134,10 @@ function unittest()
     waitframe({lua(return ")")}
   ]], "C3BhcmVuc190ZXN0AAAAAAAAAAACAAAADGdlbmVyaWMuZ290bwhjb25zdGFudAIhAAAAEWdlbmVyaWMud2FpdGZyYW1l"},
   multiline_test = {[=[
- {lua(return [[ #concat(a, b) {[}a{]}{[}b{]} 
+ :name multiline{lua( 
+ return "_test\n" 
+ )}{lua(
+return [[ #concat(a, b) {[}a{]}{[}b{]} 
  got]] 
 )}{concat(
 o {{concat(
