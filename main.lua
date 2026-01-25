@@ -229,9 +229,15 @@ parseMacro = function(macroLine, pos, output, depth, opts)
           assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", pos - 2)
           evalMacro(opts.macros["("])
         else
-          assert_parser(byte(macroLine, pos - 2) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", pos - 2)
           if macro_obj.rawarg then
+            if byte(macroLine, pos - 2) ~= 0x29 then
+              -- Not an error, for rawarg continue until we find ")}"
+              result[#result+1] = "}"
+              goto continue
+            end
             result[#result] = sub(result[#result], 1, -2)  -- Trim the closing paren off, which got added in rawarg mode
+          else
+            assert_parser(byte(macroLine, pos - 2) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", pos - 2)
           end
           local arg = concat(result)
           args[#args+1] = arg
@@ -263,6 +269,7 @@ parseMacro = function(macroLine, pos, output, depth, opts)
       else
         assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" .. macroName .. "}", pos - 1)
       end
+      ::continue::
     end
   end
 end
@@ -1150,8 +1157,11 @@ function unittest()
  :name multiline{lua( 
  return "_testà\n" 
  )}{lua(
-return [[ #concät(â, ÷) {[}â{]}{[}÷{]} 
- got]] 
+return ({
+a=[[ #concät(â, ÷) {[}â{]}{[}÷{]} 
+ got]], 
+b="nope",
+})["a"]
 )}{concät(
 o {{concät(
 ,)}(}3,

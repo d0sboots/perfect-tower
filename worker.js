@@ -563,14 +563,20 @@ function native_macros() {
               pos - 1);
           }
           // The empty macroName here implies the {(} macro, or at least the
-          ///beginning of it. It doesn't close in the usual way.
+          // beginning of it. It doesn't close in the usual way.
           if (macroName === "") {
             assert_parser(result === "", macroLine, "{(} macro has extra junk in it", pos - 2);
             evalMacro(opts.macros["("]);
           } else {
-            assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
             if (macro_obj.rawarg) {
+              if (macroLine[pos-2] !== ")") {
+                // Not an error, for rawarg continue until we find ")}"
+                result += "}";
+                continue;
+              }
               result = result.slice(0, -1);  // Trim the closing paren off, which got added in rawarg mode
+            } else {
+              assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
             }
             args.push(result);
             evalMacro(macro_obj, ...args);
@@ -684,7 +690,7 @@ function native_macros() {
       // we use [\t-\r ], which is all the normal whitespace characters.
       // If we need to exclude newline, we use [\t \v-\r].
       const re_nonspace = /[^\t \v-\r]/g;
-      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.\x80-\xff\t-\r ,]+\)|)[\t-\r ](.+)$/s;
+      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.\x80-\xff\t-\r ,]+\)|)([\t-\r ]|={)(.*)$/s;
       const re_arg = /^[\t-\r ]*([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)[\t-\r ]*$/;
       return function get_line_inner() {
         let result;
@@ -733,10 +739,10 @@ function native_macros() {
           line_number_start = start;
           start = next_start;
           if (in_macro_def) {
-            result = result.replace(/[\t-\r ]*$/, "");
             const match = re_macro.exec(result);
             assert_parser(match, result, "macro definition: #name <text> or #name(args...) <text>", 1);
-            const [_, name, macro_args, macro] = match;
+            const [_, name, macro_args, macro_type] = match;
+            let macro = macro_type == "={" ? match[4] : match[4].replace(/[\t-\r ]*$/, "");
             const args = [];
             let arg_begin = 1;
             while (arg_begin < macro_args.length - 1) {
