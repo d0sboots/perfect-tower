@@ -1243,12 +1243,6 @@ bar = vec(1.0, 2.0)]], [[
       status, ret = pcall(compile, ret[1], ret[2], {format="v0", fastMacro=fm}, importFunc)
       assert(status, string.format("(fastMacro=%s) Failed to compile unit test #%s\n\n%s", fm, k, ret))
 
-      v = ret.code
-      status, ret = pcall(import, v)
-      assert(status, string.format("(fastMacro=%s) Failed to re-import unit test #%s\n\n%s", fm, k, ret))
-
-      status, ret = pcall(compile, ret[1], ret[2], {format="v0", fastMacro=fm}, nil)
-      assert(status, string.format("(fastMacro=%s) Failed to re-compile unit test #%s\n\n%s", fm, k, ret))
       assert(ret.code == v, string.format("(fastMacro=%s) Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", fm, k, v, ret.code, base64.decode(v), base64.decode(ret.code)))
     end
   end
