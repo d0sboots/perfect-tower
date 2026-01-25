@@ -110,29 +110,29 @@ local function cache(line, variables)
   return _cache[key]
 end
 
+local parseMacro
+local function handleOpenBrace(pattern, macroLine, pos, result, depth, opts)
+  local _, res, pChar, npos
+  while true do
+    _, npos, res, pChar = find(macroLine, "^([^" .. pattern .. "]*)([" .. pattern .. "])", pos)
+    result[#result+1] = res or sub(macroLine, pos)
+    pos = (npos or #macroLine) + 1
+    if pChar ~= "{" then
+      return pChar, macroLine, pos
+    end
+    local orig_start = line_number_start
+    line_number_start = line_number_end
+    macroLine, pos = parseMacro(macroLine, pos, result, depth + 1, opts)
+    line_number_start = orig_start
+  end
+end
+
 -- Returns the pair (macroLine, pos) containing the new line and parsing position.
 -- The line is typically the same, but may have been advanced.
-local function parseMacro(macroLine, pos, output, depth, opts)
+parseMacro = function(macroLine, pos, output, depth, opts)
   assert_parser(depth < 100, macroLine, "macro expansion depth reached " .. depth ..  ", probable infinite loop in:")
   local result = {}
-  local npos
   local macroName
-
-  local function handleOpenBrace(pattern)
-    local _, res, pChar
-    while true do
-      _, npos, res, pChar = find(macroLine, "^([^" .. pattern .. "]*)([" .. pattern .. "])", pos)
-      result[#result+1] = res or sub(macroLine, pos)
-      if pChar ~= "{" then
-        return pChar
-      end
-      pos = npos + 1
-      local orig_start = line_number_start
-      line_number_start = line_number_end
-      macroLine, pos = parseMacro(macroLine, pos, result, depth + 1, opts)
-      line_number_start = orig_start
-    end
-  end
 
   local function evalMacro(macro_obj, ...)
     local args = {...}
@@ -141,7 +141,7 @@ local function parseMacro(macroLine, pos, output, depth, opts)
         false,
         macroLine,
         format("macro call {%s} has wrong number of args, expected %s but got %s", macroName, #macro_obj.args, #args),
-        npos)
+        pos - 1)
     end
     if macro_obj.raw then
       output[#output+1] = macro_obj.raw
@@ -171,8 +171,9 @@ local function parseMacro(macroLine, pos, output, depth, opts)
     end
   end
 
-  local pChar = handleOpenBrace("{(}")
-  if not npos then
+  local pChar
+  pChar, macroLine, pos = handleOpenBrace("{(}", macroLine, pos, result, depth, opts)
+  if not pChar then
     -- End of line. Unterminated macro is just returned as a literal text,
     -- which is copied to the output buffer. We have to add the { that
     -- *wasn't* included as part of our parsed text.
@@ -183,12 +184,11 @@ local function parseMacro(macroLine, pos, output, depth, opts)
     end
     return macroLine, #macroLine + 1
   end
-  pos = npos + 1
   -- pChar is "}" or "(", either way we have the complete macro name.
   macroName = concat(result)
   result = {}
   local macro_obj = opts.arg_macros[macroName] or opts.macros[macroName]
-  assert_parser(opts.no_eval or macro_obj, macroLine, "macro does not exist: {" .. macroName .. "}", npos)
+  assert_parser(opts.no_eval or macro_obj, macroLine, "macro does not exist: {" .. macroName .. "}", pos - 1)
   if pChar == "}" then
     evalMacro(macro_obj)
     return macroLine, pos
@@ -200,8 +200,8 @@ local function parseMacro(macroLine, pos, output, depth, opts)
     -- The rawarg parsing mode does not count matching parens and always has
     -- only a single arg. The same code handles both modes, we simply don't go
     -- down the branches to handle parens by never matching those characters.
-    pChar = handleOpenBrace(macro_obj.rawarg and "{}" or "{(,)}")
-    if not npos then
+    pChar, macroLine, pos = handleOpenBrace(macro_obj.rawarg and "{}" or "{(,)}", macroLine, pos, result, depth, opts)
+    if not pChar then
       -- End of line. Get more input, since non-simple macros can span lines.
       if #result == 1 and result[1] == "\n" then
         -- If a new param (open paren or comma) is immediately followed by
@@ -214,23 +214,22 @@ local function parseMacro(macroLine, pos, output, depth, opts)
       macroLine = nextline
       pos = 1
     else
-      pos = npos + 1
       if pChar == "}" then
         if not macro_obj.rawarg and nesting > 0 then
           assert_parser(
             false,
             macroLine,
             format("%s unclosed parenthesis inside macro {%s}", nesting, macroName),
-            npos)
+            pos - 1)
         end
         -- The empty macroName here implies the {(} macro, or at least the
         -- beginning of it. It doesn't close in the usual way.
         if macroName == "" then
           local arg = concat(result)
-          assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", npos - 1)
+          assert_parser(#arg == 0, macroLine, "{(} macro has extra junk in it", pos - 2)
           evalMacro(opts.macros["("])
         else
-          assert_parser(byte(macroLine, npos - 1) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", npos - 1)
+          assert_parser(byte(macroLine, pos - 2) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", pos - 2)
           if macro_obj.rawarg then
             result[#result] = sub(result[#result], 1, -2)  -- Trim the closing paren off, which got added in rawarg mode
           end
@@ -240,7 +239,7 @@ local function parseMacro(macroLine, pos, output, depth, opts)
         end
         return macroLine, pos
       elseif pChar == "(" then
-        assert_parser(nesting > 0, macroLine, "tried to re-open macro args calling {" .. macroName .. "}", npos)
+        assert_parser(nesting > 0, macroLine, "tried to re-open macro args calling {" .. macroName .. "}", pos - 1)
         nesting = nesting + 1
         result[#result+1] = "("
       elseif pChar == "," then
@@ -251,7 +250,7 @@ local function parseMacro(macroLine, pos, output, depth, opts)
           result[#result+1] = ","
         end
       elseif pChar == ")" then
-        assert_parser(nesting > 0, macroLine, "extra closing parens calling {" .. macroName .. "}", npos)
+        assert_parser(nesting > 0, macroLine, "extra closing parens calling {" .. macroName .. "}", pos - 1)
         nesting = nesting - 1
         if nesting > 0 then
           result[#result+1] = ")"
@@ -262,7 +261,7 @@ local function parseMacro(macroLine, pos, output, depth, opts)
         -- text that comes *after* this paren will get added to the last arg,
         -- but that's an error we check for so it won't hurt us.
       else
-        assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" .. macroName .. "}", npos)
+        assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" .. macroName .. "}", pos - 1)
       end
     end
   end
