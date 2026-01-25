@@ -876,8 +876,22 @@ function import(input)
         until b & 0x80 == 0
 
         local str = read("c" .. len)
-        -- This must be a single gsub so that we don't re-match substituted curlies
-        str = str:gsub("[{}]", {["{"] = "{[}", ["}"] = "{]}"})
+        -- This must be a single gsub so that we don't re-match substituted curlies or backslashes
+        str = str:gsub("[\0-\x1f\\{}]", function(chr)
+          local repl = ({
+            ["\b"] = "\\b",
+            ["\f"] = "\\f",
+            ["\n"] = "\\n",
+            ["\r"] = "\\r",
+            ["\t"] = "\\t",
+            ["\v"] = "\\v",
+            ["\\"] = "\\\\",
+            ["{"] = "{[}",
+            ["}"] = "{]}",
+          })[chr]
+          if repl then return repl end
+          return string.format("\\x%02x", string.byte(chr))
+        end)
         local sq, dq = str:match"'", str:match'"'
 
         if not dq then
@@ -1134,7 +1148,7 @@ function unittest()
   ]], "C3BhcmVuc190ZXN0AAAAAAAAAAACAAAADGdlbmVyaWMuZ290bwhjb25zdGFudAIhAAAAEWdlbmVyaWMud2FpdGZyYW1l"},
   multiline_test = {[=[
  :name multiline{lua( 
- return "_test\n" 
+ return "_testà\n" 
  )}{lua(
 return [[ #concat(a, b) {[}a{]}{[}b{]} 
  got]] 
@@ -1142,7 +1156,9 @@ return [[ #concat(a, b) {[}a{]}{[}b{]}
 o {{concat(
 ,)}(}3,
 4{{)}{concat(,
-)}} )}]=], "Dm11bHRpbGluZV90ZXN0AAAAAAAAAAABAAAADGdlbmVyaWMuZ290bwhjb25zdGFudAIiAAAA"},
+)}} )}
+stop("\\\b\t\v\f\n\x00\x01\xc3\xa0\u00e0\U0000e0")
+]=], "EG11bHRpbGluZV90ZXN0w6AAAAAAAAAAAAIAAAAMZ2VuZXJpYy5nb3RvCGNvbnN0YW50AiIAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BA5cCAkLDAoAAcOgw6DDoA=="},
   }
   local new_import_tests = {
     default_default = {{actions={}, conditions={}, impulses={}, name="test", package=""}, [[
@@ -1204,34 +1220,37 @@ bar = vec(1.0, 2.0)]], [[
     end
     return false, (name .. " not found")
   end
-  for k, v in pairs(compile_tests) do
-    status, ret = pcall(compile, k, v[1], {format="v0"}, importFunc)
-    assert(status, string.format("Failed to compile unit test %s at line %d\n\n%s", k, line_number_end, ret))
-    assert(ret.code == v[2], string.format("Unit test %s failure! Expected:\n%s\nActual:\n%s", k, v[2], ret.code))
-  end
-  for k, v in pairs(new_import_tests) do
-    status, ret = pcall(import, v[1])
-    assert(status, string.format("Failed to import unit test %s\n\n%s", k, ret))
-    assert(ret[2] == v[2], string.format("Unit test %s import failure! Expected:\n%s\nActual:\n%s", k, v[2], ret[2]))
+  for useFast=0, 1 do
+    local fm = useFast == 1
+    for k, v in pairs(compile_tests) do
+      status, ret = pcall(compile, k, v[1], {format="v0", fastMacro=fm}, importFunc)
+      assert(status, string.format("(fastMacro=%s) Failed to compile unit test %s at line %d\n\n%s", fm, k, line_number_end, ret))
+      assert(ret.code == v[2], string.format("(fastMacro=%s) Unit test %s failure! Expected:\n%s\nActual:\n%s", fm, k, v[2], ret.code))
+    end
+    for k, v in pairs(new_import_tests) do
+      status, ret = pcall(import, v[1])
+      assert(status, string.format("Failed to import unit test %s\n\n%s", k, ret))
+      assert(ret[2] == v[2], string.format("Unit test %s import failure! Expected:\n%s\nActual:\n%s", k, v[2], ret[2]))
 
-    status, ret = pcall(compile, ret[1], ret[2], {format="v2"}, importFunc)
-    assert(status, string.format("Failed to compile unit test %s\n\n%s", k, ret))
-    assert(ret.code == v[3], string.format("Unit test %s compile failure! Expected:\n%s\nActual:\n%s", k, v[3], ret.code))
-  end
-  for k, v in ipairs (import_tests) do
-    status, ret = pcall(import, v)
-    assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret))
+      status, ret = pcall(compile, ret[1], ret[2], {format="v2", fastMacro=fm}, importFunc)
+      assert(status, string.format("(fastMacro=%s) Failed to compile unit test %s\n\n%s", fm, k, ret))
+      assert(ret.code == v[3], string.format("(fastMacro=%s) Unit test %s compile failure! Expected:\n%s\nActual:\n%s", fm, k, v[3], ret.code))
+    end
+    for k, v in ipairs (import_tests) do
+      status, ret = pcall(import, v)
+      assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret))
 
-    status, ret = pcall(compile, ret[1], ret[2], {format="v0"}, importFunc)
-    assert(status, string.format("Failed to compile unit test #%s\n\n%s", k, ret))
+      status, ret = pcall(compile, ret[1], ret[2], {format="v0", fastMacro=fm}, importFunc)
+      assert(status, string.format("(fastMacro=%s) Failed to compile unit test #%s\n\n%s", fm, k, ret))
 
-    v = ret.code
-    status, ret = pcall(import, v)
-    assert(status, string.format("Failed to re-import unit test #%s\n\n%s", k, ret))
+      v = ret.code
+      status, ret = pcall(import, v)
+      assert(status, string.format("(fastMacro=%s) Failed to re-import unit test #%s\n\n%s", fm, k, ret))
 
-    status, ret = pcall(compile, ret[1], ret[2], {format="v0"}, nil)
-    assert(status, string.format("Failed to re-compile unit test #%s\n\n%s", k, ret))
-    assert(ret.code == v, string.format("Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", k, v, ret.code, base64.decode(v), base64.decode(ret.code)))
+      status, ret = pcall(compile, ret[1], ret[2], {format="v0", fastMacro=fm}, nil)
+      assert(status, string.format("(fastMacro=%s) Failed to re-compile unit test #%s\n\n%s", fm, k, ret))
+      assert(ret.code == v, string.format("(fastMacro=%s) Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", fm, k, v, ret.code, base64.decode(v), base64.decode(ret.code)))
+    end
   end
   return true
 end

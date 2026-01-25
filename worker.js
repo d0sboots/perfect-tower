@@ -681,8 +681,11 @@ function native_macros() {
     const get_line = (() => {
       let line, start, pos;
       const re_space = /[ \t\v\r\f]*(([^ \t\v\r\f]).*)/gs;
-      const re_macro = /^#([a-zA-Z_][\w.]*)(\([\w.\s,]+\)|)\s(.+)$/s;
-      const re_arg = /^\s*([a-zA-Z_][\w.]*)\s*$/;
+      // Because the JS class for \s includes 0xa0, we cannot use it. Instead
+      // we use [\t-\r ], which is all the normal whitespace characters.
+      // If we need to exclude newline, we use [\t \v-\r].
+      const re_macro = /^#([a-zA-Z_][\w.]*)(\([\w.\t-\r ,]+\)|)[\t-\r ](.+)$/s;
+      const re_arg = /^[\t-\r ]*([a-zA-Z_][\w.]*)[\t-\r ]*$/;
       return function get_line_inner() {
         let result;
         do {
@@ -730,7 +733,7 @@ function native_macros() {
           line_number_start = start;
           start = next_start;
           if (in_macro_def) {
-            result = result.replace(/\s*$/, "");
+            result = result.replace(/[\t-\r ]*$/, "");
             const match = re_macro.exec(result);
             assert_parser(match, result, "macro definition: #name <text> or #name(args...) <text>", 1);
             const [_, name, macro_args, macro] = match;
@@ -754,7 +757,7 @@ function native_macros() {
             macros[name] = {args: args, text: macro};
           }
         } while (in_macro_def);
-        return [result.replace(/\s*$/, ""), line_number_start, line_number_end];
+        return [result.replace(/[\t-\r ]*$/, ""), line_number_start, line_number_end];
       }
     })();
 
