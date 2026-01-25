@@ -680,12 +680,12 @@ function native_macros() {
 
     const get_line = (() => {
       let line, start, pos;
-      const re_space = /[ \t\v\r\f]*(([^ \t\v\r\f]).*)/gs;
       // Because the JS class for \s includes 0xa0, we cannot use it. Instead
       // we use [\t-\r ], which is all the normal whitespace characters.
       // If we need to exclude newline, we use [\t \v-\r].
-      const re_macro = /^#([a-zA-Z_][\w.]*)(\([\w.\t-\r ,]+\)|)[\t-\r ](.+)$/s;
-      const re_arg = /^[\t-\r ]*([a-zA-Z_][\w.]*)[\t-\r ]*$/;
+      const re_nonspace = /[^\t \v-\r]/g;
+      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.\x80-\xff\t-\r ,]+\)|)[\t-\r ](.+)$/s;
+      const re_arg = /^[\t-\r ]*([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)[\t-\r ]*$/;
       return function get_line_inner() {
         let result;
         do {
@@ -700,16 +700,16 @@ function native_macros() {
             if (line == null) {
               return [null, line_number_start, line_number_end];
             }
-            re_space.lastIndex = pos;
-            match = re_space.exec(line);
+            re_nonspace.lastIndex = pos;
+            match = re_nonspace.exec(line);
             if (match) {
               break;
             }
             [line, next_start] = get_chunk();
             pos = 0;
           }
-          in_macro_def = (match[2] === "#");
-          line = match[1];
+          in_macro_def = (match[0] === "#");
+          line = line.slice(match.index);
           pos = 0;
           let output = "";
           while (true) {

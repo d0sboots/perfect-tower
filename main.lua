@@ -502,7 +502,7 @@ function compile(name, input, options, importFunc)
             local macro_args = ""
             local name, macro = match(result, TOKEN.identifier.pattern .. "%s(.+)$", 2)
             if not name then
-              name, macro_args, macro = match(result, TOKEN.identifier.pattern .. "%(([%w%._%s,]+)%)%s(.+)$", 2)
+              name, macro_args, macro = match(result, TOKEN.identifier.pattern .. "%(([%w%._\x80-\xff%s,]+)%)%s(.+)$", 2)
             end
             assert_parser(name, result, "macro definition: #name <text> or #name(args...) <text>", 2)
             local args = {}
@@ -1150,12 +1150,12 @@ function unittest()
  :name multiline{lua( 
  return "_testà\n" 
  )}{lua(
-return [[ #concat(a, b) {[}a{]}{[}b{]} 
+return [[ #concät(â, ÷) {[}â{]}{[}÷{]} 
  got]] 
-)}{concat(
-o {{concat(
+)}{concät(
+o {{concät(
 ,)}(}3,
-4{{)}{concat(,
+4{{)}{concät(,
 )}} )}
 stop("\\\b\t\v\f\n\x00\x01\xc3\xa0\u00e0\U0000e0")
 ]=], "EG11bHRpbGluZV90ZXN0w6AAAAAAAAAAAAIAAAAMZ2VuZXJpYy5nb3RvCGNvbnN0YW50AiIAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BA5cCAkLDAoAAcOgw6DDoA=="},
