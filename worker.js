@@ -447,7 +447,6 @@ function native_macros() {
   };
 
   const handleOpenBrace = (pattern, macroLine, pos, result, depth, opts) => {
-    let _, res, pChar;
     const re = braceRe[pattern];
     while (true) {
       re.lastIndex = pos;
@@ -505,7 +504,7 @@ function native_macros() {
           const orig_start = line_number_start;
           line_number_start = line_number_end;
           [text, posm, output] = parseMacro(text, nposm + 1, output, depth + 1, {
-            macros: opts.macros,
+            ...opts,
             arg_macros: tmp_args,
             get_input: () => null,
           });
@@ -530,20 +529,26 @@ function native_macros() {
     const macro_obj = opts.arg_macros[macroName] ?? opts.macros[macroName];
     assert_parser(opts.no_eval || macro_obj, macroLine, "macro does not exist: {" + macroName + "}", pos - 1);
     if (pChar === "}") {
-      evalMacro(macro_obj);
+      if (opts.no_eval) {
+        output += "{" + macroName + "}";
+      } else {
+        evalMacro(macro_obj);
+      }
       return [macroLine, pos, output];
     }
     // pChar is "(", we are parsing paramaters
     const args = [];
     let nesting = 1;
+    // Cache this to handle the no_eval case where we don't have a macro_obj
+    const rawarg = macro_obj?.rawarg;
     while (true) {
       // The rawarg parsing mode does not count matching parens and always has
       // only a single arg. The same code handles both modes, we simply don't go
       // down the branches to handle parens by never matching those characters.
-      [pChar, macroLine, pos, result] = handleOpenBrace(macro_obj.rawarg ? "{}" : "{(,)}", macroLine, pos, result, depth, opts);
+      [pChar, macroLine, pos, result] = handleOpenBrace(rawarg ? "{}" : "{(,)}", macroLine, pos, result, depth, opts);
       if (pChar == null) {
         // End of line. Get more input, since non-simple macros can span lines.
-        if (result === "\n") {
+        if (result === "\n" && !opts.no_eval) {
           // If a new param (open paren or comma) is immediately followed by
           // newline, handleOpenBrace will only add that to result.
           // In this case, we want to swallow the initial newline.
@@ -555,7 +560,7 @@ function native_macros() {
         pos = 0;
       } else {
         if (pChar === "}") {
-          if (!macro_obj.rawarg && nesting > 0) {
+          if (!rawarg && nesting > 0) {
             assert_parser(
               false,
               macroLine,
@@ -566,9 +571,13 @@ function native_macros() {
           // beginning of it. It doesn't close in the usual way.
           if (macroName === "") {
             assert_parser(result === "", macroLine, "{(} macro has extra junk in it", pos - 2);
-            evalMacro(opts.macros["("]);
+            if (opts.no_eval) {
+              output += "{(}";
+            } else {
+              evalMacro(opts.macros["("]);
+            }
           } else {
-            if (macro_obj.rawarg) {
+            if (rawarg) {
               if (macroLine[pos-2] !== ")") {
                 // Not an error, for rawarg continue until we find ")}"
                 result += "}";
@@ -579,7 +588,11 @@ function native_macros() {
               assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
             }
             args.push(result);
-            evalMacro(macro_obj, ...args);
+            if (opts.no_eval) {
+              output += `{${macroName}(${args.join(",")})}`;
+            } else {
+              evalMacro(macro_obj, ...args);
+            }
           }
           return [macroLine, pos, output];
         } else if (pChar === "(") {
@@ -644,6 +657,7 @@ function native_macros() {
       macros: macros,
       arg_macros: {},
       get_input: get_input_line,
+      no_eval: false,
     };
     let in_macro_def = false;
 
@@ -658,14 +672,15 @@ function native_macros() {
     // expanding macros. This function passes all the text needed to make that
     // determination (right up to the opening "{"), and then the next part
     // sets the flag appropriately so that parsing can proceed.
-    const get_chunk = (() => {
+    let get_chunk;
+    {
       let pos, line;
-      return function get_chunk_inner() {
+      get_chunk = () => {
         if (line == null || pos >= line.length) {
           pos = 0;
           line = get_input_line();
         }
-        if (line == null) return [null, null];
+        if (line == null) return [null, line_number_end];
         let npos = line.indexOf("{", pos + 1);
         if (npos < 0) {
           npos = line.length;
@@ -682,90 +697,156 @@ function native_macros() {
           return [output, orig_start];
         }
       }
-    })();
+    }
 
-    const get_line = (() => {
-      let line, start, pos;
+    let get_line;
+    {
+      let line, start, next_start, pos, output = "";
       // Because the JS class for \s includes 0xa0, we cannot use it. Instead
       // we use [\t-\r ], which is all the normal whitespace characters.
       // If we need to exclude newline, we use [\t \v-\r].
       const re_nonspace = /[^\t \v-\r]/g;
-      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.\x80-\xff\t-\r ,]+\)|)([\t-\r ]|={)(.*)$/s;
-      const re_arg = /^[\t-\r ]*([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)[\t-\r ]*$/;
-      return function get_line_inner() {
-        let result;
+      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.$\x80-\xff\t-\r ,]+\)|)([\t-\r ]|={)/;
+      const re_arg = /^[\t-\r ]*([a-zA-Z_$\x80-\xff][\w.\x80-\xff]*)[\t-\r ]*$/;
+      const re_nl = /\n/g;
+      const re_bracenl = /[\n{]/g;
+      // Can't use String.trimEnd() for the same reasons as above.
+      const re_trim = /[\t-\r ]+$/;
+
+      function read_until(pattern) {
+        while (true) {
+          if (line == null) {
+            return null;
+          }
+          pattern.lastIndex = pos;
+          const match = pattern.exec(line);
+          if (match) {
+            output += line.slice(pos, match.index);
+            pos = match.index;
+            return match[0];
+          }
+          output += line.slice(pos);
+          [line, next_start] = get_chunk();
+          pos = 0;
+        }
+      }
+
+      get_line = () => {
         do {
-          let match, next_start;
           in_macro_def = false;
           if (line == null) {
             [line, start] = get_chunk();
             next_start = start;
             pos = 0;
           }
-          while (true) {
-            if (line == null) {
-              return [null, line_number_start, line_number_end];
-            }
-            re_nonspace.lastIndex = pos;
-            match = re_nonspace.exec(line);
-            if (match) {
-              break;
-            }
-            [line, next_start] = get_chunk();
-            pos = 0;
+          let pChar = read_until(re_nonspace);
+          if (pChar == null) {
+            return [null, start, line_number_end];
           }
-          in_macro_def = (match[0] === "#");
-          line = line.slice(match.index);
-          pos = 0;
-          let output = "";
-          while (true) {
-            const npos = line.indexOf("\n", pos);
-            if (npos < 0) {
-              output += line;
-              [line, next_start] = get_chunk();
-              if (line == null) {
-                break;
-              }
-            } else {
-              output += line.slice(pos, npos);
-              pos = npos + 1;
-              break;
+          in_macro_def = (pChar === "#");
+          output = "";
+          if (!in_macro_def) {
+            read_until(re_nl);
+            pos++;
+          } else {
+            // We're not sure what type of macro def we have yet, so we can
+            // only parse as far as we're sure will remain in the def.
+            // At the same time, we need enough to be *able* to match the
+            // macro pattern and recognize the type. Looking at the minimum
+            // of "to newline" and "to closing brace" meets this condition.
+            pChar = read_until(re_bracenl);
+            // We need the character that we stopped on, as well. Being at the
+            // end of the input is a valid case here.
+            if (pChar != null) {
+              output += pChar;
             }
+            pos++;
+            let result = output;
+            const match = re_macro.exec(result);
+            assert_parser(match, result, "macro definition: #name <text> or #name(args...) <text> or #name(args...)={<text>}", 1);
+            const [_, name, macro_args, macro_type] = match;
+            const args = [];
+            let arg_begin = 1;
+            const macro = {args: args, rawarg: false}
+            while (arg_begin < macro_args.length) {
+              let apos = macro_args.indexOf(",", arg_begin);
+              if (apos < 0) {
+                apos = macro_args.length - 1;
+              }
+              const arg_string = macro_args.slice(arg_begin, apos);
+              const match = re_arg.exec(arg_string);
+              assert_parser(match, result, "bad macro function argument name: " + arg_string, name.length + 1 + arg_begin);
+              let arg = match[1];
+              if (arg[0] == "$") {
+                macro.rawarg = true;
+                arg = arg.slice(1);
+              }
+              assert_parser(arg.length, result, "empty macro function argument name", name.length + 1 + arg_begin);
+              assert_parser(
+                !macro.rawarg || !args.length,
+                result,
+                "$rawarg parsing has multiple arguments: " + arg,
+                name.length + 1 + arg_begin);
+              if (args.includes(arg)) {
+                assert_parser(false, result, "duplicate function argument name: " + arg, name.length + 1 + arg_begin);
+              }
+              args.push(arg);
+              arg_begin = apos + 1;
+            }
+            assert_parser(!macros[name], result, "macro already exists: " + name, 1);
+            output = result.slice(match[0].length);
+            // Now that we have checked the header info and know the type, read the full body.
+            if (macro_type !== "={") {
+              if (pChar !== "\n") {
+                pChar = read_until(re_nl);
+              }
+              pos++;
+              // For compatibility with previous implementations of this code,
+              // the non-braced version trims whitespace at the end of the body.
+              // To keep significant whitespace, use the braced form.
+              macro.text = output.replace(re_trim, "");
+            } else {
+              const opts = {
+                ...parse_macro_opts,
+                get_input: () => { let r; [r, next_start] = get_chunk(); return r },
+                no_eval: true,
+              };
+              pChar = "";
+              while (pChar !== "}") {
+                [pChar, line, pos, output] = handleOpenBrace("{}", line, pos, output, 1, opts);
+                if (pChar == null) {
+                  // End of line. Get more input, since the point of the
+                  // multiline macro def is to span lines.
+                  let nextline;
+                  [nextline, next_start] = get_chunk();
+                  assert_parser(
+                    nextline != null,
+                    output,
+                    "unexpected EOF looking for end of multiline macro {" + name + "}",
+                    output.length);
+                  line = nextline;
+                  pos = 0;
+                }
+              }
+              if (output[0] === "\n") {
+                // If the openeing brace is immediately followed by
+                // newline, we want to swallow the initial newline.
+                output = output.splice(1);
+              }
+              macro.text = output;
+              // Leftover text forms the beginning of a new syntactic line
+            }
+            macros[name] = macro;
           }
           if (line && pos >= line.length) {
             line = null;
           }
-          result = output;
           line_number_start = start;
           start = next_start;
-          if (in_macro_def) {
-            const match = re_macro.exec(result);
-            assert_parser(match, result, "macro definition: #name <text> or #name(args...) <text>", 1);
-            const [_, name, macro_args, macro_type] = match;
-            let macro = macro_type == "={" ? match[4] : match[4].replace(/[\t-\r ]*$/, "");
-            const args = [];
-            let arg_begin = 1;
-            while (arg_begin < macro_args.length - 1) {
-              let pos = macro_args.indexOf(",", arg_begin);
-              if (pos < 0) {
-                pos = macro_args.length - 1;
-              }
-              const arg_string = macro_args.slice(arg_begin, pos);
-              const match = re_arg.exec(arg_string);
-              assert_parser(match, result, "bad macro function argument name: " + arg_string, name.length + 1 + arg_begin);
-              if (args.includes(match[1])) {
-                assert_parser(false, result, "duplicate function argument name: " + match[1], name.length + 1 + arg_begin)
-              }
-              args.push(match[1]);
-              arg_begin = pos + 1;
-            }
-            assert_parser(!macros[name], result, "macro already exists: " + name, 1);
-            macros[name] = {args: args, text: macro};
-          }
         } while (in_macro_def);
-        return [result.replace(/[\t-\r ]*$/, ""), line_number_start, line_number_end];
+        return [output.replace(re_trim, ""), line_number_start, line_number_end];
       }
-    })();
+    }
 
     // Propogate the "env" upvalue.
     // We keep this in the closure for the lua macro to use.
