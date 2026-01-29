@@ -466,21 +466,23 @@ function compile(name, input, options, importFunc)
           if not npos then
             npos = #line + 1
           end
+          local start = line_number_end
           if in_macro_def or byte(line, pos, pos) ~= 0x7b then  -- {
             local ret = sub(line, pos, npos - 1)
             pos = npos
-            return ret, line_number_end
+            return ret, start
           else
             local output = {}
-            local orig_start = line_number_end
-            line_number_start = orig_start
+            local orig_start = line_number_start
+            line_number_start = start
             line, pos = parseMacro(line, pos + 1, output, 1, parse_macro_opts)
-            return concat(output), orig_start
+            line_number_start = orig_start
+            return concat(output), start
           end
         end
       end
 
-      local line, start, next_start, pos
+      local line, next_start, pos
       local output = {}
       local function read_until(pattern)
         while true do
@@ -503,13 +505,13 @@ function compile(name, input, options, importFunc)
           local _, npos, rest
           in_macro_def = false
           if not line then
-            line, start = get_chunk()
-            next_start = start
+            line, next_start = get_chunk()
             pos = 1
           end
-          local pChar = read_until("[^%s]")
+          line_number_start = next_start
+          local pChar = read_until("[^\t \v-\r]")
           if not pChar then
-            return nil, start, line_number_end
+            return nil, line_number_start, line_number_end
           end
           in_macro_def = (pChar == 0x23)  -- #
           output = {}
@@ -539,7 +541,7 @@ function compile(name, input, options, importFunc)
             if macro_type ~= "={" then
               macro_type = sub(macro_type, 1, 1)
               apos = apos + 1
-              assert_parser(find(" \t\v\f\r\n", macro_type, 1, true), result, "macro definition: #name <text> or #name(args...) <text> or #name(args...)={<text>}", 2)
+              assert_parser(find(" \t\v\f\r", macro_type, 1, true), result, "macro definition: #name <text> or #name(args...) <text> or #name(args...)={<text>}", 2)
             else
               apos = apos + 2
             end
@@ -626,8 +628,6 @@ function compile(name, input, options, importFunc)
           if line and pos > #line then
             line = nil
           end
-          line_number_start = start
-          start = next_start
         until not in_macro_def
         return concat(output):gsub("%s+$", ""), line_number_start, line_number_end
       end -- get_line

@@ -685,28 +685,30 @@ function native_macros() {
         if (npos < 0) {
           npos = line.length;
         }
+        const start = line_number_end;
         if (in_macro_def || line[pos] !== "{") {
-          const ret = [line.slice(pos, npos), line_number_end];
+          const ret = line.slice(pos, npos);
           pos = npos;
-          return ret;
+          return [ret, start];
         } else {
           let output = "";
-          const orig_start = line_number_end;
-          line_number_start = orig_start;
+          const orig_start = line_number_start;
+          line_number_start = start;
           [line, pos, output] = parseMacro(line, pos + 1, output, 1, parse_macro_opts);
-          return [output, orig_start];
+          line_number_start = orig_start;
+          return [output, start];
         }
       }
     }
 
     let get_line;
     {
-      let line, start, next_start, pos, output = "";
+      let line, next_start, pos, output = "";
       // Because the JS class for \s includes 0xa0, we cannot use it. Instead
       // we use [\t-\r ], which is all the normal whitespace characters.
       // If we need to exclude newline, we use [\t \v-\r].
       const re_nonspace = /[^\t \v-\r]/g;
-      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.$\x80-\xff\t-\r ,]+\)|)([\t-\r ]|={)/;
+      const re_macro = /^#([a-zA-Z_\x80-\xff][\w.\x80-\xff]*)(\([\w.$\x80-\xff\t-\r ,]+\)|)([\t \v-\r]|={)/;
       const re_arg = /^[\t-\r ]*([a-zA-Z_$\x80-\xff][\w.\x80-\xff]*)[\t-\r ]*$/;
       const re_nl = /\n/g;
       const re_bracenl = /[\n{]/g;
@@ -735,13 +737,13 @@ function native_macros() {
         do {
           in_macro_def = false;
           if (line == null) {
-            [line, start] = get_chunk();
-            next_start = start;
+            [line, next_start] = get_chunk();
             pos = 0;
           }
+          line_number_start = next_start;
           let pChar = read_until(re_nonspace);
           if (pChar == null) {
-            return [null, start, line_number_end];
+            return [null, line_number_start, line_number_end];
           }
           in_macro_def = (pChar === "#");
           output = "";
@@ -841,8 +843,6 @@ function native_macros() {
           if (line && pos >= line.length) {
             line = null;
           }
-          line_number_start = start;
-          start = next_start;
         } while (in_macro_def);
         return [output.replace(re_trim, ""), line_number_start, line_number_end];
       }
