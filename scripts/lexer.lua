@@ -8,17 +8,11 @@ local function tokenError(...)
 	local msg = table.remove(pos);
 	
 	for k, v in ipairs (pos) do
-		pos[k] = type(v) == "table" and v.pos or v;
+		v = type(v) == "table" and v.pos or v
+		pos[k] = v - (repl == 0 and 1 or 2)
 	end
-
-	local markers = "";
-
-	for k, v in ipairs (pos) do
-		v = type(v) == "table" and v.pos or v;
-		markers = markers .. string.rep(" ", v - (repl == 0 and 1 or 2) - #markers) .. "^";
-	end
-
-	return error_lexer(string.format("%s\n\n%s\n%s", msg, str, markers))
+	
+	return error_lexer({msg = msg, line = str, markers = pos})
 end
 
 local function newNode(pos, parent, func)

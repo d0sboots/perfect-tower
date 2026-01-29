@@ -15,14 +15,18 @@ local concat = table.concat
 local co_resume, co_create, yield = coroutine.resume, coroutine.create, coroutine.yield
 
 -- Defined here to pick up compile_file and line_number
-function error_lexer(msg, _)
+function error_lexer(msg)
+  if type(msg) ~= "table" then
+    msg = {msg = msg}
+  end
   local err_msg
   if line_number_start == line_number_end then
-    err_msg = format("%s:%s: %s", compile_file, line_number_start, msg)
+    err_msg = format("%s:%s: %s", compile_file, line_number_start, msg.msg)
   else
-    err_msg = format("%s:%s-%s: %s", compile_file, line_number_start, line_number_end, msg)
+    err_msg = format("%s:%s-%s: %s", compile_file, line_number_start, line_number_end, msg.msg)
   end
-  error(err_msg, 0)
+  msg.msg = err_msg  -- OK to modify arg because we're erroring away
+  error(msg)
 end
 
 function assert_parser(test, line, msg, ...)
@@ -30,13 +34,13 @@ function assert_parser(test, line, msg, ...)
     return test
   end
 
-  local markers = {}
-  local prev = 0
-  for i, v in ipairs({...}) do
-    markers[i] = string.rep(" ", v - 1 - prev) .. "^"
-    prev = v
+  -- Have to convert the positions from 1-based to 0-based, which is what is
+  -- expected upstream.
+  local pos = {...}
+  for i = 1, #pos do
+    pos[i] = pos[i] - 1
   end
-  error_lexer(format("%s\n\n%s\n%s", msg, line, concat(markers)))
+  error_lexer({msg = msg, line = line, markers = pos})
 end
 
 for _, lib in ipairs {"base64", "lexer-functions", "lexer-operators", "lexer-tokens", "lexer-debug", "lexer", "stdlib"} do
@@ -68,11 +72,18 @@ do
         status, ret = pcall(compile, pair.name, pair.text, arg2, arg3)
         if not status then
           assert = assert_old
-          if js then
+          local data
+          if type(ret) == "userdata" then
             -- Fengari has bugs where it can return a native JS exception object
             ret = js.tostring(ret)
           end
-          return false, pair.name .. "\n" .. ret
+          if type(ret) == "table" then
+            data = ret
+          else
+            data = {msg = ret}
+          end
+          data.file = pair.name
+          return false, data
         end
         exported[i] = ret
       end

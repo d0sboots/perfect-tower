@@ -25,6 +25,9 @@ function pushValue(val) {
     }
   } else if (val == null || PRIMITIVES.has(typeof val)) {
     interop.push(L, val);
+  } else if (val instanceof Uint8Array) {
+    // Native string data
+    lua.lua_pushstring(L, val);
   } else {
     lua.lua_newtable(L);
     for (const [k, v] of Object.entries(val)) {
@@ -32,6 +35,35 @@ function pushValue(val) {
       lua.lua_setfield(L, -2, k);
     }
   }
+}
+
+// Convert item at index idx to a js object. Tables and arrays are converted
+// recursively. Arrays are determined by having no non-integer keys, and the
+// indices are shifted by 1.
+// Stack-neutral.
+function toValue(idx) {
+  if (lua.lua_type(L, idx) !== lua.LUA_TTABLE) {
+    return interop.tojs(L, idx);
+  }
+  idx = lua.lua_absindex(L, idx);
+  let obj = [];
+  let isArray = true;
+  lua.lua_pushnil(L);
+  while (lua.lua_next(L, idx) !== 0) {
+    const value = toValue(-1);
+    const key = interop.tojs(L, -2);
+    if (isArray && (typeof key !== "number" || (key | 0) !== key || key < 1)) {
+      isArray = false;
+      obj = Object.fromEntries(obj.map((k, v) => [k, v]));
+    }
+    if (isArray) {
+      obj[key-1] = value;
+    } else {
+      obj[key] = value;
+    }
+    lua.lua_pop(L, 1);
+  }
+  return obj;
 }
 
 function runLua(args) {
@@ -63,10 +95,11 @@ function runLua(args) {
 
   const nargs = lua.lua_gettop(L) - initial_top - 1;
   lua.lua_call(L, nargs, lua.LUA_MULTRET);
+  lua.lua_checkstack(L, 10);
   const nresults = lua.lua_gettop(L) - initial_top;
   const res_array = [];
   for (let i = 0; i < nresults; i++) {
-    res_array[i] = interop.tojs(L, initial_top + i + 1);
+    res_array[i] = toValue(initial_top + i + 1);
   }
   lua.lua_settop(L, initial_top);
   return res_array;
@@ -168,50 +201,89 @@ async function doCompile(data_orig) {
   data[0] = "compile";
   const results = runLua(data);
   if (!results[0]) {
-    return results;
+    // We get structured data back from lua because it knows how to point at
+    // an error by byte offset, but only JS has the libraries to turn this
+    // into glyph offsets.
+    const {file, msg} = results[1];
+    // These might not be present
+    const line = results[1].line;
+    const markers = results[1].markers ?? [];
+    if (line == null) {
+      return [false, `${file}\n${msg}`];
+    }
+    let carets = "";
+    if (markers.length) {
+      carets = "···Your browser is too old to support Intl.Segmenter···";
+      try {
+        const segmenter = new Intl.Segmenter();
+        const encoder = new TextEncoder();
+        carets = "";
+        let i = 0;
+        let byteLength = 0;
+        for (const {segment} of segmenter.segment(line)) {
+          byteLength += encoder.encode(segment).length;
+          if (byteLength > markers[i]) {
+            carets += "^";
+            while (i < markers.length && byteLength > markers[i]) {
+              i++;
+            }
+            if (i >= markers.length)
+              break;
+          } else {
+            carets += "·";
+          }
+        }
+        if (i < markers.length) {
+          carets += "^";
+        }
+      } catch (ex) {
+        if (!(ex instanceof TypeError)) {
+          throw ex;
+        }
+      }
+    }
+    return [false, `${file}\n${msg}\n\n${line}\n${carets}`];
   }
 
   let impulses = 0, conditions = 0, actions = 0;
   const compiled = results[1];
   const json = {blueprints:[], scripts:[], style:[], windows:[]};
 
-  for (let i = 1; compiled.has(i); ++i) {
-    const scriptData = compiled.get(i);
-    const type = scriptData.get("type");
+  for (const scriptData of compiled) {
+    const type = scriptData.type;
     if (type === "script") {
-      const imp = scriptData.get("impulses");
-      const cond = scriptData.get("conditions");
-      const act = scriptData.get("actions");
+      const imp = scriptData.impulses;
+      const cond = scriptData.conditions;
+      const act = scriptData.actions;
       if (imp === 0 && cond === 0 && act === 0 && isExport) {
         continue;
       }
       impulses = imp > impulses ? imp : impulses;
       conditions = cond > conditions ? cond : conditions;
       actions = act > actions ? act : actions;
-      json.scripts.push(scriptData.get("code"));
+      json.scripts.push(scriptData.code);
     } else {
       if (isExport && format === UNCOMPRESSED_FORMAT) {
         continue;  // Oldest format can only handle scripts in bundles
       }
       if (type === "blueprint") {
-        json.blueprints.push(scriptData.get("code"));
+        json.blueprints.push(scriptData.code);
       } else if (type === "window") {
-        json.windows.push(scriptData.get("code"));
+        json.windows.push(scriptData.code);
       } else if (type === "tower") {
         if (json.style.length) {
           let firstName = "NOT FOUND";
-          for (let j = 1; j < i; ++j) {
-            const sd2 = compiled.get(j);
+          for (const sd2 of compiled) {
             if (sd2.get("type") === "tower") {
-              firstName = sd2.get("name");
+              firstName = sd2.name;
               break;
             }
           }
-          throw new Error(`Can't export multiple tower designs at once! (${firstName} and ${scriptData.get("name")})`);
+          throw new Error(`Can't export multiple tower designs at once! (${firstName} and ${scriptData.name})`);
         }
-        json.style.push(scriptData.get("code"));
+        json.style.push(scriptData.code);
       } else {
-        throw new Error(`Unknown type "${type}" returned from compile() for ${scriptData.get("name")}`);
+        throw new Error(`Unknown type "${type}" returned from compile() for ${scriptData.name}`);
       }
     }
   }
@@ -224,7 +296,7 @@ async function doCompile(data_orig) {
   }
   let fullcode;
   if (format === UNCOMPRESSED_FORMAT) {
-    switch (isExport ? "script" : compiled.get(1).get("type")) {
+    switch (isExport ? "script" : compiled[0].type) {
       case "blueprint":
         fullcode = json.blueprint[0];
         break;
@@ -285,7 +357,7 @@ async function doCompile(data_orig) {
     if (format !== UNCOMPRESSED_FORMAT) header1 += " (compressed)";
     header1 += "\n";
   }
-  const name = isExport ? data_orig[2].name : compiled.get(1).get("name");
+  const name = isExport ? data_orig[2].name : compiled[0].name;
   const header = `${name}\n${header1}${impulses} ${conditions} ${actions}\n`
   return [results[0], header + fullcode, header.length]
 }
@@ -385,13 +457,21 @@ function native_macros() {
   }
 
   function error_lexer(msg) {
+    if (msg !== null && typeof msg  !== "object") {
+      msg = {msg: msg};
+    }
     let err_msg;
     if (line_number_start === line_number_end) {
-      err_msg = `${compile_file}:${line_number_start}: ${msg}`;
+      err_msg = `${compile_file}:${line_number_start}: ${msg.msg}`;
     } else {
-      err_msg = `${compile_file}:${line_number_start}-${line_number_end}: ${msg}`;
+      err_msg = `${compile_file}:${line_number_start}-${line_number_end}: ${msg.msg}`;
     }
-    lua.lua_pushstring(L, toluastr(err_msg));
+    // OK to modify the argument because we're erroring away
+    msg.msg = toluastr(err_msg);
+    if (msg.line != null) {
+      msg.line = toluastr(msg.line);
+    }
+    pushValue(msg);
     return lua.lua_error(L);
   }
 
@@ -400,14 +480,7 @@ function native_macros() {
       return test;
     }
 
-    let prev = 0;
-    const markers = [];
-    for (let i = 0; i < mpos.length; ++i) {
-      const v = mpos[i];
-      markers[i] = " ".repeat(v - prev) + "^";
-      prev = v;
-    }
-    return error_lexer(`${msg}\n\n${line}\n${markers.join("")}`);
+    return error_lexer({msg: msg, line: line, markers: mpos});
   }
 
   const macros = {
@@ -868,7 +941,8 @@ function native_macros() {
           throw err;
         }
         console.error(err);
-        lua.lua_pushstring(L, toluastr(err.toString() + "\n" + err.stack));
+        // This string is not from lua, so using toluastr() would be wrong.
+        lua.lua_pushstring(L, err.toString() + "\n" + err.stack);
         return lua.lua_error(L);
       }
     }, 1);
