@@ -364,8 +364,8 @@ local functions = {
   Primitive={
     {ret="void", name="<scope>.<>.set", args={"string:variable", "<>"}, display="void [g/l][b/i/d/s/v]s(string:variable, type:value)   ;set", expand="bidsv"},
     {ret="<>", name="<scope>.<>.get", args={"string:variable"}, display="type [g/l][b/i/d/s/v]g(string:variable)   ;get", expand="bidsv"},
-    {ret="void", name="global.unset", args={"string:variable"}, short="gu ", display="void gu(string:variable)   ;global.unset"},
-    {ret="void", name="local.unset", args={"string:variable"}, short="lu ", display="void lu(string:variable)   ;local.unset"},
+    {ret="void", name="global.unset", args={"string:variable"}, short="gu", display="void gu(string:variable)   ;global.unset"},
+    {ret="void", name="local.unset", args={"string:variable"}, short="lu", display="void lu(string:variable)   ;local.unset"},
     {ret="bool", name="comparison.<>", args={"<>", "op_comp", "<>"}, display="bool c.[b/i/d/s](type:lhs, op_comp, type:rhs)   ;comparison", expand="bids"},
     {ret="<>", name="arithmetic.<>", args={"<>", "op_mod", "<>"}, display="type a.[i/d/v](type:lhs, op_mod, type:rhs)   ;arithmetic", expand="idv"},
   },
