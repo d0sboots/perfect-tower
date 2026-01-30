@@ -689,10 +689,10 @@ function native_macros() {
                 result += "}";
                 continue;
               }
-              result = result.slice(0, -1);  // Trim the closing paren off, which got added in rawarg mode
             } else {
-              assert_parser(macroLine[pos-2] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
+              assert_parser(result[result.length-1] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
             }
+            result = result.slice(0, -1);  // Trim the closing paren off
             args.push(result);
             if (opts.no_eval) {
               output += `{${macroName}(${args.join(",")})}`;
@@ -715,14 +715,11 @@ function native_macros() {
         } else if (pChar === ")") {
           assert_parser(nesting > 0, macroLine, "extra closing parens calling {" + macroName + "}", pos - 1);
           nesting -= 1;
-          if (nesting > 0) {
-            result += ")";
-          }
-          // We don't add the last paren to args here. Instead, we let the "}"
-          // code handle that, allowing both the rawarg and regular code to
-          // follow the same path for adding the final arg. This means that any
-          // text that comes *after* this paren will get added to the last arg,
-          // but that's an error we check for so it won't hurt us.
+          result += ")";
+          // We always add the paren to args here. This allows both the rawarg
+          // and regular code to follow the same path for adding the final
+          // arg. This also means that any text that comes *after* this paren
+          // will get added to the last arg, but that's an error we check for.
         } else {
           assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" + macroName + "}", pos - 1);
         }

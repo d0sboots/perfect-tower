@@ -268,11 +268,12 @@ parseMacro = function(macroLine, pos, output, depth, opts)
               result[#result+1] = "}"
               goto continue
             end
-            result[#result] = sub(result[#result], 1, -2)  -- Trim the closing paren off, which got added in rawarg mode
-          else
-            assert_parser(byte(macroLine, pos - 2, pos - 2) == 0x29, macroLine, "trailing junk after macro call {" .. macroName .. "}", pos - 2)
           end
           local arg = concat(result)
+          if not rawarg then
+            assert_parser(sub(arg, -1) == ")", macroLine, "trailing junk after macro call {" .. macroName .. "}", pos - 2)
+          end
+          arg = sub(arg, 1, -2)  -- Trim the closing paren off
           args[#args+1] = arg
           if opts.no_eval then
             output[#output+1] = "{" .. macroName .. "(" .. concat(args, ",") .. ")}"
@@ -295,14 +296,11 @@ parseMacro = function(macroLine, pos, output, depth, opts)
       elseif pChar == ")" then
         assert_parser(nesting > 0, macroLine, "extra closing parens calling {" .. macroName .. "}", pos - 1)
         nesting = nesting - 1
-        if nesting > 0 then
-          result[#result+1] = ")"
-        end
-        -- We don't add the last paren to args here. Instead, we let the "}"
-        -- code handle that, allowing both the rawarg and regular code to
-        -- follow the same path for adding the final arg. This means that any
-        -- text that comes *after* this paren will get added to the last arg,
-        -- but that's an error we check for so it won't hurt us.
+        result[#result+1] = ")"
+        -- We always add the paren to args here. This allows both the rawarg
+        -- and regular code to follow the same path for adding the final
+        -- arg. This also means that any text that comes *after* this paren
+        -- will get added to the last arg, but that's an error we check for.
       else
         assert_parser(false, macroLine, "BUG_REPORT: unhandled case in parseMacro {" .. macroName .. "}", pos - 1)
       end
@@ -1302,6 +1300,9 @@ b = false,
 }
 return table.b
 )}}{noop}
+#noop2(a) 
+{noop2()\
+}
 ]=], "EG11bHRpbGluZV90ZXN0w6AAAAAAAAAAAAIAAAAMZ2VuZXJpYy5nb3RvCGNvbnN0YW50AiIAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BA5cCAkLDAoAAcOgw6DDoA=="},
   }
   local new_import_tests = {
