@@ -48,8 +48,10 @@ The language has 5 types: `bool`, `int`, `double`, `vector`, and `string`.
 ## Language conventions
 
 At its most basic, everything is represented by function-calls: An
-*identifier* that matches `[a-zA-Z][a-zA-Z0-9._]*` for the function name,
-followed by a series of *arguments* enclosed by parenthesis. For example:
+*identifier* that matches `[a-zA-Z_][a-zA-Z0-9._]*` for the function name,
+followed by a series of *arguments* enclosed by parenthesis. (Unicode can also
+be used in any identifier, although the built-in function calls never use it.)
+For example:
 
 ```
 local.double.set("foo", 1.5)
@@ -63,9 +65,7 @@ something in the game) are statements.
 
 A program is made up of a number of *lines*, with each line having a statement
 as its root. Lines are important because you are limited in how many you can
-have: More requires more Headquarters RAM, and there is an absolute limit of
-25 lines. There is also a soft limit of 16 lines, after which early-game
-players won't be able to afford the needed RAM.
+have: There is a strict limit of 50.
 
 ## Syntax shortcuts
 
@@ -169,6 +169,13 @@ not "null", since there are no null values in this language.
 There is also a const declaration: `:const <type> <name> <value>`. This is
 very similar to using a macro to substitute values, except that it is
 type-checked.
+
+Note that since variables names are `<identifier>`s, there is great freedom in
+what you can use, but not *everything* is valid. If you want to use spaces or
+other reserved characters in a variable (which the game allows), you will need
+to use the set/get functions directly. Also note that variables (like
+everything) are case-sensitive, but the game font does not distinguish between
+cases very well.
 
 ## Loops and Labels
 
@@ -293,7 +300,24 @@ part of the param, as if there was a `\` present. For instance:
 arg1,
 arg2)}
 ```
-is the same as `{macroname(arg1,arg2)}`.
+is the same as `{macroname(arg1,arg2)}`. Note that otherwise, newlines will be
+passed through and substituted into the macro, which may not be what you want.
+
+To be able to define (and not just call) macros using multipile lines, use
+this braced-definition syntax:
+```
+#macroname={
+  statement1()
+  statement2()  ; A comment about what's happening
+} ; Trailing comments are also possible
+```
+
+Braced definitions start with `={` and end at the matching `}`. They can be
+single line or multiple. Like with macro calls, if the `={` is immediately
+followed by a newline, the newline is ignored.
+
+Note that a multiline macro definition will expand to multiple actual lines;
+you can use this to have one macro expand to multiple statements.
 
 Macros can contain other macros, both in their definitions and invocations.
 This is legal:
@@ -304,7 +328,8 @@ This is legal:
 Yielding "foobar".
 
 Because macro processing runs before other processing, it can also be used to
-define variables, constants, or set other compiler directives.
+define variables, constants, set other compiler directives, or even (with
+appropriate quoting) define macros.
 
 There are a handful of "special" macros that are hardcoded and predefined:
 * `{}` returns `{}`
@@ -316,3 +341,17 @@ There are a handful of "special" macros that are hardcoded and predefined:
 * `{len(...)}` returns the length in characters of whatever is contained within.
 * `{lua(...)}` evaluates a lua expression and returns the stringified result.
   This can be used for arbitrarily-complicated metaprogramming.
+
+The `len` and `lua` macros use a special argument-processing mode known as
+"rawarg" mode. Normal macro calls look for commas to separate macro
+arguments, and use nested parentheses to protect against stray commas. For
+instance: `concat(count("dust", 2), + 15.0)` would produce
+`count("dust", 2) + 15.0`, and the first comma would not separate arguments
+because it is within nested parentheses. However, this creates a requirement
+that parentheses in the macro call be balanced.
+
+For `lua` code especially this is annoying, which is where "rawarg" mode comes
+in. The entire single argument starts after the `{(` and ends at the first `)}`,
+and that's it. If you want this behavior for one of your own macros, you can
+prefix the argument name with `$`: `#macroname($arg) definition`. By
+necessity, there can only be one argument in this case.
