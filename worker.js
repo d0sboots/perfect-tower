@@ -193,6 +193,64 @@ async function importData(importCode) {
   return results;
 }
 
+function formatError(results) {
+  // We get structured data back from lua because it knows how to point at
+  // an error by byte offset, but only JS has the libraries to turn this
+  // into glyph offsets.
+  const {file, msg} = results[1];
+  // These might not be present
+  const lines = results[1].line;
+  const markers = results[1].markers ?? [];
+  if (lines == null) {
+    return [false, `${file}\n${msg}`];
+  }
+  let output = "";
+  if (markers.length) {
+    output = "···Your browser is too old to support Intl.Segmenter···";
+    try {
+      const segmenter = new Intl.Segmenter();
+      const encoder = new TextEncoder();
+      output = "";
+      let i = 0;
+      let byteLength = 0;
+      let line;
+      for (line of lines.split("\n")) {
+        let carets = "";
+        let buffer = "";
+        for (const {segment} of segmenter.segment(line)) {
+          if (i >= markers.length)
+            break;
+          byteLength += encoder.encode(segment).length;
+          if (byteLength > markers[i]) {
+            carets += buffer + "^";
+            buffer = "";
+            while (i < markers.length && byteLength > markers[i]) {
+              i++;
+            }
+          } else {
+            buffer += "·";
+          }
+        }
+        byteLength++;
+        output += line + "\n";
+        if (carets) {
+          output += carets + "\n";
+        }
+      }
+      if (i < markers.length) {
+        output += "·".repeat(line.length) + "^\n";
+      }
+      output = output.slice(0, -1);
+    } catch (ex) {
+      console.log(ex);
+      if (!(ex instanceof TypeError)) {
+        throw ex;
+      }
+    }
+  }
+  return [false, `${file}\n${msg}\n\n${output}`];
+}
+
 async function doCompile(data_orig) {
   const data = [...data_orig];
   data.scripts = data_orig.scripts;
@@ -201,61 +259,7 @@ async function doCompile(data_orig) {
   data[0] = "compile";
   const results = runLua(data);
   if (!results[0]) {
-    // We get structured data back from lua because it knows how to point at
-    // an error by byte offset, but only JS has the libraries to turn this
-    // into glyph offsets.
-    const {file, msg} = results[1];
-    // These might not be present
-    const lines = results[1].line;
-    const markers = results[1].markers ?? [];
-    if (lines == null) {
-      return [false, `${file}\n${msg}`];
-    }
-    let output = "";
-    if (markers.length) {
-      output = "···Your browser is too old to support Intl.Segmenter···";
-      try {
-        const segmenter = new Intl.Segmenter();
-        const encoder = new TextEncoder();
-        output = "";
-        let i = 0;
-        let byteLength = 0;
-        let line;
-        for (line of lines.split("\n")) {
-          let carets = "";
-          let buffer = "";
-          for (const {segment} of segmenter.segment(line)) {
-            if (i >= markers.length)
-              break;
-            byteLength += encoder.encode(segment).length;
-            if (byteLength > markers[i]) {
-              carets += buffer + "^";
-              buffer = "";
-              while (i < markers.length && byteLength > markers[i]) {
-                i++;
-              }
-            } else {
-              buffer += "·";
-            }
-          }
-          byteLength++;
-          output += line + "\n";
-          if (carets) {
-            output += carets + "\n";
-          }
-        }
-        if (i < markers.length) {
-          output += "·".repeat(line.length) + "^\n";
-        }
-        output = output.slice(0, -1);
-      } catch (ex) {
-        console.log(ex);
-        if (!(ex instanceof TypeError)) {
-          throw ex;
-        }
-      }
-    }
-    return [false, `${file}\n${msg}\n\n${output}`];
+    return formatError(results);
   }
 
   let impulses = 0, conditions = 0, actions = 0;
@@ -423,7 +427,10 @@ onmessage = function(e) {
     });
   } else if (e.data[0] !== "compile") {
     setTimeout(function() {
-      const results = runLua(e.data);
+      let results = runLua(e.data);
+      if (!results[0]) {
+        results = formatError(results);
+      }
       postMessage({args: e.data, results: results});
     });
   } else {
@@ -436,7 +443,7 @@ onmessage = function(e) {
 }
 
 const braceRe = {
-  "{(}": /([{(}])/g,
+  "{(}\n": /([{(}\n])/g,
   "{}": /([{}])/g,
   "{(,)}": /([{(,)}])/g,
 }
@@ -605,14 +612,18 @@ function native_macros() {
     }
 
     let pChar, result;
-    [pChar, macroLine, pos, result] = handleOpenBrace("{(}", macroLine, pos, "", depth, opts);
-    if (pChar == null) {
+    [pChar, macroLine, pos, result] = handleOpenBrace("{(}\n", macroLine, pos, "", depth, opts);
+    if (pChar == null || pChar === "\n") {
       // End of line. Unterminated macro is just returned as a literal text,
       // which is copied to the output buffer. We have to add the { that
       // *wasn't* included as part of our parsed text.
       output += "{";
       output += result;
-      return [macroLine, macroLine.length, output];
+      if (pChar === "\n") {
+        // Rewind because we have to parse this as part of the stream still
+        pos--;
+      }
+      return [macroLine, pos, output];
     }
     // pChar is "}" or "(", either way we have the complete macro name.
     macroName = result;

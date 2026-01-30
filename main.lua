@@ -62,6 +62,25 @@ do
     return test
   end
 
+  function pcallCompile(...)
+    local status, ret = pcall(compile, ...)
+    if status then
+      return status, ret
+    end
+    local data
+    if type(ret) == "userdata" then
+      -- Fengari has bugs where it can return a native JS exception object
+      ret = js.tostring(ret)
+    end
+    if type(ret) == "table" then
+      data = ret
+    else
+      data = {msg = ret}
+    end
+    data.file = ...
+    return false, data
+  end
+
   function lua_main(func, arg1, arg2, arg3)
     local status, ret
     if func == "compile" then
@@ -69,21 +88,10 @@ do
       local exported = {}
       for i = 1, #arg1 do
         local pair = arg1[i]
-        status, ret = pcall(compile, pair.name, pair.text, arg2, arg3)
+        status, ret = pcallCompile(pair.name, pair.text, arg2, arg3)
         if not status then
           assert = assert_old
-          local data
-          if type(ret) == "userdata" then
-            -- Fengari has bugs where it can return a native JS exception object
-            ret = js.tostring(ret)
-          end
-          if type(ret) == "table" then
-            data = ret
-          else
-            data = {msg = ret}
-          end
-          data.file = pair.name
-          return false, data
+          return status, ret
         end
         exported[i] = ret
       end
@@ -183,8 +191,8 @@ parseMacro = function(macroLine, pos, output, depth, opts)
   end
 
   local pChar
-  pChar, macroLine, pos = handleOpenBrace("{(}", macroLine, pos, result, depth, opts)
-  if not pChar then
+  pChar, macroLine, pos = handleOpenBrace("{(}\n", macroLine, pos, result, depth, opts)
+  if not pChar or pChar == "\n" then
     -- End of line. Unterminated macro is just returned as a literal text,
     -- which is copied to the output buffer. We have to add the { that
     -- *wasn't* included as part of our parsed text.
@@ -193,7 +201,11 @@ parseMacro = function(macroLine, pos, output, depth, opts)
     for i = 1, #result do
       output[off + i] = result[i]
     end
-    return macroLine, #macroLine + 1
+    if pChar == "\n" then
+      -- Rewind because we have to parse this as part of the stream still
+      pos = pos - 1
+    end
+    return macroLine, pos
   end
   -- pChar is "}" or "(", either way we have the complete macro name.
   macroName = concat(result)
@@ -1276,7 +1288,19 @@ o {{concät(,
 )}(}3,
 4{{)}{concät(,
 )}} )}
-stop("\\\b\t\v\f\n\x00\x01\xc3\xa0\u00e0\U0000e0")
+#macro2={
+stop("\\\b\t\v\f\n\\
+x00\x01\xc3\xa0\u00e0\U0000e0") ;Comment
+}{macro2}
+
+#noop={
+{lua(
+local table = {
+a = 1,
+b = false,
+}
+return table.b
+)}}{noop}
 ]=], "EG11bHRpbGluZV90ZXN0w6AAAAAAAAAAAAIAAAAMZ2VuZXJpYy5nb3RvCGNvbnN0YW50AiIAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BA5cCAkLDAoAAcOgw6DDoA=="},
   }
   local new_import_tests = {
@@ -1342,8 +1366,11 @@ bar = vec(1.0, 2.0)]], [[
   for useFast=0, 1 do
     local fm = useFast == 1
     for k, v in pairs(compile_tests) do
-      status, ret = pcall(compile, k, v[1], {format="v0", fastMacro=fm}, importFunc)
-      assert(status, string.format("(fastMacro=%s) Failed to compile unit test %s at line %d\n\n%s", fm, k, line_number_end, ret))
+      status, ret = pcallCompile(k, v[1], {format="v0", fastMacro=fm}, importFunc)
+      if not status then
+        ret.msg = string.format("(fastMacro=%s) Failed to compile unit test %s\n\n%s", fm, k, ret.msg)
+        error(ret)
+      end
       assert(ret.code == v[2], string.format("(fastMacro=%s) Unit test %s failure! Expected:\n%s\nActual:\n%s", fm, k, v[2], ret.code))
     end
     for k, v in pairs(new_import_tests) do
@@ -1351,16 +1378,22 @@ bar = vec(1.0, 2.0)]], [[
       assert(status, string.format("Failed to import unit test %s\n\n%s", k, ret))
       assert(ret[2] == v[2], string.format("Unit test %s import failure! Expected:\n%s\nActual:\n%s", k, v[2], ret[2]))
 
-      status, ret = pcall(compile, ret[1], ret[2], {format="v2", fastMacro=fm}, importFunc)
-      assert(status, string.format("(fastMacro=%s) Failed to compile unit test %s\n\n%s", fm, k, ret))
+      status, ret = pcallCompile(ret[1], ret[2], {format="v2", fastMacro=fm}, importFunc)
+      if not status then
+        ret.msg = string.format("(fastMacro=%s) Failed to compile unit test %s\n\n%s", fm, k, ret.msg)
+        error(ret)
+      end
       assert(ret.code == v[3], string.format("(fastMacro=%s) Unit test %s compile failure! Expected:\n%s\nActual:\n%s", fm, k, v[3], ret.code))
     end
     for k, v in ipairs (import_tests) do
       status, ret = pcall(import, v)
       assert(status, string.format("Failed to import unit test #%s\n\n%s", k, ret))
 
-      status, ret = pcall(compile, ret[1], ret[2], {format="v0", fastMacro=fm}, importFunc)
-      assert(status, string.format("(fastMacro=%s) Failed to compile unit test #%s\n\n%s", fm, k, ret))
+      status, ret = pcallCompile(ret[1], ret[2], {format="v0", fastMacro=fm}, importFunc)
+      if not status then
+        ret.msg = string.format("(fastMacro=%s) Failed to compile unit test %s\n\n%s", fm, k, ret.msg)
+        error(ret)
+      end
 
       assert(ret.code == v, string.format("(fastMacro=%s) Failed to match unit test #%s\n\n%s\n\n%s\n\n%s\n\n%s", fm, k, v, ret.code, base64.decode(v), base64.decode(ret.code)))
     end
