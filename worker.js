@@ -510,20 +510,20 @@ function native_macros() {
     return error_lexer({msg: msg, line: line, markers: mpos});
   }
 
-  const macros = {
+  const macros = new Map([
     // This entry is also used for {(} since that looks like an argument-macro
     // with no name, depending on how it is parsed. An expression like {{(}}
     // will parse one way for the inner macro and another (using the later
     // entry) for the outer macro, since the substituted paren doesn't act
     // like a delimiter and instead forms part of the name of a simple macro.
-    "":  {args: [], raw: "{}", rawarg: true},
-    "[": {args: [], raw: "{"},
-    "]": {args: [], raw: "}"},
-    "(": {args: [], raw: "("},
-    ")": {args: [], raw: ")"},
-    ",": {args: [], raw: ","},
-    len: {args: ["#"], rawarg: true, func: arg_body => String(arg_body.length)},
-    lua: {args: ["#"], rawarg: true, func: lua_text => {
+    ["",  {args: [], raw: "{}", rawarg: true}],
+    ["[", {args: [], raw: "{"}],
+    ["]", {args: [], raw: "}"}],
+    ["(", {args: [], raw: "("}],
+    [")", {args: [], raw: ")"}],
+    [",", {args: [], raw: ","}],
+    ["len", {args: ["#"], rawarg: true, func: arg_body => String(arg_body.length)}],
+    ["lua", {args: ["#"], rawarg: true, func: lua_text => {
       const lua_bytes = toluastr(lua_text);
       let result = luaL.luaL_loadbufferx(L, lua_bytes, null, lua_bytes, "t");
       if (result !== lua.LUA_OK) {
@@ -545,8 +545,8 @@ function native_macros() {
       const value = toValue(-1);
       lua.lua_pop(L, 1);
       error_lexer(value);
-    }},
-  };
+    }}],
+  ]);
 
   const handleOpenBrace = (pattern, macroLine, pos, result, depth, opts) => {
     const re = braceRe[pattern];
@@ -590,9 +590,9 @@ function native_macros() {
       } else if (macro_obj.func != null) {
         output += macro_obj.func(...args);
       } else {
-        const tmp_args = [];
+        const tmp_args = new Map();
         for (let i = 0; i < args.length; ++i) {
-          tmp_args[macro_obj.args[i]] = {raw: args[i], args: []};
+          tmp_args.set(macro_obj.args[i], {raw: args[i], args: []});
         }
         let posm = 0;
         let text = macro_obj.text;
@@ -632,7 +632,7 @@ function native_macros() {
     // pChar is "}" or "(", either way we have the complete macro name.
     macroName = result;
     result = "";
-    const macro_obj = opts.arg_macros[macroName] ?? opts.macros[macroName];
+    const macro_obj = opts.arg_macros.get(macroName) ?? opts.macros.get(macroName);
     assert_parser(opts.no_eval || macro_obj, macroLine, "macro does not exist: {" + macroName + "}", pos - 1);
     if (pChar === "}") {
       if (opts.no_eval) {
@@ -680,7 +680,7 @@ function native_macros() {
             if (opts.no_eval) {
               output += "{(}";
             } else {
-              evalMacro(opts.macros["("]);
+              evalMacro(opts.macros.get("("));
             }
           } else {
             if (rawarg) {
@@ -761,7 +761,7 @@ function native_macros() {
 
     const parse_macro_opts = {
       macros: macros,
-      arg_macros: {},
+      arg_macros: new Map(),
       get_input: get_input_line,
       no_eval: false,
     };
@@ -901,7 +901,7 @@ function native_macros() {
               args.push(arg);
               arg_begin = apos + 1;
             }
-            assert_parser(!macros[name], result, "macro already exists: " + name, 1);
+            assert_parser(!macros.has(name), result, "macro already exists: " + name, 1);
             output = result.slice(match[0].length);
             // Now that we have checked the header info and know the type, read the full body.
             if (macro_type !== "={") {
@@ -944,7 +944,7 @@ function native_macros() {
               macro.text = output;
               // Leftover text forms the beginning of a new syntactic line
             }
-            macros[name] = macro;
+            macros.set(name, macro);
           }
           if (line && pos >= line.length) {
             line = null;
