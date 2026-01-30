@@ -206,43 +206,56 @@ async function doCompile(data_orig) {
     // into glyph offsets.
     const {file, msg} = results[1];
     // These might not be present
-    const line = results[1].line;
+    const lines = results[1].line;
     const markers = results[1].markers ?? [];
-    if (line == null) {
+    if (lines == null) {
       return [false, `${file}\n${msg}`];
     }
-    let carets = "";
+    let output = "";
     if (markers.length) {
-      carets = "···Your browser is too old to support Intl.Segmenter···";
+      output = "···Your browser is too old to support Intl.Segmenter···";
       try {
         const segmenter = new Intl.Segmenter();
         const encoder = new TextEncoder();
-        carets = "";
+        output = "";
         let i = 0;
         let byteLength = 0;
-        for (const {segment} of segmenter.segment(line)) {
-          byteLength += encoder.encode(segment).length;
-          if (byteLength > markers[i]) {
-            carets += "^";
-            while (i < markers.length && byteLength > markers[i]) {
-              i++;
-            }
+        let line;
+        for (line of lines.split("\n")) {
+          let carets = "";
+          let buffer = "";
+          for (const {segment} of segmenter.segment(line)) {
             if (i >= markers.length)
               break;
-          } else {
-            carets += "·";
+            byteLength += encoder.encode(segment).length;
+            if (byteLength > markers[i]) {
+              carets += buffer + "^";
+              buffer = "";
+              while (i < markers.length && byteLength > markers[i]) {
+                i++;
+              }
+            } else {
+              buffer += "·";
+            }
+          }
+          byteLength++;
+          output += line + "\n";
+          if (carets) {
+            output += carets + "\n";
           }
         }
         if (i < markers.length) {
-          carets += "^";
+          output += "·".repeat(line.length) + "^\n";
         }
+        output = output.slice(0, -1);
       } catch (ex) {
+        console.log(ex);
         if (!(ex instanceof TypeError)) {
           throw ex;
         }
       }
     }
-    return [false, `${file}\n${msg}\n\n${line}\n${carets}`];
+    return [false, `${file}\n${msg}\n\n${output}`];
   }
 
   let impulses = 0, conditions = 0, actions = 0;
@@ -457,9 +470,12 @@ function native_macros() {
   }
 
   function error_lexer(msg) {
-    if (msg !== null && typeof msg  !== "object") {
+    if (msg !== null && typeof msg !== "object") {
       msg = {msg: msg};
     }
+    // We need to match lua's handling of unset values here. This can happen
+    // if you use error() to throw custom tables.
+    msg.msg ??= "nil";
     let err_msg;
     if (line_number_start === line_number_end) {
       err_msg = `${compile_file}:${line_number_start}: ${msg.msg}`;
@@ -509,13 +525,15 @@ function native_macros() {
       lua.lua_pushvalue(L, lua.lua_upvalueindex(1));
       lua.lua_setupvalue(L, -2, 1);
       result = lua.lua_pcall(L, 0, 1, 0);
-      const lua_value = lua.lua_tostring(L, -1);
-      const value = lua_value ? fromluastr(lua_value) : "";
-      lua.lua_pop(L, 1);
-      if (result !== lua.LUA_OK) {
-        error_lexer(value);
+      if (result === lua.LUA_OK) {
+        // Replicate behavior of tostring(result or "")
+        const ret = lua.lua_toboolean(L, -1) ? fromluastr(luaL.luaL_tolstring(L, -1)) : "";
+        lua.lua_pop(L, 1);
+        return ret;
       }
-      return value;
+      const value = toValue(-1);
+      lua.lua_pop(L, 1);
+      error_lexer(value);
     }},
   };
 
@@ -906,7 +924,7 @@ function native_macros() {
               if (output[0] === "\n") {
                 // If the openeing brace is immediately followed by
                 // newline, we want to swallow the initial newline.
-                output = output.splice(1);
+                output = output.slice(1);
               }
               macro.text = output;
               // Leftover text forms the beginning of a new syntactic line

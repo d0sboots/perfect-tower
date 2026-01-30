@@ -17,7 +17,7 @@ output.onfocus = function(msg) {
 
 function runLua(...args) {
     if (args[0] == "compile" || args[0] == "workspace") {
-        // Add this on, so the worker can can create an appropriate importFunc
+        // Add this on, so the worker can create an appropriate importFunc
         args.scripts = scripts;
     }
     worker.postMessage(args);

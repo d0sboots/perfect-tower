@@ -123,6 +123,7 @@ a.warning:hover{
 
 .div-container-textarea {
     width: calc(40% - 16px);
+    word-break: break-all;
 }
 
 .textarea{

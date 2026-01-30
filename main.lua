@@ -616,11 +616,14 @@ function compile(name, input, options, importFunc)
                   -- multiline macro def is to span lines.
                   local nextline
                   nextline, next_start = get_chunk()
-                  assert_parser(
-                    nextline,
-                    output,
-                    "unexpected EOF looking for end of multiline macro {" .. name .. "}",
-                    #output + 1)
+                  if not nextline then
+                    local res = concat(output)
+                    assert_parser(
+                      false,
+                      res,
+                      "unexpected EOF looking for end of multiline macro {" .. name .. "}",
+                      #res + 1)
+                  end
                   line = nextline
                   pos = 1
                 end
