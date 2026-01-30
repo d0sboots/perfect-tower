@@ -5,7 +5,7 @@ STDLIB = [===[
   local x_anchor = [==[{x_anchor}]==]\
   local y_anchor = [==[{y_anchor}]==]\
 \
-  function eq_part(term1, pos, anchor, mult)\
+  local function eq_part(term1, pos, anchor, mult)\
     local pos_num, anchor_num = tonumber(pos), tonumber(anchor)\
 \
     local diff = pos_num and anchor_num and pos_num - anchor_num or nil\
