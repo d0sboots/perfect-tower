@@ -194,6 +194,10 @@ async function importData(importCode) {
 }
 
 function formatError(results) {
+  if (typeof results[1] === "string") {
+    // Fallback for cases where something gets asserted directly
+    return [false, results[1]];
+  }
   // We get structured data back from lua because it knows how to point at
   // an error by byte offset, but only JS has the libraries to turn this
   // into glyph offsets.
