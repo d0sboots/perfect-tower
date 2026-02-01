@@ -376,7 +376,7 @@ function lexer(line, vars)
 			-- print (token.type, token.value);
 
 			if token.type == "close" then
-				if not node.parent then tokenError(token, "unmatched parenthesis") end
+				if not node.parent then tokenError(token, "unmatched closing parenthesis") end
 				consumeTokens(node);
 				
 				if node.args and #node.args == 1 and not node.func then
@@ -481,7 +481,7 @@ function lexer(line, vars)
 		end
 	end
 
-	if node.parent then error_lexer("unmatched parenthesis") end
+	if node.parent then tokenError(node.args[1].pos - 1, "unmatched opening parenthesis") end
 
 	node = node.args[1];
 

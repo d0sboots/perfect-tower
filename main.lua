@@ -145,6 +145,30 @@ local function handleOpenBrace(pattern, macroLine, pos, result, depth, opts)
   end
 end
 
+-- Skip "offset" characters at the end and then trim a preceding newline iff
+-- there is only whitespace between it and the last char.
+-- This is used to trim the trailing newline on multiline macro defs and
+-- calls, so that
+-- {macro(
+--     arg1,
+--     arg2,
+--     arg3)}
+-- and
+-- {macro(
+--     arg1,
+--     arg2,
+--     arg3
+-- )}
+-- evaluate the same.
+local function trimEndNl(str, offset)
+  str = sub(str, 1, -1 + offset)
+  local start = find(str, "\n[\t \v-\r]*$")
+  if start then
+    return sub(str, 1, start - 1)
+  end
+  return str
+end
+
 -- Returns the pair (macroLine, pos) containing the new line and parsing position.
 -- The line is typically the same, but may have been advanced.
 parseMacro = function(macroLine, pos, output, depth, opts)
@@ -232,12 +256,6 @@ parseMacro = function(macroLine, pos, output, depth, opts)
     pChar, macroLine, pos = handleOpenBrace(rawarg and "{}" or "{(,)}", macroLine, pos, result, depth, opts)
     if not pChar then
       -- End of line. Get more input, since non-simple macros can span lines.
-      if #result == 1 and result[1] == "\n" and not opts.no_eval then
-        -- If a new param (open paren or comma) is immediately followed by
-        -- newline, handleOpenBrace will only add that to result.
-        -- In this case, we want to swallow the initial newline.
-        result[1] = nil
-      end
       local nextline = opts.get_input()
       assert_parser(nextline, macroLine, "unexpected EOF getting args for {" .. macroName .. "}", #macroLine + 1)
       macroLine = nextline
@@ -273,7 +291,12 @@ parseMacro = function(macroLine, pos, output, depth, opts)
           if not rawarg then
             assert_parser(sub(arg, -1) == ")", macroLine, "trailing junk after macro call {" .. macroName .. "}", pos - 2)
           end
-          arg = sub(arg, 1, -2)  -- Trim the closing paren off
+          arg = trimEndNl(arg, -1)  -- Also trims the closing paren off
+          if byte(arg, 1, 1) == 0xa and not opts.no_eval then
+            -- If a new param (open paren or comma) is immediately followed by
+            -- newline, we want to swallow the initial newline.
+            arg = sub(arg, 2)
+          end
           args[#args+1] = arg
           if opts.no_eval then
             output[#output+1] = "{" .. macroName .. "(" .. concat(args, ",") .. ")}"
@@ -288,7 +311,13 @@ parseMacro = function(macroLine, pos, output, depth, opts)
         result[#result+1] = "("
       elseif pChar == "," then
         if nesting == 1 then
-          args[#args+1] = concat(result)
+          local arg = concat(result)
+          if byte(arg, 1, 1) == 0xa and not opts.no_eval then
+            -- If a new param (open paren or comma) is immediately followed by
+            -- newline, we want to swallow the initial newline.
+            arg = sub(arg, 2)
+          end
+          args[#args+1] = arg
           result = {}
         else
           result[#result+1] = ","
@@ -639,6 +668,7 @@ function compile(name, input, options, importFunc)
                 end
               end
               result = concat(output)
+              result = trimEndNl(result, 0)
               if byte(result, 1, 1) == 0xa then  -- \n
                 -- If the openeing brace is immediately followed by
                 -- newline, we want to swallow the initial newline.
@@ -1303,6 +1333,19 @@ return table.b
 #noop2(a) 
 {noop2()\
 }
+
+#noop3(a)={
+{a}
+   }
+:co{noop3()}{noop3(
+)}{noop3(
+
+   )\
+}nst int foo 1
+:const int bar 2{noop3(
+
+
+   )}:const int baz 3
 ]=], "EG11bHRpbGluZV90ZXN0w6AAAAAAAAAAAAIAAAAMZ2VuZXJpYy5nb3RvCGNvbnN0YW50AiIAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BA5cCAkLDAoAAcOgw6DDoA=="},
   }
   local new_import_tests = {

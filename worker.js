@@ -246,7 +246,7 @@ function formatError(results) {
       }
       output = output.slice(0, -1);
     } catch (ex) {
-      console.log(ex);
+      console.error(ex);
       if (!(ex instanceof TypeError)) {
         throw ex;
       }
@@ -571,6 +571,32 @@ function native_macros() {
     }
   }
 
+  // Skip "offset" characters at the end and then trim a preceding newline iff
+  // there is only whitespace between it and the last char.
+  // This is used to trim the trailing newline on multiline macro defs and
+  // calls, so that
+  // {macro(
+  //     arg1,
+  //     arg2,
+  //     arg3)}
+  // and
+  // {macro(
+  //     arg1,
+  //     arg2,
+  //     arg3
+  // )}
+  // evaluate the same.
+  const trimEndNl = (str, offset) => {
+    let i = str.length - 1 + offset;
+    while ("\t \v\f\r".includes(str[i])) {
+      --i;
+    }
+    if (str[i] === "\n") {
+      return str.slice(0, i);
+    }
+    return str.slice(0, str.length + offset);
+  }
+
   // Returns the tuple [macroLine, pos, output] containing the new line and parsing position.
   // The line is typically the same, but may have been advanced.
   function parseMacro(macroLine, pos, output, depth, opts) {
@@ -654,12 +680,6 @@ function native_macros() {
       [pChar, macroLine, pos, result] = handleOpenBrace(rawarg ? "{}" : "{(,)}", macroLine, pos, result, depth, opts);
       if (pChar == null) {
         // End of line. Get more input, since non-simple macros can span lines.
-        if (result === "\n" && !opts.no_eval) {
-          // If a new param (open paren or comma) is immediately followed by
-          // newline, handleOpenBrace will only add that to result.
-          // In this case, we want to swallow the initial newline.
-          result = "";
-        }
         const nextline = opts.get_input();
         assert_parser(nextline != null, macroLine, "unexpected EOF getting args for {" + macroName + "}", macroLine.length);
         macroLine = nextline;
@@ -692,7 +712,12 @@ function native_macros() {
             } else {
               assert_parser(result[result.length-1] === ")", macroLine, "trailing junk after macro call {" + macroName + "}", pos - 2);
             }
-            result = result.slice(0, -1);  // Trim the closing paren off
+            result = trimEndNl(result, -1);  // Also trims the closing paren off
+            if (result[0] === "\n" && !opts.no_eval) {
+              // If a new param (open paren or comma) is immediately followed by
+              // newline, we want to swallow the initial newline.
+              result = result.slice(1);
+            }
             args.push(result);
             if (opts.no_eval) {
               output += `{${macroName}(${args.join(",")})}`;
@@ -707,6 +732,11 @@ function native_macros() {
           result += "(";
         } else if (pChar === ",") {
           if (nesting === 1) {
+            if (result[0] === "\n" && !opts.no_eval) {
+              // If a new param (open paren or comma) is immediately followed by
+              // newline, we want to swallow the initial newline.
+              result = result.slice(1);
+            }
             args.push(result);
             result = "";
           } else {
@@ -933,6 +963,7 @@ function native_macros() {
                   pos = 0;
                 }
               }
+              output = trimEndNl(output, 0);
               if (output[0] === "\n") {
                 // If the openeing brace is immediately followed by
                 // newline, we want to swallow the initial newline.
