@@ -538,7 +538,11 @@ function native_macros() {
       result = lua.lua_pcall(L, 0, 1, 0);
       if (result === lua.LUA_OK) {
         // Replicate behavior of tostring(result or "")
-        const ret = lua.lua_toboolean(L, -1) ? fromluastr(luaL.luaL_tolstring(L, -1)) : "";
+        let ret = "";
+        if (lua.lua_toboolean(L, -1)) {
+          ret = fromluastr(luaL.luaL_tolstring(L, -1));
+          lua.lua_pop(L, 1); // luaL_tolstring pushes the value, unlike lua_tolstring.
+        }
         lua.lua_pop(L, 1);
         return ret;
       }

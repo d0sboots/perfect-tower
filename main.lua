@@ -1346,6 +1346,9 @@ return table.b
 
 
    )}:const int baz 3
+#part1 {lua(return "")}
+#part2 {part1}{part1}{part1}{part1}{part1}{part1}{part1}{part1}{part1}{part1}
+{part2}{part2}{part2}{part2}{part2}{part2}{part2}{part2}{part2}{part2}
 ]=], "EG11bHRpbGluZV90ZXN0w6AAAAAAAAAAAAIAAAAMZ2VuZXJpYy5nb3RvCGNvbnN0YW50AiIAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BA5cCAkLDAoAAcOgw6DDoA=="},
   }
   local new_import_tests = {
