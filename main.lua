@@ -1099,13 +1099,16 @@ function import(input)
           if type == "vec2" then
             type = "vector"
           end
+          local key = string.format(":%s %s %s", scope, type, var)
           if not variables[var] then
-            local key = string.format(":%s %s %s", scope, type, var)
             variables[var] = key
             num_vars = num_vars + 1
           end
 
-          return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var
+          -- Only use sugared form if this matches the previous definition
+          if variables[var] == key then
+            return func_name == "set" and string.format("%s = %s", var, stripParens(args[2])) or var
+          end
         end
       elseif not dynamicOperator and (func.name:sub(1,10) == "arithmetic" or func.name:sub(1,10) == "comparison") then
         return string.format("(%s)", table.concat(args, " "))
@@ -1266,6 +1269,7 @@ function unittest()
 "BHRlc3QAAAAAAAAAAAEAAAAObG9jYWwudmVjMi5zZXQIY29uc3RhbnQEA2Jhcghjb25zdGFudAUAAIBAAACAPw==",
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BAN7YX0=",
 "BHRlc3QAAAAAAAAAAAEAAAAMZ2VuZXJpYy5zdG9wCGNvbnN0YW50BIYHAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn/CgMKBwoLCg8KEwoXChsKHwojCicKKwovCjMKNwo7Cj8KQwpHCksKTwpTClcKWwpfCmMKZwprCm8Kcwp3CnsKfwqDCocKiwqPCpMKlwqbCp8KowqnCqsKrwqzCrcKuwq/CsMKxwrLCs8K0wrXCtsK3wrjCucK6wrvCvMK9wr7Cv8OAw4HDgsODw4TDhcOGw4fDiMOJw4rDi8OMw43DjsOPw5DDkcOSw5PDlMOVw5bDl8OYw5nDmsObw5zDncOew5/DoMOhw6LDo8Okw6XDpsOnw6jDqcOqw6vDrMOtw67Dr8Oww7HDssOzw7TDtcO2w7fDuMO5w7rDu8O8w73DvsO/xIDEgcSCxIPEhMSFxIbEh8SIxInEisSLxIzEjcSOxI/EkMSRxJLEk8SUxJXElsSXxJjEmcSaxJvEnMSdxJ7En8SgxKHEosSjxKTEpcSmxKfEqMSpxKrEq8SsxK3ErsSvxLDEscSyxLPEtMS1xLbEt8S4xLnEusS7xLzEvcS+xL/FgMWBxYLFg8WExYXFhsWHxYjFicWKxYvFjMWNxY7Fj8WQxZHFksWTxZTFlcWWxZfFmMWZxZrFm8WcxZ3FnsWfxaDFocWixaPFpMWlxabFp8WoxanFqsWrxazFrcWuxa/FsMWxxbLFs8W0xbXFtsW3xbjFucW6xbvFvMW9xb7Fv8aAxoHGgsaDxoTGhcaGxofGiMaJxorGi8aMxo3GjsaPxpDGkcaSxpPGlMaVxpbGl8aYxpnGmsabxpzGncaexp/GoMahxqLGo8akxqXGpsanxqjGqcaqxqvGrMatxq7Gr8awxrHGssazxrTGtca2xrfGuMa5xrrGu8a8xr3Gvsa/x4DHgceCx4PHhMeFx4bHh8eIx4nHiseLx4zHjceOx4/HkMeRx5LHk8eUx5XHlseXx5jHmceax5vHnMedx57Hn8egx6HHosejx6THpcemx6fHqMepx6rHq8esx63Hrsevx7DHsceyx7PHtMe1x7bHt8e4x7nHuse7x7zHvce+x7/IgPCfmIA=",
+"BHRlc3QAAAAAAAAAAAIAAAANbG9jYWwuaW50LnNldAhjb25zdGFudAQDZm9vCGNvbnN0YW50AgQAAAAOZ2xvYmFsLmludC5zZXQIY29uc3RhbnQEA2Zvbwhjb25zdGFudAIHAAAA",
   }
   local compile_tests = {macro_test = {[[
     ; Basic test of macros and macro functions
