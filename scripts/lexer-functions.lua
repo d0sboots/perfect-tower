@@ -4,6 +4,7 @@ FUNCTION = {}
 local strings = {
   window = {"towertesting", "tradingpost", "powerplant", "factory", "laboratory", "shipyard", "workshop", "arcade", "museum", "headquarters", "constructionfirm", "statueofcubos", "mine"},
   software = {"software.autoskip", "software.wavestreaming", "software.wavesurge", "software.criticalWavejump", "software.wavemomentum", "software.wavestorm", "software.wavepersistence", "software.waveinstability", "software.wavevortex", "software.wavecatalyst", "software.waveendurance", "software.newbounds", "software.wavemarathon", "software.wavecompression", "software.erasurge", "software.eraburst", "software.eraswirl", "software.wavehorizon", "software.nobounds","software.eratunneling", "software.wavebreach", "software.wavefloor", "software.erafloor", "software.erahorizon", "software.waverestart", "software.infinityhorizon"},
+  optionId = {"accessibility.photosensitivity", "ai.disableOnImport", "ai.hideActiveScripts", "ai.hideGlobalVariables", "boosts.global", "citizenName.show", "cloudService", "debugging.useFallbackLanguage", "discord.activity.enabled", "dynamicLighting", "gfx.floatingtext", "onlineServices", "rendering.stopUnfocused", "tooltips.modules", "tower.range.show", "towertesting.start.paused", "ui.dynamicScaling", "weather.show"},
 
 -- item list only needs to include uncraftable items not used to produce
   item = {"plate.rubber", "plate.rainbow", "essence.void", "circuit", "wire", "screw", "pipe", "ring", "block.dense", "plate.dense", "plate.circuit", "pumpkin.plate", "pumpkin.carved", "pumpkin.anti"},
@@ -61,6 +62,7 @@ VALIDATOR = {
 
   window = function(value) return stringValid("window", value, "Windows"); end,
   software = function(value) return stringValid("software", value, "Software"); end,
+  optionId = function(value) return stringValid("optionId", value, "Option Id"); end,
 
   sellx = function(value) return rangeValid(value, 0, 18); end,
   selly = function(value) return rangeValid(value, 0, 12); end,
@@ -213,7 +215,7 @@ local functions = {
     {ret="bool", name="game.isBossFight", args={}},
     {ret="bool", name="game.isTowerTesting", args={}},
     {ret="bool", name="game.pause.get", args={}, short="pause.get"},
-    {ret="bool", name="option.bool.get", args={"string:optionId"}, short="option.get"},
+    {ret="bool", name="option.bool.get", args={"string:optionId[optionId]"}, short="option.get"},
     {ret="int", name="game.enemies.count", args={}, short="enemies"},
     {ret="int", name="game.module.active.index", args={"string:moduleId"}, short="active.index"},
     {ret="int", name="game.module.active.count", args={}, short="active.count"},
