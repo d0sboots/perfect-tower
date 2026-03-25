@@ -213,6 +213,7 @@ local functions = {
     {ret="bool", name="game.isBossFight", args={}},
     {ret="bool", name="game.isTowerTesting", args={}},
     {ret="bool", name="game.pause.get", args={}, short="pause.get"},
+    {ret="bool", name="option.bool.get", args={"string:optionId"}, short="option.get"},
     {ret="int", name="game.enemies.count", args={}, short="enemies"},
     {ret="int", name="game.module.active.index", args={"string:moduleId"}, short="active.index"},
     {ret="int", name="game.module.active.count", args={}, short="active.count"},

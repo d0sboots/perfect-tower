@@ -16,6 +16,30 @@ const OLD_FORMAT = "v1";
 const MODERN_FORMAT = "v2";
 
 const PRIMITIVES = new Set(["string", "number", "boolean"]);
+
+// Lua represents strings as Uint8Arrays. For our purposes these are UTF-8
+// data, but it is unnecessary to encode/decode to UTF-8 with all the
+// expensive error-checking that implies. Instead, we encode/decode directly
+// as one-byte-per-character, which perfectly preserves the information and
+// also keeps the ASCII range intact. This is all we need for doing regex
+// searches, and anything else (like UTF-8 sequences) are just opaque blobs
+// in the string that can be copied.
+function toluastr(str) {
+  const data = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; ++i) {
+    data[i] = str.charCodeAt(i);
+  }
+  return data;
+}
+
+function fromluastr(data) {
+  let str = "";
+  for (let i = 0; i < data.length; ++i) {
+    str += String.fromCharCode(data[i]);
+  }
+  return str;
+}
+
 function pushValue(val) {
   if (Array.isArray(val)) {
     lua.lua_createtable(L, val.length, 0);
@@ -41,8 +65,13 @@ function pushValue(val) {
 // recursively. Arrays are determined by having no non-integer keys, and the
 // indices are shifted by 1.
 // Stack-neutral.
-function toValue(idx) {
+function toValue(idx, convert_string = true) {
   if (lua.lua_type(L, idx) !== lua.LUA_TTABLE) {
+    if (!convert_string && lua.lua_type(L, idx) == lua.LUA_TSTRING) {
+      // Use our own conversion function that returns "byte raw" strings
+      // instead of proper strings.
+      return fromluastr(lua.lua_tostring(L, idx));
+    }
     return interop.tojs(L, idx);
   }
   idx = lua.lua_absindex(L, idx);
@@ -50,7 +79,7 @@ function toValue(idx) {
   let isArray = true;
   lua.lua_pushnil(L);
   while (lua.lua_next(L, idx) !== 0) {
-    const value = toValue(-1);
+    const value = toValue(-1, convert_string);
     const key = interop.tojs(L, -2);
     if (isArray && (typeof key !== "number" || (key | 0) !== key || key < 1)) {
       isArray = false;
@@ -458,28 +487,6 @@ function native_macros() {
   // multiple imports.
   let line_number_start, line_number_end, compile_file;
 
-  // Lua represents strings as Uint8Arrays. For our purposes these are UTF-8
-  // data, but it is unnecessary to encode/decode to UTF-8 with all the
-  // expensive error-checking that implies. Instead, we encode/decode directly
-  // as one-byte-per-character, which perfectly preserves the information and
-  // also keeps the ASCII range intact. This is all we need for doing regex
-  // searches, and anything else (like UTF-8 sequences) are just opaque blobs
-  // in the string that can be copied.
-  function toluastr(str) {
-    const data = new Uint8Array(str.length);
-    for (let i = 0; i < str.length; ++i) {
-      data[i] = str.charCodeAt(i);
-    }
-    return data;
-  }
-  function fromluastr(data) {
-    let str = "";
-    for (let i = 0; i < data.length; ++i) {
-      str += String.fromCharCode(data[i]);
-    }
-    return str;
-  }
-
   function error_lexer(msg) {
     if (msg !== null && typeof msg !== "object") {
       msg = {msg: msg};
@@ -546,7 +553,7 @@ function native_macros() {
         lua.lua_pop(L, 1);
         return ret;
       }
-      const value = toValue(-1);
+      const value = toValue(-1, false);
       lua.lua_pop(L, 1);
       error_lexer(value);
     }}],
